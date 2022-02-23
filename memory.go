@@ -18,13 +18,6 @@ func (mem *Memory) Read(addr uint64, size uint8) uint64 {
 	case 16:
 		// Read and return 2 bits. Byte order is Little Endian.
 		// Read every byte and combine them into 1 uint64 by Or operator.
-		//
-		// Memo for me: Let's say mem[addr] is 5, mem[addr+1] is 25;
-		// uint64(mem.Mem[addr])   is 0b0000_0000_..._0000_0101
-		// uint64(mem.Mem[addr+1]) is 0b0000_0000_..._0001_1001
-		// What we want is: 0b0000_..._0001_1001_0000_0101 (combine them with Little Endian)
-		// For that purpose, shift left the second value so it will be: 0b0000_..._0001_1001_0000_0000
-		// Now we can just take their Or to combine them into 1.
 		return uint64(mem.Mem[addr]) | uint64(mem.Mem[addr+1])<<8
 	case 32:
 		// Read and return 4 bits. The same as the case above.
