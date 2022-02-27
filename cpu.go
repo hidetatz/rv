@@ -19,24 +19,6 @@ func (bus *Bus) Read(addr uint64, size uint8) uint64 {
 	return bus.Memory.Read(addr, size)
 }
 
-type Registers struct {
-	// every register size is 64bit
-	Regs [32]uint64
-}
-
-func NewRegisters() *Registers {
-	return &Registers{Regs: [32]uint64{}}
-}
-
-func (r *Registers) Read(i uint8) uint64 {
-	// assuming i is valid
-	return r.Regs[i]
-}
-
-func (r *Registers) Write(i uint8, val uint64) {
-	r.Regs[i] = val
-}
-
 type CPU struct {
 	// program counter
 	PC uint64
@@ -54,15 +36,22 @@ func NewCPU() *CPU {
 	}
 }
 
+func (cpu *CPU) Run() {
+	inst := cpu.Fetch(32)
+	dec := cpu.Decode32(inst)
+	cpu.Exec(dec)
+	cpu.PC += 4
+}
+
 // TODO: return Exception.
-func (cpu *CPU) Fetch(size uint8) uint64 {
-	if size != 32 && size != 16 {
+func (cpu *CPU) Fetch(size uint8) uint32 {
+	if size != 32 {
 		panic(fmt.Sprintf("invalid instruction size requested: %d", size))
 	}
 
 	// TODO: eventually physical <-> virtual memory translation must take place here.
 
-	return cpu.Bus.Read(cpu.PC, size)
+	return uint32(cpu.Bus.Read(cpu.PC, size))
 }
 
 // Decode32 decodes the given 32-bit instruction.
@@ -71,6 +60,7 @@ func (cpu *CPU) Fetch(size uint8) uint64 {
 // With that consideration, the raw instruction binary is also stored in the returned struct.
 // TODO: return Exception.
 func (cpu *CPU) Decode32(inst uint32) *Instruction {
+	fmt.Printf("%b\n", inst)
 	ins := &Instruction{
 		Raw:    inst,
 		Opcode: uint8(inst & 0x00_00_00_7f),
@@ -135,6 +125,8 @@ func (cpu *CPU) Exec(inst *Instruction) {
 	case InsAdd:
 		// Arithmetic overflow should be ignored according to the RISC-V spec.
 		// In Go, primitive + ignores the overflow.
+		fmt.Println("yay")
+		fmt.Println(cpu.Regs.Read(inst.Rs1) + cpu.Regs.Read(inst.Rs2))
 		cpu.Regs.Write(inst.Rd, cpu.Regs.Read(inst.Rs1)+cpu.Regs.Read(inst.Rs2))
 	case InsSub:
 		cpu.Regs.Write(inst.Rd, cpu.Regs.Read(inst.Rs1)-cpu.Regs.Read(inst.Rs2))

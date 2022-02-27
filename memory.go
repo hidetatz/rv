@@ -10,6 +10,10 @@ func NewMemory() *Memory {
 	return &Memory{Mem: [1024 * 1024]uint8{}}
 }
 
+func (mem *Memory) Set(data []uint8) {
+	copy(mem.Mem[:], data)
+}
+
 func (mem *Memory) Read(addr uint64, size uint8) uint64 {
 	switch size {
 	case 8:
