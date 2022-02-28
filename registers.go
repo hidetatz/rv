@@ -1,4 +1,4 @@
-package rv
+package main
 
 type Registers struct {
 	// every register size is 64bit

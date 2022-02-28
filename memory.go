@@ -1,4 +1,4 @@
-package rv
+package main
 
 // Memory is a DRAM emulator.
 type Memory struct {

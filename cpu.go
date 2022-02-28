@@ -1,4 +1,4 @@
-package rv
+package main
 
 import (
 	"fmt"
