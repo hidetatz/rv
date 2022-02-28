@@ -16,7 +16,7 @@ func main() {
 
 	file := *program
 	if file == "" {
-		fmt.Fprintf(os.Stderr, "Err: program must be passed\n")
+		fmt.Fprintf(os.Stderr, "Err: program must be passed with -p option\n")
 		os.Exit(1)
 	}
 
