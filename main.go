@@ -33,6 +33,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	emulator := New(buff)
+	emulator, err := New(buff)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Err: initialize program: %v\n", err)
+		os.Exit(1)
+	}
+
 	emulator.Start()
 }
