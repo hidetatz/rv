@@ -58,6 +58,7 @@ func (cpu *CPU) Run() {
 	// Exec
 	switch opcode {
 	case 0b011_0011:
+		// R
 		switch funct3 {
 		case 0b000:
 			switch funct7 {
@@ -65,8 +66,6 @@ func (cpu *CPU) Run() {
 				// add
 				// Arithmetic overflow should be ignored according to the RISC-V spec.
 				// In Go, primitive + ignores the overflow.
-				fmt.Println("yay")
-				fmt.Println(cpu.Regs.Read(rs1) + cpu.Regs.Read(rs2))
 				cpu.Regs.Write(rd, cpu.Regs.Read(rs1)+cpu.Regs.Read(rs2))
 			case 0b010_0000:
 				// sub
@@ -115,15 +114,39 @@ func (cpu *CPU) Run() {
 			// and
 			cpu.Regs.Write(rd, cpu.Regs.Read(rs1)&cpu.Regs.Read(rs2))
 		}
-	case 0b110_0111, 0b000_0011, 0b001_0011, 0b000_1111, 0b111_0011:
+	case 0b110_0111:
+		// I
+		// jalr
+		fallthrough
+	case 0b000_0011:
+		// I
+		fallthrough
+	case 0b001_0011:
+		// I
+		fallthrough
+	case 0b000_1111:
+		// I
+		fallthrough
+	case 0b111_0011:
+		// I
 		fallthrough
 	case 0b010_0011:
+		// S
 		fallthrough
 	case 0b110_0011:
+		// B
 		fallthrough
-	case 0b011_0111, 0b001_0111:
+	case 0b001_0111:
+		// U
+		// auipc
+		fallthrough
+	case pb011_0111:
+		// U
+		// lui
 		fallthrough
 	case 0b110_1111:
+		// J
+		// jal
 		fallthrough
 	default:
 		// TODO: define exception and return it
