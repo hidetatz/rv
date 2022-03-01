@@ -25,14 +25,14 @@ type CPU struct {
 	// System Bus
 	Bus *Bus
 
-	Regs *Registers
+	XRegs *Registers
 }
 
 func NewCPU() *CPU {
 	return &CPU{
-		PC:   0,
-		Bus:  NewBus(),
-		Regs: NewRegisters(),
+		PC:    0,
+		Bus:   NewBus(),
+		XRegs: NewRegisters(),
 	}
 }
 
@@ -66,53 +66,53 @@ func (cpu *CPU) Run() {
 				// add
 				// Arithmetic overflow should be ignored according to the RISC-V spec.
 				// In Go, primitive + ignores the overflow.
-				cpu.Regs.Write(rd, cpu.Regs.Read(rs1)+cpu.Regs.Read(rs2))
+				cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)+cpu.XRegs.Read(rs2))
 			case 0b010_0000:
 				// sub
-				cpu.Regs.Write(rd, cpu.Regs.Read(rs1)-cpu.Regs.Read(rs2))
+				cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)-cpu.XRegs.Read(rs2))
 			}
 		case 0b001:
 			// sll
 			// In RV64I, only the low 6 bits of rs2 are used as the shift amount
 			// This is the same as SRL and SRA
-			shift := cpu.Regs.Read(rs2) & 0b111111
-			cpu.Regs.Write(rd, cpu.Regs.Read(rs1)<<shift)
+			shift := cpu.XRegs.Read(rs2) & 0b111111
+			cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)<<shift)
 		case 0b010:
 			// slt
 			var v uint64 = 0
 			// must compare as two's complement
-			if int64(cpu.Regs.Read(rs1)) < int64(cpu.Regs.Read(rs2)) {
+			if int64(cpu.XRegs.Read(rs1)) < int64(cpu.XRegs.Read(rs2)) {
 				v = 1
 			}
-			cpu.Regs.Write(rd, v)
+			cpu.XRegs.Write(rd, v)
 		case 0b011:
 			// sltu
 			var v uint64 = 0
 			// must compare as unsigned val
-			if cpu.Regs.Read(rs1) < cpu.Regs.Read(rs2) {
+			if cpu.XRegs.Read(rs1) < cpu.XRegs.Read(rs2) {
 				v = 1
 			}
-			cpu.Regs.Write(rd, v)
+			cpu.XRegs.Write(rd, v)
 		case 0b100:
 			// xor
-			cpu.Regs.Write(rd, cpu.Regs.Read(rs1)^cpu.Regs.Read(rs2))
+			cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)^cpu.XRegs.Read(rs2))
 		case 0b101:
 			switch funct7 {
 			case 0b000_0000:
 				// srl
-				shift := cpu.Regs.Read(rs2) & 0b111111
-				cpu.Regs.Write(rd, cpu.Regs.Read(rs1)>>shift)
+				shift := cpu.XRegs.Read(rs2) & 0b111111
+				cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)>>shift)
 			case 0b010_0000:
 				// sra
-				shift := cpu.Regs.Read(rs2) & 0b111111
-				cpu.Regs.Write(rd, uint64(int64(cpu.Regs.Read(rs1))>>shift))
+				shift := cpu.XRegs.Read(rs2) & 0b111111
+				cpu.XRegs.Write(rd, uint64(int64(cpu.XRegs.Read(rs1))>>shift))
 			}
 		case 0b110:
 			// or
-			cpu.Regs.Write(rd, cpu.Regs.Read(rs1)|cpu.Regs.Read(rs2))
+			cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)|cpu.XRegs.Read(rs2))
 		case 0b111:
 			// and
-			cpu.Regs.Write(rd, cpu.Regs.Read(rs1)&cpu.Regs.Read(rs2))
+			cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)&cpu.XRegs.Read(rs2))
 		}
 	case 0b110_0111:
 		// I
@@ -128,51 +128,51 @@ func (cpu *CPU) Run() {
 			// addi
 			// sign extend
 			imm := uint64(int64(int32(inst)) >> 20)
-			cpu.Regs.Write(rd, imm+cpu.Regs.Read(rs1))
+			cpu.XRegs.Write(rd, imm+cpu.XRegs.Read(rs1))
 		case 0b010:
 			// slti
 			imm := uint64(int64(int32(inst)) >> 20)
 			var v uint64 = 0
 			// must compare as two's complement
-			if int64(cpu.Regs.Read(rs1)) < int64(imm) {
+			if int64(cpu.XRegs.Read(rs1)) < int64(imm) {
 				v = 1
 			}
-			cpu.Regs.Write(rd, v)
+			cpu.XRegs.Write(rd, v)
 		case 0b011:
 			// sltiu
 			imm := uint64(int64(int32(inst)) >> 20)
 			var v uint64 = 0
 			// must compare as two's complement
-			if cpu.Regs.Read(rs1) < imm {
+			if cpu.XRegs.Read(rs1) < imm {
 				v = 1
 			}
-			cpu.Regs.Write(rd, v)
+			cpu.XRegs.Write(rd, v)
 		case 0b100:
 			// xori
 			imm := uint64(int64(int32(inst)) >> 20)
-			cpu.Regs.Write(rd, cpu.Regs.Read(rs1)^imm)
+			cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)^imm)
 		case 0b110:
 			// ori
 			imm := uint64(int64(int32(inst)) >> 20)
-			cpu.Regs.Write(rd, cpu.Regs.Read(rs1)|imm)
+			cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)|imm)
 		case 0b111:
 			// andi
 			imm := uint64(int64(int32(inst)) >> 20)
-			cpu.Regs.Write(rd, cpu.Regs.Read(rs1)&imm)
+			cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)&imm)
 		case 0b001:
 			// slli
 			shamt := (inst >> 20) & 0b111111
-			cpu.Regs.Write(rd, cpu.Regs.Read(rs1)<<shamt)
+			cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)<<shamt)
 		case 0b101:
 			switch funct7 {
 			case 0b000_0000:
 				// srli
 				shamt := (inst >> 20) & 0b111111
-				cpu.Regs.Write(rd, cpu.Regs.Read(rs1)>>shamt)
+				cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)>>shamt)
 			case 0b010_0000:
 				// srai
 				shamt := (inst >> 20) & 0b111111
-				cpu.Regs.Write(rd, uint64(int64(cpu.Regs.Read(rs1))>>shamt))
+				cpu.XRegs.Write(rd, uint64(int64(cpu.XRegs.Read(rs1))>>shamt))
 			}
 		}
 		fallthrough
