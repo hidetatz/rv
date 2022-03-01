@@ -41,19 +41,19 @@ func (cpu *CPU) Run() {
 
 	fmt.Printf("[debug] PC: 0x%x\n", cpu.PC)
 
-	// Fetch
-	inst := uint32(cpu.Bus.Read(cpu.PC, 32))
+	// Fetch 32-bit
+	inst := cpu.Bus.Read(cpu.PC, 32)
 	fmt.Printf("[debug] fetched: %b\n", inst)
 
 	// Decodes the fetched 32-bit instruction.
 	// Note that rd, funct3, rs1... does not always match the instruction format,
 	// but they are decoded only by its location in the 32-bit.
-	opcode := uint8(inst & 0x00_00_00_7f)
-	rd := uint8(inst & 0x00_00_0F_80 >> 7)
-	funct3 := uint8(inst & 0x00_00_70_00 >> 12)
-	rs1 := uint8(inst & 0x00_0F_80_00 >> 15)
-	rs2 := uint8(inst & 0x01_F0_00_00 >> 20)
-	funct7 := uint8(inst & 0xFE_00_00_00 >> 25)
+	opcode := inst & 0x00_00_00_7f
+	rd := inst & 0x00_00_0F_80 >> 7
+	funct3 := inst & 0x00_00_70_00 >> 12
+	rs1 := inst & 0x00_0F_80_00 >> 15
+	rs2 := inst & 0x01_F0_00_00 >> 20
+	funct7 := inst & 0xFE_00_00_00 >> 25
 
 	// Exec
 	switch opcode {
@@ -123,6 +123,58 @@ func (cpu *CPU) Run() {
 		fallthrough
 	case 0b001_0011:
 		// I
+		switch funct3 {
+		case 0b000:
+			// addi
+			// sign extend
+			imm := uint64(int64(int32(inst)) >> 20)
+			cpu.Regs.Write(rd, imm+cpu.Regs.Read(rs1))
+		case 0b010:
+			// slti
+			imm := uint64(int64(int32(inst)) >> 20)
+			var v uint64 = 0
+			// must compare as two's complement
+			if int64(cpu.Regs.Read(rs1)) < int64(imm) {
+				v = 1
+			}
+			cpu.Regs.Write(rd, v)
+		case 0b011:
+			// sltiu
+			imm := uint64(int64(int32(inst)) >> 20)
+			var v uint64 = 0
+			// must compare as two's complement
+			if cpu.Regs.Read(rs1) < imm {
+				v = 1
+			}
+			cpu.Regs.Write(rd, v)
+		case 0b100:
+			// xori
+			imm := uint64(int64(int32(inst)) >> 20)
+			cpu.Regs.Write(rd, cpu.Regs.Read(rs1)^imm)
+		case 0b110:
+			// ori
+			imm := uint64(int64(int32(inst)) >> 20)
+			cpu.Regs.Write(rd, cpu.Regs.Read(rs1)|imm)
+		case 0b111:
+			// andi
+			imm := uint64(int64(int32(inst)) >> 20)
+			cpu.Regs.Write(rd, cpu.Regs.Read(rs1)&imm)
+		case 0b001:
+			// slli
+			shamt := (inst >> 20) & 0b111111
+			cpu.Regs.Write(rd, cpu.Regs.Read(rs1)<<shamt)
+		case 0b101:
+			switch funct7 {
+			case 0b000_0000:
+				// srli
+				shamt := (inst >> 20) & 0b111111
+				cpu.Regs.Write(rd, cpu.Regs.Read(rs1)>>shamt)
+			case 0b010_0000:
+				// srai
+				shamt := (inst >> 20) & 0b111111
+				cpu.Regs.Write(rd, uint64(int64(cpu.Regs.Read(rs1))>>shamt))
+			}
+		}
 		fallthrough
 	case 0b000_1111:
 		// I
@@ -140,7 +192,7 @@ func (cpu *CPU) Run() {
 		// U
 		// auipc
 		fallthrough
-	case pb011_0111:
+	case 0b011_0111:
 		// U
 		// lui
 		fallthrough
