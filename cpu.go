@@ -39,9 +39,11 @@ func NewCPU() *CPU {
 func (cpu *CPU) Run() {
 	// TODO: eventually physical <-> virtual memory translation must take place here.
 
+	fmt.Printf("[debug] PC: 0x%x\n", cpu.PC)
+
 	// Fetch
 	inst := uint32(cpu.Bus.Read(cpu.PC, 32))
-	fmt.Printf("fetched: %b\n", inst)
+	fmt.Printf("[debug] fetched: %b\n", inst)
 
 	// Decodes the fetched 32-bit instruction.
 	// Note that rd, funct3, rs1... does not always match the instruction format,

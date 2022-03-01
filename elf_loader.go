@@ -29,9 +29,12 @@ func LoadElf(data []uint8, memory *Memory) (uint64, error) {
 			shOffset := read64(data, offset+24)
 			shSize := read64(data, offset+32)
 
+			fmt.Printf("[debug] shAddr: %x, shOffset: %x, shSize: %x\n", shAddr, shOffset, shSize)
+
 			if shAddr >= 0x8000_0000 && shOffset > 0 && shSize > 0 {
 				for j := 0; j < int(shSize); j++ {
 					memory.Write(shAddr+uint64(j), uint64(data[shOffset+uint64(j)]), 8)
+					fmt.Printf("[debug] writing %08b at %x\n", data[shOffset+uint64(j)], shAddr+uint64(j))
 				}
 			}
 		}
