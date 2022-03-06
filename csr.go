@@ -1,72 +1,86 @@
 package main
 
-type CSR struct {
-	// There are 4096 (2 ^ 12) control status registers and
-	// each of them is 32-bit.
-	Regs [4096]uint32
-}
-
 const (
-	// well-known CSRs
-	// Mxxx represents Machine status register.
+	// The number of CSR registers.
+	CSRRegsCount = 4096
 
-	// CsrMSTATUS represents the current processor state.
+	// well-known CSRs for Machine-level.
+	// Note that MXXX starts from 0x300.
+
+	// Read-only CSRs.
+	CsrMVENDORID = 0xf11
+	CsrMARCHID   = 0xf12
+	CsrMIMPID    = 0xf13
+	CsrMHARTID   = 0xf14
+
+	// Normal machine-level CSRs.
 	CsrMSTATUS = 0x300
+	CsrMIE     = 0x304
+	CsrMTVEC   = 0x305
+	CsrMEPC    = 0x341
+	CsrMCAUSE  = 0x342
+	CsrMTVAL   = 0x343
+	CsrMIP     = 0x344
 
-	// CsrMIE tells if interrupt is enabled.
-	CsrMIE = 0x304
-
-	// CsrMTVEC stores the pc to jump on an interrupt/exception.
-	CsrMTVEC = 0x305
-
-	// CsrMEPC stores the location which an exception occurs.
-	// mret uses this to get back to the original place.
-	CsrMEPC = 0x341
-
-	// CsrMCAUSE represents the reason why an interrupt/exception occured.
-	// If it is interrupt, the top bit will be 1.
-	CsrMCAUSE = 0x342
-
-	// CsrMTVAL stores a value, what is stored is determined by the type of the exception.
-	CsrMTVAL = 0x343
-
-	// CsrMIP represents the status of interrupt wait queue.
-	CsrMIP = 0x344
-
-	// Sxxx represents supervisor status register.
-
+	// well-known CSRs for Supervisor-level.
 	CsrSSTATUS = 0x100
-
-	// Other stuffs
+	CsrSIE     = 0x104
+	CsrSIP     = 0x144
 
 	// Named SSTATUS fields.
-	CsrSstatusSie  = 0x2                       // sstatus[1]
-	CsrSstatusSpie = 0x20                      // sstatus[5]
-	CsrSstatusUbe  = 0x40                      // sstatus[6]
-	CsrSstatusSpp  = 0x10_0                    // sstatus[8]
-	CsrSstatusFs   = 0x60_00                   // sstatus[14:13]
-	CsrSstatusXs   = 0x18_00_0                 // sstatus[16:15]
-	CsrSstatusSum  = 0x40_00_0                 // sstatus[18]
-	CsrSstatusMxr  = 0x80_00_0                 // sstatus[19]
-	CsrSstatusUxl  = 0x3_00_00_00_00           // sstatus[33:32]
-	CsrSstatusSd   = 0x80_00_00_00_00_00_00_00 // sstatus[63]
-	CsrSstatusMask = SSTATUS_SIE | SSTATUS_SPIE | SSTATUS_UBE | SSTATUS_SPP | SSTATUS_FS |
-		SSTATUS_XS | SSTATUS_SUM | SSTATUS_MXR | SSTATUS_UXL | SSTATUS_SD
+	CsrSstatusUie  = 0x0000_0000_0000_0001 // sstatus[0]
+	CsrSstatusSie  = 0x0000_0000_0000_0002 // sstatus[1]
+	CsrSstatusUpie = 0x0000_0000_0000_0010 // sstatus[4]
+	CsrSstatusSpie = 0x0000_0000_0000_0020 // sstatus[5]
+	CsrSstatusSpp  = 0x0000_0000_0000_0100 // sstatus[8]
+	CsrSstatusFs   = 0x0000_0000_0000_6000 // sstatus[14:13]
+	CsrSstatusXs   = 0x0000_0000_0001_8000 // sstatus[16:15]
+	CsrSstatusSum  = 0x0000_0000_0004_0000 // sstatus[18]
+	CsrSstatusMxr  = 0x0000_0000_0008_0000 // sstatus[19]
+	CsrSstatusUxl  = 0x0000_0003_0000_0000 // sstatus[33:32]
+	CsrSstatusSd   = 0x8000_0000_0000_0000 // sstatus[63]
+	// CsrStatusMask is the location which SSTATUS can access (= the access level is under the supervisor).
+	CsrSstatusMask = CsrSstatusUie | CsrSstatusSie | CsrSstatusUpie | CsrSstatusSpie | CsrSstatusSpp | CsrSstatusFs | CsrSstatusXs | CsrSstatusSum | CsrSstatusMxr | CsrSstatusUxl | CsrSstatusSd
+
+	// Named SIP fields.
+	CarSipUSIP = 0x0000_0000_0000_0001 // sstatus[0]
+	CarSipSSIP = 0x0000_0000_0000_0002 // sstatus[1]
+	CarSipUTIP = 0x0000_0000_0000_0010 // sstatus[4]
+	CarSipSTIP = 0x0000_0000_0000_0020 // sstatus[5]
+	CarSipUEIP = 0x0000_0000_0000_0100 // sstatus[8]
+	CarSipSEIP = 0x0000_0000_0000_0200 // sstatus[9]
+	// CsrSipMask is the location which SIP can access (= the access level is under the supervisor).
+	CsrSipMask = CarSipUSIP | CarSipSSIP | CarSipUTIP | CarSipSTIP | CarSipUEIP | CarSipSEIP
+
+	// Named SIE fields.
+	CarSieUSIE = 0x0000_0000_0000_0001 // sstatus[0]
+	CarSieSSIE = 0x0000_0000_0000_0002 // sstatus[1]
+	CarSieUTIE = 0x0000_0000_0000_0010 // sstatus[4]
+	CarSieSTIE = 0x0000_0000_0000_0020 // sstatus[5]
+	CarSieUEIE = 0x0000_0000_0000_0100 // sstatus[8]
+	CarSieSEIE = 0x0000_0000_0000_0200 // sstatus[9]
+	// CsrSieMask is the location which SIE can access (= the access level is under the supervisor).
+	CsrSieMask = CarSieUSIE | CarSieSSIE | CarSieUTIE | CarSieSTIE | CarSieUEIE | CarSieSEIE
 )
 
-func NewCSR() *CSR {
-	return &CSR{Regs: [4096]uint32{}}
-}
-
-// Read reads CSR by the given address.
-// This method does not validate the CPU mode.
-// CSR address is 12-bit.
-func (csr *CSR) Read(addr uint16) uint32 {
+// ReadCSR reads CSR by the given address. CSR address is 12-bit.
+// This method does not validate the CPU mode. The validation should be the caller's responsibility.
+func ReadCSR(csr [CSRRegsCount]uint64, addr uint16) uint64 {
 	// assuming addr is small enough, not checking the index
 
-	// when SSTATUS is requested, masked MSTATUS should be returned because
-	// SSTATUS is a subset of MSTATUS. See RISC-V Privileged Architecture Spec 4.1
+	// when any of SSTATUS, SIP, SIE is requested, masked MSTATUS, MIP, MIE should be returned because they are subsets.
+	// See RISC-V Privileged Architecture Spec 4.1
 	if addr == CsrSSTATUS {
-		return csr.Read(CsrMSTATUS) & CsrSSTATUSMask
+		return csr[CsrMSTATUS] & CsrSstatusMask
 	}
+
+	if addr == CsrSIP {
+		return csr[CsrMIP] & CsrSipMask
+	}
+
+	if addr == CsrSIE {
+		return csr[CsrMIE] & CsrSieMask
+	}
+
+	return csr[addr]
 }
