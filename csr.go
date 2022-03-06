@@ -43,24 +43,24 @@ const (
 	CsrSstatusMask = CsrSstatusUie | CsrSstatusSie | CsrSstatusUpie | CsrSstatusSpie | CsrSstatusSpp | CsrSstatusFs | CsrSstatusXs | CsrSstatusSum | CsrSstatusMxr | CsrSstatusUxl | CsrSstatusSd
 
 	// Named SIP fields.
-	CarSipUSIP = 0x0000_0000_0000_0001 // sstatus[0]
-	CarSipSSIP = 0x0000_0000_0000_0002 // sstatus[1]
-	CarSipUTIP = 0x0000_0000_0000_0010 // sstatus[4]
-	CarSipSTIP = 0x0000_0000_0000_0020 // sstatus[5]
-	CarSipUEIP = 0x0000_0000_0000_0100 // sstatus[8]
-	CarSipSEIP = 0x0000_0000_0000_0200 // sstatus[9]
+	CsrSipUSIP = 0x0000_0000_0000_0001 // sip[0]
+	CsrSipSSIP = 0x0000_0000_0000_0002 // sip[1]
+	CsrSipUTIP = 0x0000_0000_0000_0010 // sip[4]
+	CsrSipSTIP = 0x0000_0000_0000_0020 // sip[5]
+	CsrSipUEIP = 0x0000_0000_0000_0100 // sip[8]
+	CsrSipSEIP = 0x0000_0000_0000_0200 // sip[9]
 	// CsrSipMask is the location which SIP can access (= the access level is under the supervisor).
-	CsrSipMask = CarSipUSIP | CarSipSSIP | CarSipUTIP | CarSipSTIP | CarSipUEIP | CarSipSEIP
+	CsrSipMask = CsrSipUSIP | CsrSipSSIP | CsrSipUTIP | CsrSipSTIP | CsrSipUEIP | CsrSipSEIP
 
 	// Named SIE fields.
-	CarSieUSIE = 0x0000_0000_0000_0001 // sstatus[0]
-	CarSieSSIE = 0x0000_0000_0000_0002 // sstatus[1]
-	CarSieUTIE = 0x0000_0000_0000_0010 // sstatus[4]
-	CarSieSTIE = 0x0000_0000_0000_0020 // sstatus[5]
-	CarSieUEIE = 0x0000_0000_0000_0100 // sstatus[8]
-	CarSieSEIE = 0x0000_0000_0000_0200 // sstatus[9]
+	CsrSieUSIE = 0x0000_0000_0000_0001 // sie[0]
+	CsrSieSSIE = 0x0000_0000_0000_0002 // sie[1]
+	CsrSieUTIE = 0x0000_0000_0000_0010 // sie[4]
+	CsrSieSTIE = 0x0000_0000_0000_0020 // sie[5]
+	CsrSieUEIE = 0x0000_0000_0000_0100 // sie[8]
+	CsrSieSEIE = 0x0000_0000_0000_0200 // sie[9]
 	// CsrSieMask is the location which SIE can access (= the access level is under the supervisor).
-	CsrSieMask = CarSieUSIE | CarSieSSIE | CarSieUTIE | CarSieSTIE | CarSieUEIE | CarSieSEIE
+	CsrSieMask = CsrSieUSIE | CsrSieSSIE | CsrSieUTIE | CsrSieSTIE | CsrSieUEIE | CsrSieSEIE
 )
 
 // ReadCSR reads CSR by the given address. CSR address is 12-bit.
