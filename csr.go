@@ -130,5 +130,5 @@ func ReadCSR(csr [CSRRegsCount]uint64, addr uint16) uint64 {
 
 // WriteCSR write the given value to the CSR.
 // This method does not validate the CPU mode. The validation should be the caller's responsibility.
-func WriteCSR(csr [CSRRegsCount]uint64, addr uint16) uint64 {
+func WriteCSR(csr [CSRRegsCount]uint64, addr uint16, value uint64) {
 }
