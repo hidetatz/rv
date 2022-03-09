@@ -102,13 +102,13 @@ func ReadCSR(csr [CSRRegsCount]uint64, addr uint16) uint64 {
 	// assuming addr is small enough, not checking the index
 
 	if addr == CsrFFLAGS {
-		// FCSR consists of FRM + FFLAGS
-		return csr[CsrFCSR] & 0b1_1111
+		// FCSR consists of FRM (3-bit) + FFLAGS (5-bit)
+		return csr[CsrFCSR] & 0x1f
 	}
 
 	if addr == CsrFRM {
-		// FCSR consists of FRM + FFLAGS
-		return (csr[CsrFCSR] & 0b1110_0000) >> 5
+		// FCSR consists of FRM (3-bit) + FFLAGS (5-bit)
+		return (csr[CsrFCSR] & 0xe0) >> 5
 	}
 
 	// when any of SSTATUS, SIP, SIE is requested, masked MSTATUS, MIP, MIE should be returned because they are subsets.
@@ -131,4 +131,17 @@ func ReadCSR(csr [CSRRegsCount]uint64, addr uint16) uint64 {
 // WriteCSR write the given value to the CSR.
 // This method does not validate the CPU mode. The validation should be the caller's responsibility.
 func WriteCSR(csr [CSRRegsCount]uint64, addr uint16, value uint64) {
+	if addr == CsrFFLAGS {
+		// FCSR consists of FRM (3-bit) + FFLAGS (5-bit)
+		csr[CsrFCSR] &= ^uint64(0x1f) // clear fcsr[4:0]
+		csr[CsrFCSR] |= value & 0x1f  // write the value[4:0] to the fcsr[4:0]
+	}
+
+	if addr == CsrFRM {
+		// FCSR consists of FRM (3-bit) + FFLAGS (5-bit)
+		csr[CsrFCSR] &= ^uint64(0xe0)       // clear fcsr[7:5]
+		csr[CsrFCSR] |= (value << 5) & 0xe0 // write the value[2:0] to the fcsr[7:5]
+	}
+
+	csr[addr] = value
 }
