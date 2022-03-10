@@ -1,5 +1,7 @@
 package main
 
+type CSR [CSRRegsCount]uint64
+
 const (
 	// The number of CSR registers.
 	CSRRegsCount = 4096
@@ -96,9 +98,9 @@ const (
 	CsrSieMask = CsrSieUSIE | CsrSieSSIE | CsrSieUTIE | CsrSieSTIE | CsrSieUEIE | CsrSieSEIE
 )
 
-// ReadCSR reads CSR by the given address. CSR address is 12-bit.
+// Read reads CSR by the given address. CSR address is 12-bit.
 // This method does not validate the CPU mode. The validation should be the caller's responsibility.
-func ReadCSR(csr [CSRRegsCount]uint64, addr uint16) uint64 {
+func (csr CSR) Read(addr uint16) uint64 {
 	// assuming addr is small enough, not checking the index
 
 	if addr == CsrFFLAGS {
@@ -130,17 +132,37 @@ func ReadCSR(csr [CSRRegsCount]uint64, addr uint16) uint64 {
 
 // WriteCSR write the given value to the CSR.
 // This method does not validate the CPU mode. The validation should be the caller's responsibility.
-func WriteCSR(csr [CSRRegsCount]uint64, addr uint16, value uint64) {
+func (csr CSR) Write(addr uint16, value uint64) {
 	if addr == CsrFFLAGS {
 		// FCSR consists of FRM (3-bit) + FFLAGS (5-bit)
 		csr[CsrFCSR] &= ^uint64(0x1f) // clear fcsr[4:0]
 		csr[CsrFCSR] |= value & 0x1f  // write the value[4:0] to the fcsr[4:0]
+		return
 	}
 
 	if addr == CsrFRM {
 		// FCSR consists of FRM (3-bit) + FFLAGS (5-bit)
 		csr[CsrFCSR] &= ^uint64(0xe0)       // clear fcsr[7:5]
 		csr[CsrFCSR] |= (value << 5) & 0xe0 // write the value[2:0] to the fcsr[7:5]
+		return
+	}
+
+	if addr == CsrSSTATUS {
+		// SSTATUS is a subset of MSTATUS
+		csr[CsrMSTATUS] &= ^uint64(CsrSstatusMask) // clear mask
+		csr[CsrMSTATUS] |= value & CsrSstatusMask  // write only mask
+	}
+
+	if addr == CsrSIE {
+		// SIE is a subset of MIE
+		csr[CsrMIE] &= ^uint64(CsrSieMask)
+		csr[CsrMIE] |= value & CsrSieMask
+	}
+
+	if addr == CsrSIP {
+		// SIE is a subset of MIE
+		csr[CsrMIP] &= ^uint64(CsrSieMask)
+		csr[CsrMIP] |= value & CsrSieMask
 	}
 
 	csr[addr] = value
