@@ -63,8 +63,6 @@ func (cpu *CPU) Run() {
 			switch funct7 {
 			case 0b000_0000:
 				// add
-				// Arithmetic overflow should be ignored according to the RISC-V spec.
-				// In Go, primitive + ignores the overflow.
 				cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)+cpu.XRegs.Read(rs2))
 			case 0b010_0000:
 				// sub
@@ -73,13 +71,11 @@ func (cpu *CPU) Run() {
 		case 0b001:
 			// sll
 			// In RV64I, only the low 6 bits of rs2 are used as the shift amount
-			// This is the same as SRL and SRA
 			shift := cpu.XRegs.Read(rs2) & 0b111111
 			cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)<<shift)
 		case 0b010:
 			// slt
 			var v uint64 = 0
-			// must compare as two's complement
 			if int64(cpu.XRegs.Read(rs1)) < int64(cpu.XRegs.Read(rs2)) {
 				v = 1
 			}
@@ -87,7 +83,6 @@ func (cpu *CPU) Run() {
 		case 0b011:
 			// sltu
 			var v uint64 = 0
-			// must compare as unsigned val
 			if cpu.XRegs.Read(rs1) < cpu.XRegs.Read(rs2) {
 				v = 1
 			}
@@ -115,15 +110,16 @@ func (cpu *CPU) Run() {
 		}
 	case 0b110_0111:
 		// jalr
-		fallthrough
+		tmp := cpu.PC + 4
+		offset := uint64(int64(int32(inst)) >> 20)
+		cpu.PC = ((cpu.XRegs.Read(rs1) + offset) >> 1) << 1 // mask
+		cpu.XRegs.Write(rd, tmp)
 	case 0b000_0011:
 		switch funct3 {
 		case 0b000:
 			// lb
-			// sign extend
 			offset := uint64(int64(int32(inst)) >> 20)
 			v := cpu.Bus.Read(cpu.XRegs.Read(rs1)+offset, 8)
-			// sign extend
 			cpu.XRegs.Write(rd, uint64(int64(int8(v))))
 		case 0b001:
 			// lh
@@ -138,23 +134,19 @@ func (cpu *CPU) Run() {
 			cpu.XRegs.Write(rd, uint64(int64(int32(v))))
 		case 0b100:
 			// lbu
-			// sign extend
 			offset := uint64(int64(int32(inst)) >> 20)
 			v := cpu.Bus.Read(cpu.XRegs.Read(rs1)+offset, 8)
 			cpu.XRegs.Write(rd, v)
 		case 0b101:
 			// lhu
-			// sign extend
 			offset := uint64(int64(int32(inst)) >> 20)
 			v := cpu.Bus.Read(cpu.XRegs.Read(rs1)+offset, 16)
 			cpu.XRegs.Write(rd, v)
 		}
-		fallthrough
 	case 0b001_0011:
 		switch funct3 {
 		case 0b000:
 			// addi
-			// sign extend
 			imm := uint64(int64(int32(inst)) >> 20)
 			cpu.XRegs.Write(rd, imm+cpu.XRegs.Read(rs1))
 		case 0b010:
@@ -203,9 +195,15 @@ func (cpu *CPU) Run() {
 				cpu.XRegs.Write(rd, uint64(int64(cpu.XRegs.Read(rs1))>>shamt))
 			}
 		}
-		fallthrough
 	case 0b000_1111:
-		fallthrough
+		switch funct3 {
+		case 0b000:
+			// fence
+			// Do nothing because rv currently does not reorder the instructions for optimizations.
+		case 0b001:
+			// fence.i
+			// Do nothing because rv currently does not reorder the instructions for optimizations.
+		}
 	case 0b111_0011:
 		fallthrough
 	case 0b010_0011:
@@ -214,7 +212,8 @@ func (cpu *CPU) Run() {
 		fallthrough
 	case 0b001_0111:
 		// auipc
-		fallthrough
+		imm := uint64(int64(int32(inst & 0xfffff000)))
+		cpu.XRegs.Write(rd, cpu.PC+imm)
 	case 0b011_0111:
 		// lui
 		fallthrough
