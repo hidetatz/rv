@@ -19,12 +19,23 @@ func (bus *Bus) Read(addr uint64, size uint8) uint64 {
 	return bus.Memory.Read(addr, size)
 }
 
+type Mode uint8
+
+const (
+	User Mode = iota + 1
+	Supervisor
+	Machine
+)
+
 type CPU struct {
 	// program counter
 	PC uint64
 	// System Bus
 	Bus *Bus
+	// CPU mode
+	Mode Mode
 
+	// Registers
 	XRegs *Registers
 }
 
@@ -112,7 +123,7 @@ func (cpu *CPU) Run() {
 		// jalr
 		tmp := cpu.PC + 4
 		offset := uint64(int64(int32(inst)) >> 20)
-		cpu.PC = ((cpu.XRegs.Read(rs1) + offset) >> 1) << 1 // mask
+		cpu.PC = (((cpu.XRegs.Read(rs1) + offset) >> 1) << 1) - 4 // sub in advance as the PC is incremented later
 		cpu.XRegs.Write(rd, tmp)
 	case 0b000_0011:
 		switch funct3 {
@@ -205,7 +216,38 @@ func (cpu *CPU) Run() {
 			// Do nothing because rv currently does not reorder the instructions for optimizations.
 		}
 	case 0b111_0011:
-		fallthrough
+		switch funct3 {
+		case 0b000:
+			switch rs2 {
+			case 0b000:
+				// ecall
+				switch cpu.Mode {
+				case User:
+					return ExcpEnvironmentCallFromUmode
+				case SuperVisor:
+					return ExcpEnvironmentCallFromSmode
+				case Machine:
+					return ExcpEnvironmentCallFromMmode
+				default:
+					return ExcpIllegalInstruction
+				}
+			case eb001:
+				// ebreak
+				return ExcpBreakpoint
+			}
+		case 0b001:
+			// csrrw
+		case 0b010:
+			// csrrs
+		case 0b011:
+			// csrrc
+		case 0b101:
+			// csrr2wi
+		case 0b110:
+			// csrrsi
+		case 0b111:
+			// csrrci
+		}
 	case 0b010_0011:
 		fallthrough
 	case 0b110_0011:
@@ -216,14 +258,21 @@ func (cpu *CPU) Run() {
 		cpu.XRegs.Write(rd, cpu.PC+imm)
 	case 0b011_0111:
 		// lui
-		fallthrough
+		imm := uint64(int64(int32(inst & 0xfffff000)))
+		cpu.XRegs.Write(rd, imm)
 	case 0b110_1111:
 		// jal
-		fallthrough
+		tmp := cpu.PC + 4
+		cpu.XRegs.Write(rd, tmp)
+		offset := uint64(int64(int32(inst&0x80_00_00_00))) |
+			(inst & 0xf_f0_00) |
+			((inst >> 9) & 0x8_00) |
+			(inst >> 20 & 0x7_fe)
+		cpu.PC = offset - 4 // sub in advance as the PC is incremented later
 	default:
-		// TODO: define exception and return it
-		panic(fmt.Sprintf("unknown instruction: %b", inst))
+		return ExcpIllegalInstruction
 	}
 
 	cpu.PC += 4
+	return nil
 }
