@@ -58,7 +58,6 @@ func (cpu *CPU) Run() {
 	// Exec
 	switch opcode {
 	case 0b011_0011:
-		// R
 		switch funct3 {
 		case 0b000:
 			switch funct7 {
@@ -115,14 +114,43 @@ func (cpu *CPU) Run() {
 			cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)&cpu.XRegs.Read(rs2))
 		}
 	case 0b110_0111:
-		// I
 		// jalr
 		fallthrough
 	case 0b000_0011:
-		// I
+		switch funct3 {
+		case 0b000:
+			// lb
+			// sign extend
+			offset := uint64(int64(int32(inst)) >> 20)
+			v := cpu.Bus.Read(cpu.XRegs.Read(rs1)+offset, 8)
+			// sign extend
+			cpu.XRegs.Write(rd, uint64(int64(int8(v))))
+		case 0b001:
+			// lh
+			offset := uint64(int64(int32(inst)) >> 20)
+			v := cpu.Bus.Read(cpu.XRegs.Read(rs1)+offset, 16)
+			cpu.XRegs.Write(rd, v)
+			cpu.XRegs.Write(rd, uint64(int64(int16(v))))
+		case 0b010:
+			// lw
+			offset := uint64(int64(int32(inst)) >> 20)
+			v := cpu.Bus.Read(cpu.XRegs.Read(rs1)+offset, 32)
+			cpu.XRegs.Write(rd, uint64(int64(int32(v))))
+		case 0b100:
+			// lbu
+			// sign extend
+			offset := uint64(int64(int32(inst)) >> 20)
+			v := cpu.Bus.Read(cpu.XRegs.Read(rs1)+offset, 8)
+			cpu.XRegs.Write(rd, v)
+		case 0b101:
+			// lhu
+			// sign extend
+			offset := uint64(int64(int32(inst)) >> 20)
+			v := cpu.Bus.Read(cpu.XRegs.Read(rs1)+offset, 16)
+			cpu.XRegs.Write(rd, v)
+		}
 		fallthrough
 	case 0b001_0011:
-		// I
 		switch funct3 {
 		case 0b000:
 			// addi
@@ -177,27 +205,20 @@ func (cpu *CPU) Run() {
 		}
 		fallthrough
 	case 0b000_1111:
-		// I
 		fallthrough
 	case 0b111_0011:
-		// I
 		fallthrough
 	case 0b010_0011:
-		// S
 		fallthrough
 	case 0b110_0011:
-		// B
 		fallthrough
 	case 0b001_0111:
-		// U
 		// auipc
 		fallthrough
 	case 0b011_0111:
-		// U
 		// lui
 		fallthrough
 	case 0b110_1111:
-		// J
 		// jal
 		fallthrough
 	default:
