@@ -47,7 +47,7 @@ func NewCPU() *CPU {
 	}
 }
 
-func (cpu *CPU) Run() {
+func (cpu *CPU) Run() Exception {
 	// TODO: eventually physical <-> virtual memory translation must take place here.
 
 	fmt.Printf("[debug] PC: 0x%x\n", cpu.PC)
@@ -224,14 +224,14 @@ func (cpu *CPU) Run() {
 				switch cpu.Mode {
 				case User:
 					return ExcpEnvironmentCallFromUmode
-				case SuperVisor:
+				case Supervisor:
 					return ExcpEnvironmentCallFromSmode
 				case Machine:
 					return ExcpEnvironmentCallFromMmode
 				default:
 					return ExcpIllegalInstruction
 				}
-			case eb001:
+			case 0b001:
 				// ebreak
 				return ExcpBreakpoint
 			}
@@ -274,5 +274,5 @@ func (cpu *CPU) Run() {
 	}
 
 	cpu.PC += 4
-	return nil
+	return 0
 }
