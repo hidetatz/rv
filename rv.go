@@ -22,3 +22,9 @@ func (r *RV) Start() {
 		r.cpu.Run()
 	}
 }
+
+func (r *RV) StartForTest(count int) {
+	for i := 0; i < count; i++ {
+		r.cpu.Run()
+	}
+}
