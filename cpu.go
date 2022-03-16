@@ -52,9 +52,156 @@ func (cpu *CPU) Run() Exception {
 
 	fmt.Printf("[debug] PC: 0x%x\n", cpu.PC)
 
+	// Fetch 16-bit
+	inst := cpu.Bus.Read(cpu.PC, 16)
+	fmt.Printf("[debug] fetched (16): %b\n", inst)
+
+	// if the last 2-bit is one of 00, 01, or 10 then it must be 16-bit compressed instruction.
+	last2bit := inst & 0b11
+	compressed := last2bit == 0b00 || last2bit == 0b01 || last2bit == 0b10
+
+	if compressed {
+		funct3 := (inst >> 13) & 0b111
+		switch last2bit {
+		case 0b00:
+			if inst == 0x0 {
+				return ExcpIllegalInstruction
+			}
+			switch funct3 {
+			case 0b000:
+				// c.addi4spn
+				rd := ((inst >> 2) & 0b111) + 8    // rd = rd' + 8
+				imm := ((inst >> 7) & 0b11_0000) | // inst[12:11] -> imm[5:4]
+					((inst >> 1) & 0b11_1100_0000) | // inst[10:7] -> imm[9:6]
+					((inst >> 4) & 0b100) | // inst[6] -> imm[2]
+					((inst >> 2) & 0b1000) // inst[5] -> imm[3]
+
+				// 2: stack pointer
+				cpu.XRegs.Write(rd, cpu.XRegs.Read(2)+imm)
+			case 0b001:
+				// c.fld
+			case 0b010:
+				// c.lw
+			case 0b011:
+				// c.flw
+			case 0b101:
+				// c.fsd
+			case 0b110:
+				// c.sw
+			case 0b110:
+				// c.fsw
+			default:
+				return ExcpIllegalInstruction
+			}
+		case 0b01:
+			switch funct3 {
+			case 0b000:
+				switch (inst >> 7) & 0b1_1111 {
+				case 0b0:
+					// c.nop
+					// do nothing.
+				default:
+					// c.addi
+				}
+			case 0b001:
+				// c.jal
+			case 0b010:
+				// c.li
+			case 0b011:
+				switch (inst >> 7) & 0b1_1111 {
+				case 0b10:
+					// c.addi16sp
+				default:
+					// c.lui
+				}
+			case 0b100:
+				switch (inst >> 10) & 0b11 {
+				case 0b00:
+					// c.srli
+				case 0b01:
+					// c.srai
+				case 0b10:
+					// c.andi
+				case 0b11:
+					switch (inst >> 5) & 0b11 {
+					case 0b00:
+						// c.sub
+					case 0b01:
+						// c.xor
+					case 0b10:
+						// c.or
+					case 0b11:
+						// c.and
+					default:
+						return ExcpIllegalInstruction
+					}
+				default:
+					return ExcpIllegalInstruction
+				}
+			case 0b101:
+				// c.j
+			case 0b110:
+				// c.breqz
+			case 0b111:
+				// c.bnez
+			default:
+				return ExcpIllegalInstruction
+			}
+		case 0b10:
+			switch funct3 {
+			case 0b000:
+				if ((inst>>12)&0b1) == 0 && ((inst>>2)&0b1_1111) == 0 {
+					// c.slli64
+				} else {
+					// c.slli
+				}
+			case 0b001:
+				// c.fldsp
+			case 0b010:
+				// c.lwsp
+			case 0b011:
+				// c.flwsp
+			case 0b100:
+				switch (inst >> 12) & 0b1 {
+				case 0b0:
+					switch (inst >> 2) & 0b1_1111 {
+					case 0b0:
+						// c.jr
+					default:
+						// c.mv
+					}
+				case 0b1:
+					switch (inst >> 2) & 0b1_1111 {
+					case 0b0:
+						switch (inst >> 7) & 0b1_1111 {
+						case 0b0:
+							// c.ebreak
+						default:
+							// c.jalr
+						}
+					default:
+						// c.add
+					}
+				default:
+					return ExcpIllegalInstruction
+				}
+			case 0b101:
+				// c.fsdsp
+			case 0b110:
+				// c.swsp
+			case 0b111:
+				// c.fswsp
+			default:
+				return ExcpIllegalInstruction
+			}
+		}
+		return 0
+	}
+
+	// else, 32-bit
 	// Fetch 32-bit
-	inst := cpu.Bus.Read(cpu.PC, 32)
-	fmt.Printf("[debug] fetched: %b\n", inst)
+	inst = cpu.Bus.Read(cpu.PC, 32)
+	fmt.Printf("[debug] fetched(32): %b\n", inst)
 
 	// Decodes the fetched 32-bit instruction.
 	// Note that rd, funct3, rs1... does not always match the instruction format,
@@ -78,6 +225,8 @@ func (cpu *CPU) Run() Exception {
 			case 0b010_0000:
 				// sub
 				cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)-cpu.XRegs.Read(rs2))
+			default:
+				return ExcpIllegalInstruction
 			}
 		case 0b001:
 			// sll
@@ -111,6 +260,8 @@ func (cpu *CPU) Run() Exception {
 				// sra
 				shift := cpu.XRegs.Read(rs2) & 0b111111
 				cpu.XRegs.Write(rd, uint64(int64(cpu.XRegs.Read(rs1))>>shift))
+			default:
+				return ExcpIllegalInstruction
 			}
 		case 0b110:
 			// or
@@ -118,6 +269,8 @@ func (cpu *CPU) Run() Exception {
 		case 0b111:
 			// and
 			cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)&cpu.XRegs.Read(rs2))
+		default:
+			return ExcpIllegalInstruction
 		}
 	case 0b110_0111:
 		// jalr
@@ -153,6 +306,8 @@ func (cpu *CPU) Run() Exception {
 			offset := uint64(int64(int32(inst)) >> 20)
 			v := cpu.Bus.Read(cpu.XRegs.Read(rs1)+offset, 16)
 			cpu.XRegs.Write(rd, v)
+		default:
+			return ExcpIllegalInstruction
 		}
 	case 0b001_0011:
 		switch funct3 {
@@ -204,7 +359,11 @@ func (cpu *CPU) Run() Exception {
 				// srai
 				shamt := (inst >> 20) & 0b111111
 				cpu.XRegs.Write(rd, uint64(int64(cpu.XRegs.Read(rs1))>>shamt))
+			default:
+				return ExcpIllegalInstruction
 			}
+		default:
+			return ExcpIllegalInstruction
 		}
 	case 0b000_1111:
 		switch funct3 {
@@ -214,6 +373,8 @@ func (cpu *CPU) Run() Exception {
 		case 0b001:
 			// fence.i
 			// Do nothing because rv currently does not reorder the instructions for optimizations.
+		default:
+			return ExcpIllegalInstruction
 		}
 	case 0b111_0011:
 		switch funct3 {
@@ -234,6 +395,8 @@ func (cpu *CPU) Run() Exception {
 			case 0b001:
 				// ebreak
 				return ExcpBreakpoint
+			default:
+				return ExcpIllegalInstruction
 			}
 		case 0b001:
 			// csrrw
@@ -247,11 +410,11 @@ func (cpu *CPU) Run() Exception {
 			// csrrsi
 		case 0b111:
 			// csrrci
+		default:
+			return ExcpIllegalInstruction
 		}
 	case 0b010_0011:
-		fallthrough
 	case 0b110_0011:
-		fallthrough
 	case 0b001_0111:
 		// auipc
 		imm := uint64(int64(int32(inst & 0xfffff000)))
