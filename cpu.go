@@ -37,6 +37,7 @@ type CPU struct {
 
 	// Registers
 	XRegs *Registers
+	FRegs *FRegisters
 }
 
 func NewCPU() *CPU {
@@ -44,6 +45,7 @@ func NewCPU() *CPU {
 		PC:    0,
 		Bus:   NewBus(),
 		XRegs: NewRegisters(),
+		FRegs: NewFRegisters(),
 	}
 }
 
@@ -76,10 +78,16 @@ func (cpu *CPU) Run() Exception {
 					((inst >> 4) & 0b100) | // inst[6] -> imm[2]
 					((inst >> 2) & 0b1000) // inst[5] -> imm[3]
 
-				// 2: stack pointer
+				// 2 is stack pointer
 				cpu.XRegs.Write(rd, cpu.XRegs.Read(2)+imm)
 			case 0b001:
 				// c.fld
+				rd := ((inst >> 2) & 0b111) + 8      // rd = rd' + 8
+				rs1 := ((inst >> 7) & 0b111) + 8     // rs1 = rs1' + 8
+				imm := ((inst << 1) & 0b1100_0000) | // inst[6:5] -> imm[7:6]
+					((inst >> 7) & 0b11_1000) // inst[12:10] -> imm[5:3]
+				v := cpu.Bus.Read(rs1, 64)
+				cpu.FRegs.Write(rd, float64(v))
 			case 0b010:
 				// c.lw
 			case 0b011:
@@ -195,6 +203,8 @@ func (cpu *CPU) Run() Exception {
 				return ExcpIllegalInstruction
 			}
 		}
+
+		cpu.PC += 2
 		return 0
 	}
 
