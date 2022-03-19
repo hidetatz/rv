@@ -49,11 +49,70 @@ func (cpu *CPU) Decompress(compressed uint64) (uint64, Exception) {
 	return 0, ExcpIllegalInstruction
 }
 
-func (cpu *CPU) DecompressCR(op, rs2, rdrs1, funct4 uint64) (uint64, Exception) {
+func (cpu *CPU) DecompressCR(op, rs2, rdOrRs1, funct4 uint64) (uint64, Exception) {
 	switch op {
+	case 0b00:
+		return 0, ExcpIllegalInstruction
+	case 0b01:
+		switch rs2 >> 3 {
+		case 0b00:
+			// c.sub
+			// -> sub rd, rd, rs2 while rd = 8 + rd', rs2 = 8 + rs2'
+			rdOrRs1 += 8
+			rs2 += 8
+			sub := uint64(0b0100000_00000_00000_000_00000_0110011)
+			return sub | (rs2 << 20) | (rdOrRs1 << 15) | (rdOrRs1 << 7), ExcpNone
+		case 0b01:
+			// c.xor
+			// -> xor rd, rd, rs2 while rd = 8 + rd', rs2 = 8 + rs2'
+			rdOrRs1 += 8
+			rs2 += 8
+			xor := uint64(0b0000000_00000_00000_100_00000_0110011)
+			return xor | (rs2 << 20) | (rdOrRs1 << 15) | (rdOrRs1 << 7), ExcpNone
+		case 0b10:
+			// c.or
+			// -> or rd, rd, rs2 while rd = 8 + rd', rs2 = 8 + rs2'
+			rdOrRs1 += 8
+			rs2 += 8
+			or := uint64(0b0000000_00000_00000_110_00000_0110011)
+			return or | (rs2 << 20) | (rdOrRs1 << 15) | (rdOrRs1 << 7), ExcpNone
+		case 0b11:
+			// c.and
+			// -> and rd, rd, rs2 while rd = 8 + rd', rs2 = 8 + rs2'
+			rdOrRs1 += 8
+			rs2 += 8
+			and := uint64(0b0000000_00000_00000_111_00000_0110011)
+			return and | (rs2 << 20) | (rdOrRs1 << 15) | (rdOrRs1 << 7), ExcpNone
+		default:
+			return 0, ExcpIllegalInstruction
+		}
+	case 0b10:
+		switch funct4 & 0b1 {
+		case 0b0:
+			// c.mv
+			// -> add rd, x0, rs2. Illegal if rs2 = x0.
+			if rs2 == 0 {
+				return 0, ExcpIllegalInstruction
+			}
+			add := uint64(0b0000000_00000_00000_000_00000_0110011)
+			return add | (rs2 << 20) | (rdOrRs1 << 7), ExcpNone
+		case 0b1:
+			// c.add
+			// -> add rd, rd, rs2. Illegal if rd = x0 || rs2 = x0.
+			if rdOrRs1 == 0 || rs2 == 0 {
+				return 0, ExcpIllegalInstruction
+			}
+			add := uint64(0b0000000_00000_00000_000_00000_0110011)
+			return add | (rs2 << 20) | (rdOrRs1 << 15) | (rdOrRs1 << 7), ExcpNone
+		default:
+			return 0, ExcpIllegalInstruction
+
+		}
+	default:
+		return 0, ExcpIllegalInstruction
 	}
 
-	return 0, ExcpNone
+	return 0, ExcpIllegalInstruction
 }
 
 // DecodeCompressedInstructionFormat decodes the given compressed instruction and returns its format.
