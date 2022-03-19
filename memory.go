@@ -18,23 +18,23 @@ func (mem *Memory) Set(data []uint8) {
 	copy(mem.Mem[:], data)
 }
 
-func (mem *Memory) Read(addr uint64, size uint8) uint64 {
+func (mem *Memory) Read(addr uint64, size Size) uint64 {
 	index := addr - DramBase
 	switch size {
-	case 8:
+	case Byte:
 		// Read and return 1 bit as uint64
 		return uint64(mem.Mem[index])
-	case 16:
+	case HalfWord:
 		// Read and return 2 bits. Byte order is Little Endian.
 		// Read every byte and combine them into 1 uint64 by Or operator.
 		return uint64(mem.Mem[index]) | uint64(mem.Mem[index+1])<<8
-	case 32:
+	case Word:
 		// Read and return 4 bits. The same as the case above.
 		return uint64(mem.Mem[index]) |
 			uint64(mem.Mem[index+1])<<8 |
 			uint64(mem.Mem[index+2])<<16 |
 			uint64(mem.Mem[index+3])<<24
-	case 64:
+	case DoubleWord:
 		// Read and return 8 bits. The same as the case above.
 		return uint64(mem.Mem[index]) |
 			uint64(mem.Mem[index+1])<<8 |
@@ -50,20 +50,20 @@ func (mem *Memory) Read(addr uint64, size uint8) uint64 {
 	return 0
 }
 
-func (mem *Memory) Write(addr uint64, val uint64, size uint8) {
+func (mem *Memory) Write(addr uint64, val uint64, size Size) {
 	index := addr - DramBase
 	switch size {
-	case 8:
+	case Byte:
 		mem.Mem[index] = uint8(val)
-	case 16:
+	case HalfWord:
 		mem.Mem[index] = uint8(val & 0x1111_1111)
 		mem.Mem[index+1] = uint8((val >> 8) & 0x1111_1111)
-	case 32:
+	case Word:
 		mem.Mem[index] = uint8(val & 0x1111_1111)
 		mem.Mem[index+1] = uint8((val >> 8) & 0x1111_1111)
 		mem.Mem[index+2] = uint8((val >> 16) & 0x1111_1111)
 		mem.Mem[index+3] = uint8((val >> 24) & 0x1111_1111)
-	case 64:
+	case DoubleWord:
 		mem.Mem[index] = uint8(val & 0x1111_1111)
 		mem.Mem[index+1] = uint8((val >> 8) & 0x1111_1111)
 		mem.Mem[index+2] = uint8((val >> 16) & 0x1111_1111)

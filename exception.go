@@ -3,7 +3,8 @@ package main
 type Exception uint8
 
 const (
-	ExcpInstructionAddressMisalighed Exception = iota + 1
+	ExcpNone Exception = iota
+	ExcpInstructionAddressMisalighed
 	ExcpInstructionAccessFault
 	ExcpIllegalInstruction
 	ExcpBreakpoint
