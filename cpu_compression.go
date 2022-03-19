@@ -22,8 +22,8 @@ func (cpu *CPU) Compressed(inst uint64) bool {
 	return last2bit == 0b00 || last2bit == 0b01 || last2bit == 0b10
 }
 
-// Uncompress extracts the given 16-bit instruction to 32-bit one.
-func (cpu *CPU) Uncompress(compressed uint64) (uint64, Exception) {
+// Decompress extracts the given 16-bit instruction to 32-bit one.
+func (cpu *CPU) Decompress(compressed uint64) (uint64, Exception) {
 	compressedInstructionFormat := cpu.DecodeCompressedInstructionFormat(compressed)
 	if compressedInstructionFormat == CompressedInstructionFormatInvalid {
 		return 0, ExcpIllegalInstruction
@@ -31,7 +31,7 @@ func (cpu *CPU) Uncompress(compressed uint64) (uint64, Exception) {
 
 	switch compressedInstructionFormat {
 	case CompressedInstructionFormatCR:
-		return cpu.UncompressCR(
+		return cpu.DecompressCR(
 			bits(compressed, 1, 0),
 			bits(compressed, 6, 2),
 			bits(compressed, 11, 7),
@@ -49,7 +49,7 @@ func (cpu *CPU) Uncompress(compressed uint64) (uint64, Exception) {
 	return 0, ExcpIllegalInstruction
 }
 
-func (cpu *CPU) UncompressCR(op, rs2, rdrs1, funct4 uint64) (uint64, Exception) {
+func (cpu *CPU) DecompressCR(op, rs2, rdrs1, funct4 uint64) (uint64, Exception) {
 	switch op {
 	}
 

@@ -85,8 +85,8 @@ func (cpu *CPU) Run() Exception {
 	halfword := cpu.Fetch(HalfWord)
 	compressed := cpu.Compressed(halfword)
 	if compressed {
-		// if compressed, extracte it to be a 32-bit one.
-		decompressed, excp := cpu.Uncompress(halfword)
+		// if compressed, extract it to be a 32-bit one.
+		decompressed, excp := cpu.Decompress(halfword)
 		if excp != ExcpNone {
 			return excp
 		}
