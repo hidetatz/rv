@@ -38,6 +38,13 @@ func (cpu *CPU) Decompress(compressed uint64) (uint64, Exception) {
 			bits(compressed, 15, 12),
 		)
 	case CompressedInstructionFormatCI:
+		return cpu.DecompressCI(
+			bits(compressed, 1, 0),
+			bits(compressed, 6, 2),
+			bits(compressed, 11, 7),
+			bits(compressed, 12, 12),
+			bits(compressed, 15, 13),
+		)
 	case CompressedInstructionFormatCSS:
 	case CompressedInstructionFormatCIW:
 	case CompressedInstructionFormatCL:
@@ -107,6 +114,120 @@ func (cpu *CPU) DecompressCR(op, rs2, rdOrRs1, funct4 uint64) (uint64, Exception
 		default:
 			return 0, ExcpIllegalInstruction
 
+		}
+	default:
+		return 0, ExcpIllegalInstruction
+	}
+
+	return 0, ExcpIllegalInstruction
+}
+
+// DecompressCI decompresses the CR format compressed instruction using the given parts.
+func (cpu *CPU) DecompressCI(op, imm1, rdOrRs1, imm2, funct3 uint64) (uint64, Exception) {
+	switch op {
+	case 0b00:
+		return 0, ExcpIllegalInstruction
+	case 0b01:
+		switch funct3 {
+		case 0b000:
+			switch rdOrRs1 {
+			case 0b0:
+				// c.nop
+				// -> addi x0, x0, 0 (do nothing)
+				return 0b000000000000_00000_000_00000_0010011, ExcpNone
+			default:
+				// c.addi
+				// -> addi rd, rd, nzimm[5:0] while imm1 = nzimm[4:0], imm2 = nzimm[5]
+				addi := uint64(0b000000000000_00000_000_00000_0010011)
+				var mask uint32 = 0b0
+				if imm2 == 0b1 {
+					// Sign-extend. if imm2 is 1, imm[31:6] should be 1.
+					// Also, set imm[5](=imm2) 1 here.
+					mask = 0b1111_1111_1111_1111_1111_1111_1110_0000
+				}
+				nzimm := imm1 | uint64(int64(int32(mask)))
+				return addi | (rdOrRs1 << 15) | (rdOrRs1 << 7) | (nzimm << 20), ExcpNone
+			}
+		case 0b010:
+			// c.li
+			// -> addi rd, x0, imm
+			addi := uint64(0b000000000000_00000_000_00000_0010011)
+			var mask uint32 = 0b0
+			if imm2 == 0b1 {
+				// Sign-extend. if imm2 is 1, imm[31:6] should be 1.
+				// Also, set imm[5](=imm2) 1 here.
+				mask = 0b1111_1111_1111_1111_1111_1111_1110_0000
+			}
+			nzimm := imm1 | uint64(int64(int32(mask)))
+			return addi | (rdOrRs1 << 7) | (nzimm << 20), ExcpNone
+		case 0b011:
+			switch rdOrRs1 {
+			case 0b10:
+				// c.addi16sp
+				// -> addi x2, x2, imm. Illegal if imm is 0.
+				addi := uint64(0b000000000000_00010_000_00010_0010011)
+				var mask uint32 = 0b0
+				if imm2 == 0b1 {
+					// Sign-extend. if imm2 is 1, imm[31:10] should be 1.
+					// Also, set imm[9](=imm2) 1 here.
+					mask = 0b1111_1111_1111_1111_1111_1110_0000_0000
+				}
+				imm := uint64(int64(int32(mask))) |
+					(imm1 & 0b1_0000) | // imm1[4] -> imm[4]
+					((imm1 << 3) & 0b100_0000) | // imm1[3] -> imm[6]
+					((imm1 << 6) & 0b1_0000_0000) | // imm1[2] -> imm[8]
+					((imm1 << 6) & 0b1000_0000) | // imm1[1] -> imm[7]
+					((imm1 << 5) & 0b10_0000) // imm1[0] -> imm[5]
+				return addi | (imm << 20), ExcpNone
+			case 0b00:
+				// must not be 0
+				return 0, ExcpIllegalInstruction
+			default:
+				// c.lui
+				// -> lui rd, imm. Illegal if rd = x2 || imm = 0
+				if rdOrRs1 == 0b10 {
+					return 0, ExcpIllegalInstruction
+				}
+
+				if imm1 == 0b0 && imm2 == 0b0 {
+					return 0, ExcpIllegalInstruction
+				}
+
+				var mask uint64 = 0b0
+				if imm2 == 0b1 {
+					// Sign-extend. if imm2 is 1, imm[31:18] should be 1.
+					// Also, set imm[17](=imm2) 1 here.
+					mask = 0b1111_1111_1111_1110_0000_0000_0000_0000
+				}
+				imm := uint64(int64(int32(mask))) | (imm1 << 12) // imm1 -> imm[16:12]
+				lui := uint64(0b00000000000000000000_00000_0110111)
+				return lui | (imm << 12), ExcpNone
+			}
+		case 0b100:
+			switch rdOrRs1 >> 3 {
+			case 0b00:
+				// c.srli
+			case 0b01:
+				// c.srai
+			case 0b10:
+				// c.andi
+			default:
+				return 0, ExcpIllegalInstruction
+			}
+		default:
+			return 0, ExcpIllegalInstruction
+		}
+	case 0b10:
+		switch funct3 {
+		case 0b000:
+			switch imm1 {
+			case 0b0:
+				// c.slli64
+			default:
+				// c.slli
+			}
+		case 0b100:
+			// c.ebreak
 		}
 	default:
 		return 0, ExcpIllegalInstruction
