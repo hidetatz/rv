@@ -208,6 +208,13 @@ func (cpu *CPU) DecompressCI(op, imm1, rdOrRs1, imm2, funct3 uint64) (uint64, Ex
 			switch rdOrRs1 >> 3 {
 			case 0b00:
 				// c.srli
+				// -> srli rd, rd, uimm while rd = 8 + rd'
+				rdOrRs1 = rdOrRs1 & 0b111 // left 2-bit of rd is opcode
+				rdOrRs1 += 8
+				uimm := imm1 |
+					(imm2 >> 7) // imm2 -> uimm[5]
+				srli := uint64(0b000000_000000_00000_101_00000_0010011)
+				return srli | (rdOrRs1 << 7) | (rdOrRs1 << 15) | (uimm << 20), ExcpNone
 			case 0b01:
 				// c.srai
 			case 0b10:
