@@ -18,7 +18,7 @@ const (
 // Compressed returns if the instruction is compressed 16-bit one.
 func (cpu *CPU) Compressed(inst uint64) bool {
 	last2bit := inst & 0b11
-	// if the last 2-bit is one of 00/01/10, is it 16-bit instruction.
+	// if the last 2-bit is one of 00/01/10, it is 16-bit instruction.
 	return last2bit == 0b00 || last2bit == 0b01 || last2bit == 0b10
 }
 
@@ -212,11 +212,18 @@ func (cpu *CPU) DecompressCI(op, imm1, rdOrRs1, imm2, funct3 uint64) (uint64, Ex
 				rdOrRs1 = rdOrRs1 & 0b111 // left 2-bit of rd is opcode
 				rdOrRs1 += 8
 				uimm := imm1 |
-					(imm2 >> 7) // imm2 -> uimm[5]
+					(imm2 << 5) // imm2 -> uimm[5]
 				srli := uint64(0b000000_000000_00000_101_00000_0010011)
 				return srli | (rdOrRs1 << 7) | (rdOrRs1 << 15) | (uimm << 20), ExcpNone
 			case 0b01:
 				// c.srai
+				// -> srai rd, rd, uimm while rd = 8 + rd'
+				rdOrRs1 = rdOrRs1 & 0b111 // left 2-bit of rd is opcode
+				rdOrRs1 += 8
+				uimm := imm1 |
+					(imm2 << 5) // imm2 -> uimm[5]
+				srli := uint64(0b000000_000000_00000_101_00000_0010011)
+				return srli | (rdOrRs1 << 7) | (rdOrRs1 << 15) | (uimm << 20), ExcpNone
 			case 0b10:
 				// c.andi
 			default:
