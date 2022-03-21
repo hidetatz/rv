@@ -66,7 +66,9 @@ func (cpu *CPU) DecompressCR(op, rs2, rdOrRs1, funct4 uint64) (uint64, Exception
 		case 0b00:
 			// c.sub
 			// -> sub rd, rd, rs2 while rd = 8 + rd', rs2 = 8 + rs2'
+			rdOrRs1 = rdOrRs1 & 0b111
 			rdOrRs1 += 8
+			rs2 = rs2 & 0b111
 			rs2 += 8
 			sub := uint64(0b0100000_00000_00000_000_00000_0110011)
 			return sub | (rs2 << 20) | (rdOrRs1 << 15) | (rdOrRs1 << 7), ExcpNone
@@ -222,8 +224,8 @@ func (cpu *CPU) DecompressCI(op, imm1, rdOrRs1, imm2, funct3 uint64) (uint64, Ex
 				rdOrRs1 += 8
 				uimm := imm1 |
 					(imm2 << 5) // imm2 -> uimm[5]
-				srli := uint64(0b000000_000000_00000_101_00000_0010011)
-				return srli | (rdOrRs1 << 7) | (rdOrRs1 << 15) | (uimm << 20), ExcpNone
+				srai := uint64(0b010000_000000_00000_101_00000_0010011)
+				return srai | (rdOrRs1 << 7) | (rdOrRs1 << 15) | (uimm << 20), ExcpNone
 			case 0b10:
 				// c.andi
 			default:
