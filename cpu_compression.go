@@ -56,6 +56,7 @@ func (cpu *CPU) Decompress(compressed uint64) (uint64, Exception) {
 	return 0, ExcpIllegalInstruction
 }
 
+// DecompressCR decompresses the CR format compressed instruction using the given parts.
 func (cpu *CPU) DecompressCR(op, rs2, rdOrRs1, funct4 uint64) (uint64, Exception) {
 	switch op {
 	case 0b00:
