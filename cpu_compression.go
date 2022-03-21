@@ -66,15 +66,15 @@ func (cpu *CPU) DecompressCR(op, rs2, rdOrRs1, funct4 uint64) (uint64, Exception
 		case 0b00:
 			// c.sub
 			// -> sub rd, rd, rs2 while rd = 8 + rd', rs2 = 8 + rs2'
-			rdOrRs1 = rdOrRs1 & 0b111
+			rdOrRs1, rs2 = rdOrRs1&0b111, rs2&0b111
 			rdOrRs1 += 8
-			rs2 = rs2 & 0b111
 			rs2 += 8
 			sub := uint64(0b0100000_00000_00000_000_00000_0110011)
 			return sub | (rs2 << 20) | (rdOrRs1 << 15) | (rdOrRs1 << 7), ExcpNone
 		case 0b01:
 			// c.xor
 			// -> xor rd, rd, rs2 while rd = 8 + rd', rs2 = 8 + rs2'
+			rdOrRs1, rs2 = rdOrRs1&0b111, rs2&0b111
 			rdOrRs1 += 8
 			rs2 += 8
 			xor := uint64(0b0000000_00000_00000_100_00000_0110011)
@@ -82,6 +82,7 @@ func (cpu *CPU) DecompressCR(op, rs2, rdOrRs1, funct4 uint64) (uint64, Exception
 		case 0b10:
 			// c.or
 			// -> or rd, rd, rs2 while rd = 8 + rd', rs2 = 8 + rs2'
+			rdOrRs1, rs2 = rdOrRs1&0b111, rs2&0b111
 			rdOrRs1 += 8
 			rs2 += 8
 			or := uint64(0b0000000_00000_00000_110_00000_0110011)
@@ -89,6 +90,7 @@ func (cpu *CPU) DecompressCR(op, rs2, rdOrRs1, funct4 uint64) (uint64, Exception
 		case 0b11:
 			// c.and
 			// -> and rd, rd, rs2 while rd = 8 + rd', rs2 = 8 + rs2'
+			rdOrRs1, rs2 = rdOrRs1&0b111, rs2&0b111
 			rdOrRs1 += 8
 			rs2 += 8
 			and := uint64(0b0000000_00000_00000_111_00000_0110011)
