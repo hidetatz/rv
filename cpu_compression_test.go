@@ -28,13 +28,15 @@ func TestCPU_Decompress(t *testing.T) {
 			compressed: 0b1000_01101_01111_10,
 			expected:   0b0000000_01111_00000_000_01101_0110011,
 		},
-		//"c.add": {},
+		"c.add": {
+			compressed: 0b1001_01101_01111_10,
+			expected:   0b0000000_01111_01101_000_01101_0110011,
+		},
 	}
 
 	for name, tc := range tests {
 		tc := tc
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 			cpu := &CPU{} // Decompression does not require any CPu state
 			got, gotExcp := cpu.Decompress(tc.compressed)
 			if gotExcp != tc.expectedExcp {
