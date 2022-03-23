@@ -8,6 +8,7 @@ func TestCPU_Decompress(t *testing.T) {
 		expected     uint64
 		expectedExcp Exception
 	}{
+		// CR
 		"c.sub": {
 			compressed: 0b1000_11101_00111_01,
 			expected:   0b0100000_01111_01101_000_01101_0110011,
@@ -32,12 +33,17 @@ func TestCPU_Decompress(t *testing.T) {
 			compressed: 0b1001_01101_01111_10,
 			expected:   0b0000000_01111_01101_000_01101_0110011,
 		},
+		// CI
+		"c.nop": {
+			compressed: 0b000_1_00000_01111_01,
+			expected:   0b000000000000_00000_000_00000_0010011,
+		},
 	}
 
 	for name, tc := range tests {
 		tc := tc
 		t.Run(name, func(t *testing.T) {
-			cpu := &CPU{} // Decompression does not require any CPu state
+			cpu := &CPU{} // Decompression does not require any CPU state
 			got, gotExcp := cpu.Decompress(tc.compressed)
 			if gotExcp != tc.expectedExcp {
 				t.Errorf("got %v, want %v", gotExcp, tc.expectedExcp)
