@@ -190,7 +190,7 @@ func (cpu *CPU) DecompressCI(op, imm1, rdOrRs1, imm2, funct3 uint64) (uint64, Ex
 			default:
 				// c.lui
 				// -> lui rd, imm. Illegal if rd = x2 || imm = 0
-				if rdOrRs1 == 0b10 {
+				if rdOrRs1 == 0b10 || rdOrRs1 == 0b0 {
 					return 0, ExcpIllegalInstruction
 				}
 
@@ -206,7 +206,7 @@ func (cpu *CPU) DecompressCI(op, imm1, rdOrRs1, imm2, funct3 uint64) (uint64, Ex
 				}
 				imm := uint64(int64(int32(mask))) | (imm1 << 12) // imm1 -> imm[16:12]
 				lui := uint64(0b00000000000000000000_00000_0110111)
-				return lui | (imm << 12), ExcpNone
+				return lui | (rdOrRs1 << 7) | (imm << 12), ExcpNone
 			}
 		case 0b100:
 			switch rdOrRs1 >> 3 {

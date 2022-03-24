@@ -56,6 +56,18 @@ func TestCPU_Decompress(t *testing.T) {
 			// internally this is treated as uint64
 			expected: 0b11111111111111111111111111111111_111111101101_00000_000_00101_0010011,
 		},
+		"c.addi16sp (positive imm)": {
+			compressed: 0b011_0_00010_01101_01,
+			expected:   0b000101100000_00010_000_00010_0010011,
+		},
+		"c.addi16sp (negative imm)": {
+			compressed: 0b011_1_00010_01101_01,
+			expected:   0b11111111111111111111111111111111_111101100000_00010_000_00010_0010011,
+		},
+		"c.lui (positive imm)": {
+			compressed: 0b011_0_00101_01101_01,
+			expected:   0b00001101000000000000_00101_0110111,
+		},
 	}
 
 	for name, tc := range tests {
