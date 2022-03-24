@@ -38,6 +38,24 @@ func TestCPU_Decompress(t *testing.T) {
 			compressed: 0b000_1_00000_01111_01,
 			expected:   0b000000000000_00000_000_00000_0010011,
 		},
+		"c.addi (positive imm)": {
+			compressed: 0b000_0_00101_01101_01,
+			expected:   0b000000001101_00101_000_00101_0010011,
+		},
+		"c.addi (negative imm)": {
+			compressed: 0b000_1_00101_01101_01,
+			// internally this is treated as uint64
+			expected: 0b11111111111111111111111111111111_111111101101_00101_000_00101_0010011,
+		},
+		"c.li (positive imm)": {
+			compressed: 0b010_0_00101_01101_01,
+			expected:   0b000000001101_00000_000_00101_0010011,
+		},
+		"c.li (negative imm)": {
+			compressed: 0b010_1_00101_01101_01,
+			// internally this is treated as uint64
+			expected: 0b11111111111111111111111111111111_111111101101_00000_000_00101_0010011,
+		},
 	}
 
 	for name, tc := range tests {
