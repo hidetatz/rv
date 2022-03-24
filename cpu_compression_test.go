@@ -68,6 +68,14 @@ func TestCPU_Decompress(t *testing.T) {
 			compressed: 0b011_0_00101_01101_01,
 			expected:   0b00001101000000000000_00101_0110111,
 		},
+		"c.srli": {
+			compressed: 0b100_1_00_101_01101_01,
+			expected:   0b000000_101101_01101_101_01101_0010011,
+		},
+		"c.srai": {
+			compressed: 0b100_1_01_101_01101_01,
+			expected:   0b010000_101101_01101_101_01101_0010011,
+		},
 	}
 
 	for name, tc := range tests {
