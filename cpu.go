@@ -95,9 +95,11 @@ func (cpu *CPU) Run() Exception {
 		inst = cpu.Fetch(Word)
 	}
 
-	// execute the instruction.
-	instructionFormat := cpu.DecodeInstructionFormat(inst)
-	exception := cpu.Exec(instructionFormat, inst)
+	// Decode the instruction
+	instructionCode := cpu.Decode(inst)
+
+	// Execute the instruction.
+	exception := cpu.Exec(instructionCode, inst)
 	if compressed {
 		cpu.PC += 2
 	} else {
@@ -105,4 +107,13 @@ func (cpu *CPU) Run() Exception {
 	}
 
 	return exception
+}
+
+func (cpu *CPU) Exec(code InstructionCode, inst uint64) Exception {
+	execution, ok := Instructions[code]
+	if !ok {
+		return ExcpIllegalInstruction
+	}
+
+	return execution(cpu, inst)
 }
