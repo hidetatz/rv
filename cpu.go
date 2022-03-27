@@ -83,7 +83,7 @@ func (cpu *CPU) Run() Exception {
 
 	// As of here, we are not sure if the next instruction is compressed. First we have to figure that out.
 	halfword := cpu.Fetch(HalfWord)
-	compressed := cpu.Compressed(halfword)
+	compressed := cpu.IsCompressed(halfword)
 	if compressed {
 		// if compressed, extract it to be a 32-bit one.
 		decompressed, excp := cpu.Decompress(halfword)
