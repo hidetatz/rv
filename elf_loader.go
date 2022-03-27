@@ -2,7 +2,7 @@ package main
 
 import "fmt"
 
-// LoadElfHeader parses the given data as valid ELF.
+// LoadELF parses the given data as valid ELF.
 // When the ELF is loaded correctly, the program will be loaded on memory and
 // the program counter is returned.
 func LoadElf(data []uint8, memory *Memory) (uint64, error) {
