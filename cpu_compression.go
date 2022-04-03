@@ -25,6 +25,7 @@ func (cpu *CPU) IsCompressed(inst uint64) bool {
 // Decompress extracts the given 16-bit instruction to 32-bit one.
 func (cpu *CPU) Decompress(compressed uint64) (uint64, Exception) {
 	compressedInstructionFormat := cpu.DecodeCompressedInstructionFormat(compressed)
+	Debug("compressed: %016b", compressed)
 	if compressedInstructionFormat == CompressedInstructionFormatInvalid {
 		return 0, ExcpIllegalInstruction
 	}
