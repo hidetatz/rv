@@ -269,7 +269,8 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw uint64) Exception{
 			i.Rd = 1 // x1 if rd is omitted
 		}
 		cpu.XRegs.Write(i.Rd, tmp)
-		cpu.PC = i.Imm - 4 // sub in advance as the PC is incremented later
+		cpu.PC += i.Imm - 4 // sub in advance as the PC is incremented later
+		Debug("pc in jal: %v", cpu.PC)
 		return ExcpNone
 	},
 }
