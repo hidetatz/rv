@@ -2,7 +2,8 @@ package main
 
 // DramBase is a base address of actual DRAM space in the whole Memory.
 // Before DramBase, there should be some memory-mapped IO devices, etc.
-const DramBase = 0x8000_0000
+//const DramBase = 0x8000_0000
+const DramBase = 0x0
 
 // Memory is a DRAM emulator.
 type Memory struct {
