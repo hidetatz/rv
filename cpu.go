@@ -81,6 +81,7 @@ func (cpu *CPU) Fetch(size Size) uint64 {
 }
 
 func (cpu *CPU) Run() Exception {
+	Debug("Tick-------")
 	// TODO: eventually physical <-> virtual memory translation must take place here.
 
 	var inst uint64
@@ -98,6 +99,9 @@ func (cpu *CPU) Run() Exception {
 	} else {
 		inst = cpu.Fetch(Word)
 	}
+
+	Debug("compressed: %v", compressed)
+	Debug("inst: %032b", inst)
 
 	// Decode the instruction
 	instructionCode := cpu.Decode(inst)
