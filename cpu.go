@@ -93,6 +93,9 @@ func (cpu *CPU) Run() Exception {
 		// if compressed, extract it to be a 32-bit one.
 		decompressed, excp := cpu.Decompress(halfword)
 		if excp != ExcpNone {
+			if excp == ExcpIllegalInstruction {
+				panic("invalid instruction!")
+			}
 			return excp
 		}
 		inst = decompressed
@@ -105,6 +108,12 @@ func (cpu *CPU) Run() Exception {
 
 	// Decode the instruction
 	instructionCode := cpu.Decode(inst)
+
+	if instructionCode == _INVALID {
+		panic("invalid instruction!")
+	}
+
+	Debug("instCode: %v", instructionCode)
 
 	// Execute the instruction.
 	exception := cpu.Exec(instructionCode, inst)
