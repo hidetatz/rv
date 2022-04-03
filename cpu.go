@@ -14,6 +14,10 @@ func (bus *Bus) Read(addr uint64, size Size) uint64 {
 	return bus.Memory.Read(addr, size)
 }
 
+func (bus *Bus) Write(addr, val uint64, size Size) {
+	bus.Memory.Write(addr, val, size)
+}
+
 // Mode is RISC-V machine status for privilege architecture.
 type Mode uint8
 

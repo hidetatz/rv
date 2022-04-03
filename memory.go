@@ -50,7 +50,7 @@ func (mem *Memory) Read(addr uint64, size Size) uint64 {
 	return 0
 }
 
-func (mem *Memory) Write(addr uint64, val uint64, size Size) {
+func (mem *Memory) Write(addr, val uint64, size Size) {
 	index := addr - DramBase
 	switch size {
 	case Byte:

@@ -7,12 +7,17 @@ import (
 	"os"
 )
 
+var debug bool
+
 func main() {
 	var (
 		program = flag.String("p", "", "ELF program to run")
+		dbg     = flag.Bool("d", false, "print out debug log if specified")
 	)
 
 	flag.Parse()
+
+	debug = *dbg
 
 	file := *program
 	if file == "" {
