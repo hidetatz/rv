@@ -1,49 +1,54 @@
 package main
 
-type InstructionCode uint16
+type InstructionCode string
 
 const (
 	// RV64I
-	_INVALID InstructionCode = iota
-	ADD
-	SUB
-	SLL
-	SLT
-	SLTU
-	XOR
-	SRL
-	SRA
-	OR
-	AND
-	JALR
-	LB
-	LH
-	LW
-	LBU
-	LHU
-	ADDI
-	SLTI
-	SLTIU
-	XORI
-	ORI
-	ANDI
-	SLLI
-	SRLI
-	SRAI
-	FENCE
-	FENCE_I
-	ECALL
-	EBREAK
-	CSRRW
-	CSRRS
-	CSRRC
-	CSRR2WI
-	CSRRSI
-	CSRRCI
-	AUIPC
-	LUI
-	JAL
+
+	_INVALID = InstructionCode("_INVALID")
+	ADD      = InstructionCode("ADD")
+	SUB      = InstructionCode("SUB")
+	SLL      = InstructionCode("SLL")
+	SLT      = InstructionCode("SLT")
+	SLTU     = InstructionCode("SLTU")
+	XOR      = InstructionCode("XOR")
+	SRL      = InstructionCode("SRL")
+	SRA      = InstructionCode("SRA")
+	OR       = InstructionCode("OR")
+	AND      = InstructionCode("AND")
+	JALR     = InstructionCode("JALR")
+	LB       = InstructionCode("LB")
+	LH       = InstructionCode("LH")
+	LW       = InstructionCode("LW")
+	LBU      = InstructionCode("LBU")
+	LHU      = InstructionCode("LHU")
+	ADDI     = InstructionCode("ADDI")
+	SLTI     = InstructionCode("SLTI")
+	SLTIU    = InstructionCode("SLTIU")
+	XORI     = InstructionCode("XORI")
+	ORI      = InstructionCode("ORI")
+	ANDI     = InstructionCode("ANDI")
+	SLLI     = InstructionCode("SLLI")
+	SRLI     = InstructionCode("SRLI")
+	SRAI     = InstructionCode("SRAI")
+	FENCE    = InstructionCode("FENCE")
+	FENCE_I  = InstructionCode("FENCE_I")
+	ECALL    = InstructionCode("ECALL")
+	EBREAK   = InstructionCode("EBREAK")
+	CSRRW    = InstructionCode("CSRRW")
+	CSRRS    = InstructionCode("CSRRS")
+	CSRRC    = InstructionCode("CSRRC")
+	CSRR2WI  = InstructionCode("CSRR2WI")
+	CSRRSI   = InstructionCode("CSRRSI")
+	CSRRCI   = InstructionCode("CSRRCI")
+	AUIPC    = InstructionCode("AUIPC")
+	LUI      = InstructionCode("LUI")
+	JAL      = InstructionCode("JAL")
 )
+
+func (ic InstructionCode) String() string {
+	return string(ic)
+}
 
 var Instructions = map[InstructionCode]func(cpu *CPU, raw uint64) Exception{
 	// RV64I
