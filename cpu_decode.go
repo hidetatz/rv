@@ -7,7 +7,7 @@ func bits(val uint64, hi, lo int) uint64 {
 
 // Decode returns the format of the instruction.
 func (cpu *CPU) Decode(inst uint64) InstructionCode {
-	opcode := bits(inst, 0, 6)
+	opcode := bits(inst, 6, 0)
 	funct7 := bits(inst, 31, 25)
 	funct3 := bits(inst, 14, 12)
 
