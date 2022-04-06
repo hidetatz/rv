@@ -3,47 +3,75 @@ package main
 type InstructionCode string
 
 const (
-	// RV64I
-
 	_INVALID = InstructionCode("_INVALID")
-	ADD      = InstructionCode("ADD")
-	SUB      = InstructionCode("SUB")
-	SLL      = InstructionCode("SLL")
-	SLT      = InstructionCode("SLT")
-	SLTU     = InstructionCode("SLTU")
-	XOR      = InstructionCode("XOR")
-	SRL      = InstructionCode("SRL")
-	SRA      = InstructionCode("SRA")
-	OR       = InstructionCode("OR")
-	AND      = InstructionCode("AND")
-	JALR     = InstructionCode("JALR")
-	LB       = InstructionCode("LB")
-	LH       = InstructionCode("LH")
-	LW       = InstructionCode("LW")
-	LBU      = InstructionCode("LBU")
-	LHU      = InstructionCode("LHU")
-	ADDI     = InstructionCode("ADDI")
-	SLTI     = InstructionCode("SLTI")
-	SLTIU    = InstructionCode("SLTIU")
-	XORI     = InstructionCode("XORI")
-	ORI      = InstructionCode("ORI")
-	ANDI     = InstructionCode("ANDI")
-	SLLI     = InstructionCode("SLLI")
-	SRLI     = InstructionCode("SRLI")
-	SRAI     = InstructionCode("SRAI")
-	FENCE    = InstructionCode("FENCE")
-	FENCE_I  = InstructionCode("FENCE_I")
-	ECALL    = InstructionCode("ECALL")
-	EBREAK   = InstructionCode("EBREAK")
-	CSRRW    = InstructionCode("CSRRW")
-	CSRRS    = InstructionCode("CSRRS")
-	CSRRC    = InstructionCode("CSRRC")
-	CSRR2WI  = InstructionCode("CSRR2WI")
-	CSRRSI   = InstructionCode("CSRRSI")
-	CSRRCI   = InstructionCode("CSRRCI")
-	AUIPC    = InstructionCode("AUIPC")
-	LUI      = InstructionCode("LUI")
-	JAL      = InstructionCode("JAL")
+
+	// RV32I, RV64I
+	LUI     = InstructionCode("LUI")
+	AUIPC   = InstructionCode("AUIPC")
+	ADDI    = InstructionCode("ADDI")
+	SLTI    = InstructionCode("SLTI")
+	SLTIU   = InstructionCode("SLTIU")
+	XORI    = InstructionCode("XORI")
+	ORI     = InstructionCode("ORI")
+	ANDI    = InstructionCode("ANDI")
+	SLLI    = InstructionCode("SLLI")
+	SRLI    = InstructionCode("SRLI")
+	SRAI    = InstructionCode("SRAI")
+	ADD     = InstructionCode("ADD")
+	SUB     = InstructionCode("SUB")
+	SLL     = InstructionCode("SLL")
+	SLT     = InstructionCode("SLT")
+	SLTU    = InstructionCode("SLTU")
+	XOR     = InstructionCode("XOR")
+	SRL     = InstructionCode("SRL")
+	SRA     = InstructionCode("SRA")
+	OR      = InstructionCode("OR")
+	AND     = InstructionCode("AND")
+	FENCE   = InstructionCode("FENCE")
+	FENCE_I = InstructionCode("FENCE.I")
+	//CSRRW   = InstructionCode("CSRRW")
+	//CSRRS   = InstructionCode("CSRRS")
+	//CSRRC  = InstructionCode("CSRRC")
+	//CSRRWI = InstructionCode("CSRRWI")
+	//CSRRSI = InstructionCode("CSRRSI")
+	//CSRRCI = InstructionCode("CSRRCI")
+	ECALL  = InstructionCode("ECALL")
+	EBREAK = InstructionCode("EBREAK")
+	//URET       = InstructionCode("URET")
+	//SRET = InstructionCode("SRET")
+	//MRET = InstructionCode("MRET")
+	//WFI  = InstructionCode("WFI")
+	//SFENCE_VMA = InstructionCode("SFENCE.VMA")
+	LB  = InstructionCode("LB")
+	LH  = InstructionCode("LH")
+	LW  = InstructionCode("LW")
+	LBU = InstructionCode("LBU")
+	LHU = InstructionCode("LHU")
+	//SB  = InstructionCode("SB")
+	//SH         = InstructionCode("SH")
+	//SW   = InstructionCode("SW")
+	JAL  = InstructionCode("JAL")
+	JALR = InstructionCode("JALR")
+	//BEQ  = InstructionCode("BEQ")
+	//BNE  = InstructionCode("BNE")
+	//BLT = InstructionCode("BLT")
+	//BGE  = InstructionCode("BGE")
+	//BLTU       = InstructionCode("BLTU")
+	//BGEU = InstructionCode("BGEU")
+
+	// RV64I
+	//ADDIW = InstructionCode("ADDIW")
+	//SLLIW = InstructionCode("SLLIW")
+	//SRLIW = InstructionCode("SRLIW")
+	//SRAIW = InstructionCode("SRAIW")
+	//ADDW  = InstructionCode("ADDW")
+	//SUBW  = InstructionCode("SUBW")
+	//SLLW = InstructionCode("SLLW")
+	//SRLW  = InstructionCode("SRLW")
+	//SRAW  = InstructionCode("SRAW")
+	//LWU = InstructionCode("LWU")
+	//LD    = InstructionCode("LD")
+	//SD    = InstructionCode("SD")
 )
 
 func (ic InstructionCode) String() string {
@@ -228,29 +256,10 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw uint64) Exception{
 		default:
 			return ExcpIllegalInstruction
 		}
-		return ExcpNone
+		return ExcpIllegalInstruction
 	},
 	EBREAK: func(cpu *CPU, raw uint64) Exception {
 		return ExcpBreakpoint
-		return ExcpNone
-	},
-	CSRRW: func(cpu *CPU, raw uint64) Exception {
-		return ExcpNone
-	},
-	CSRRS: func(cpu *CPU, raw uint64) Exception {
-		return ExcpNone
-	},
-	CSRRC: func(cpu *CPU, raw uint64) Exception {
-		return ExcpNone
-	},
-	CSRR2WI: func(cpu *CPU, raw uint64) Exception {
-		return ExcpNone
-	},
-	CSRRSI: func(cpu *CPU, raw uint64) Exception {
-		return ExcpNone
-	},
-	CSRRCI: func(cpu *CPU, raw uint64) Exception {
-		return ExcpNone
 	},
 	AUIPC: func(cpu *CPU, raw uint64) Exception {
 		i := ParseU(raw)
@@ -270,7 +279,6 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw uint64) Exception{
 		}
 		cpu.XRegs.Write(i.Rd, tmp)
 		cpu.PC += i.Imm - 4 // sub in advance as the PC is incremented later
-		Debug("pc in jal: %v", cpu.PC)
 		return ExcpNone
 	},
 }

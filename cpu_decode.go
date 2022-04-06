@@ -126,7 +126,7 @@ func (cpu *CPU) Decode(inst uint64) InstructionCode {
 		case 0b011:
 			return CSRRC
 		case 0b101:
-			return CSRR2WI
+			return CSRRWI
 		case 0b110:
 			return CSRRSI
 		case 0b111:
