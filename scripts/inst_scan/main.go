@@ -8,8 +8,8 @@ import (
 	"strings"
 )
 
+// This command scans instruction.go then find unimplemented instruction although the instructionCode is defined.
 func main() {
-
 	f, err := os.Open("instruction.go")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "read instruction.go: %v", err)
