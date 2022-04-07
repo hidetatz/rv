@@ -32,6 +32,9 @@ func main() {
 			if code == "_INVALID" {
 				continue
 			}
+			if strings.HasPrefix(code, "//") {
+				continue
+			}
 			codes[code] = struct{}{}
 			continue
 		}
