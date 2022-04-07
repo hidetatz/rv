@@ -29,24 +29,24 @@ const (
 	AND     = InstructionCode("AND")
 	FENCE   = InstructionCode("FENCE")
 	FENCE_I = InstructionCode("FENCE.I")
-	//CSRRW   = InstructionCode("CSRRW")
-	//CSRRS   = InstructionCode("CSRRS")
-	//CSRRC  = InstructionCode("CSRRC")
-	//CSRRWI = InstructionCode("CSRRWI")
-	//CSRRSI = InstructionCode("CSRRSI")
-	//CSRRCI = InstructionCode("CSRRCI")
-	ECALL  = InstructionCode("ECALL")
-	EBREAK = InstructionCode("EBREAK")
+	CSRRW   = InstructionCode("CSRRW")
+	CSRRS   = InstructionCode("CSRRS")
+	CSRRC   = InstructionCode("CSRRC")
+	CSRRWI  = InstructionCode("CSRRWI")
+	CSRRSI  = InstructionCode("CSRRSI")
+	CSRRCI  = InstructionCode("CSRRCI")
+	ECALL   = InstructionCode("ECALL")
+	EBREAK  = InstructionCode("EBREAK")
 	//URET       = InstructionCode("URET")
-	//SRET = InstructionCode("SRET")
-	//MRET = InstructionCode("MRET")
-	//WFI  = InstructionCode("WFI")
-	//SFENCE_VMA = InstructionCode("SFENCE.VMA")
-	LB  = InstructionCode("LB")
-	LH  = InstructionCode("LH")
-	LW  = InstructionCode("LW")
-	LBU = InstructionCode("LBU")
-	LHU = InstructionCode("LHU")
+	SRET       = InstructionCode("SRET")
+	MRET       = InstructionCode("MRET")
+	WFI        = InstructionCode("WFI")
+	SFENCE_VMA = InstructionCode("SFENCE.VMA")
+	LB         = InstructionCode("LB")
+	LH         = InstructionCode("LH")
+	LW         = InstructionCode("LW")
+	LBU        = InstructionCode("LBU")
+	LHU        = InstructionCode("LHU")
 	//SB  = InstructionCode("SB")
 	//SH         = InstructionCode("SH")
 	//SW   = InstructionCode("SW")
@@ -279,6 +279,10 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw uint64) Exception{
 		}
 		cpu.XRegs.Write(i.Rd, tmp)
 		cpu.PC += i.Imm - 4 // sub in advance as the PC is incremented later
+		return ExcpNone
+	},
+	WFI: func(cpu *CPU, raw uint64) Exception {
+		cpu.Wfi = true
 		return ExcpNone
 	},
 }

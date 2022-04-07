@@ -63,6 +63,10 @@ type CPU struct {
 	// Registers
 	XRegs *Registers
 	FRegs *FRegisters
+
+	// Wfi represents "wait for interrupt". When this is true, CPU does not run until
+	// an interrupt occurs.
+	Wfi bool
 }
 
 func NewCPU() *CPU {
@@ -82,6 +86,11 @@ func (cpu *CPU) Fetch(size Size) uint64 {
 
 func (cpu *CPU) Run() Exception {
 	Debug("Tick-------")
+
+	if cpu.Wfi {
+		return ExcpNone
+	}
+
 	// TODO: eventually physical <-> virtual memory translation must take place here.
 
 	var inst uint64

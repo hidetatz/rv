@@ -110,12 +110,30 @@ func (cpu *CPU) Decode(inst uint64) InstructionCode {
 	case 0b111_0011:
 		switch funct3 {
 		case 0b000:
-			imm := bits(inst, 31, 20)
-			switch imm {
-			case 0b0:
-				return ECALL
-			case 0b1:
-				return EBREAK
+			switch funct7 {
+			case 0b000_1000:
+				switch bits(inst, 24, 20) {
+				case 0b0_0010:
+					return SRET
+				case 0b0_0101:
+					return WFI
+				default:
+					return _INVALID
+				}
+			case 0b001_1000:
+				return MRET
+			case 0b000_1001:
+				return SFENCE_VMA
+			case 0b000_0000:
+				imm := bits(inst, 31, 20)
+				switch imm {
+				case 0b0:
+					return ECALL
+				case 0b1:
+					return EBREAK
+				default:
+					return _INVALID
+				}
 			default:
 				return _INVALID
 			}
