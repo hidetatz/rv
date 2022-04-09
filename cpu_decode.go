@@ -158,6 +158,8 @@ func (cpu *CPU) Decode(inst uint64) InstructionCode {
 		return LUI
 	case 0b110_1111:
 		return JAL
+	case 0b010_0011:
+		return SB
 	default:
 		return _INVALID
 	}

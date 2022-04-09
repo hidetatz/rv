@@ -47,7 +47,7 @@ const (
 	LW         = InstructionCode("LW")
 	LBU        = InstructionCode("LBU")
 	LHU        = InstructionCode("LHU")
-	//SB  = InstructionCode("SB")
+	SB         = InstructionCode("SB")
 	//SH         = InstructionCode("SH")
 	//SW   = InstructionCode("SW")
 	JAL  = InstructionCode("JAL")
@@ -283,6 +283,12 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw uint64) Exception{
 	},
 	WFI: func(cpu *CPU, raw uint64) Exception {
 		cpu.Wfi = true
+		return ExcpNone
+	},
+	SB: func(cpu *CPU, raw uint64) Exception {
+		i := ParseS(raw)
+		addr := cpu.XRegs.Read(i.Rs1) + i.Imm
+		cpu.Bus.Write(addr, cpu.XRegs.Read(i.Rs2), Byte)
 		return ExcpNone
 	},
 }
