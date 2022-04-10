@@ -25,8 +25,6 @@ func (cpu *CPU) Decode(inst uint64) InstructionCode {
 				return ADD
 			case 0b010_0000:
 				return SUB
-			default:
-				return _INVALID
 			}
 		case 0b001:
 			return SLL
@@ -42,15 +40,11 @@ func (cpu *CPU) Decode(inst uint64) InstructionCode {
 				return SRL
 			case 0b010_0000:
 				return SRA
-			default:
-				return _INVALID
 			}
 		case 0b110:
 			return OR
 		case 0b111:
 			return AND
-		default:
-			return _INVALID
 		}
 	case 0b110_0111:
 		return JALR
@@ -66,8 +60,6 @@ func (cpu *CPU) Decode(inst uint64) InstructionCode {
 			return LBU
 		case 0b101:
 			return LHU
-		default:
-			return _INVALID
 		}
 	case 0b001_0011:
 		switch funct3 {
@@ -92,11 +84,7 @@ func (cpu *CPU) Decode(inst uint64) InstructionCode {
 				return SRLI
 			case 0b010_0000:
 				return SRAI
-			default:
-				return _INVALID
 			}
-		default:
-			return _INVALID
 		}
 	case 0b000_1111:
 		switch funct3 {
@@ -104,8 +92,6 @@ func (cpu *CPU) Decode(inst uint64) InstructionCode {
 			return FENCE
 		case 0b001:
 			return FENCE_I
-		default:
-			return _INVALID
 		}
 	case 0b111_0011:
 		switch funct3 {
@@ -117,8 +103,6 @@ func (cpu *CPU) Decode(inst uint64) InstructionCode {
 					return SRET
 				case 0b0_0101:
 					return WFI
-				default:
-					return _INVALID
 				}
 			case 0b001_1000:
 				return MRET
@@ -131,11 +115,7 @@ func (cpu *CPU) Decode(inst uint64) InstructionCode {
 					return ECALL
 				case 0b1:
 					return EBREAK
-				default:
-					return _INVALID
 				}
-			default:
-				return _INVALID
 			}
 		case 0b001:
 			return CSRRW
@@ -149,8 +129,6 @@ func (cpu *CPU) Decode(inst uint64) InstructionCode {
 			return CSRRSI
 		case 0b111:
 			return CSRRCI
-		default:
-			return _INVALID
 		}
 	case 0b001_0111:
 		return AUIPC
@@ -163,4 +141,6 @@ func (cpu *CPU) Decode(inst uint64) InstructionCode {
 	default:
 		return _INVALID
 	}
+
+	return _INVALID
 }
