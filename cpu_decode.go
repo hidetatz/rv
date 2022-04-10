@@ -137,9 +137,14 @@ func (cpu *CPU) Decode(inst uint64) InstructionCode {
 	case 0b110_1111:
 		return JAL
 	case 0b010_0011:
-		return SB
-	default:
-		return _INVALID
+		switch funct3 {
+		case 0b000:
+			return SB
+		case 0b001:
+			return SH
+		case 0b010:
+			return SW
+		}
 	}
 
 	return _INVALID

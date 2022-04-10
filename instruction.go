@@ -48,10 +48,10 @@ const (
 	LBU        = InstructionCode("LBU")
 	LHU        = InstructionCode("LHU")
 	SB         = InstructionCode("SB")
-	//SH         = InstructionCode("SH")
-	//SW   = InstructionCode("SW")
-	JAL  = InstructionCode("JAL")
-	JALR = InstructionCode("JALR")
+	SH         = InstructionCode("SH")
+	SW         = InstructionCode("SW")
+	JAL        = InstructionCode("JAL")
+	JALR       = InstructionCode("JALR")
 	//BEQ  = InstructionCode("BEQ")
 	//BNE  = InstructionCode("BNE")
 	//BLT = InstructionCode("BLT")
@@ -289,6 +289,18 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw uint64) Exception{
 		i := ParseS(raw)
 		addr := cpu.XRegs.Read(i.Rs1) + i.Imm
 		cpu.Bus.Write(addr, cpu.XRegs.Read(i.Rs2), Byte)
+		return ExcpNone
+	},
+	SH: func(cpu *CPU, raw uint64) Exception {
+		i := ParseS(raw)
+		addr := cpu.XRegs.Read(i.Rs1) + i.Imm
+		cpu.Bus.Write(addr, cpu.XRegs.Read(i.Rs2), HalfWord)
+		return ExcpNone
+	},
+	SW: func(cpu *CPU, raw uint64) Exception {
+		i := ParseS(raw)
+		addr := cpu.XRegs.Read(i.Rs1) + i.Imm
+		cpu.Bus.Write(addr, cpu.XRegs.Read(i.Rs2), Word)
 		return ExcpNone
 	},
 }
