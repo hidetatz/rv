@@ -52,7 +52,7 @@ const (
 	SW         = InstructionCode("SW")
 	JAL        = InstructionCode("JAL")
 	JALR       = InstructionCode("JALR")
-	//BEQ  = InstructionCode("BEQ")
+	BEQ        = InstructionCode("BEQ")
 	//BNE  = InstructionCode("BNE")
 	//BLT = InstructionCode("BLT")
 	//BGE  = InstructionCode("BGE")
@@ -301,6 +301,13 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw uint64) Exception{
 		i := ParseS(raw)
 		addr := cpu.XRegs.Read(i.Rs1) + i.Imm
 		cpu.Bus.Write(addr, cpu.XRegs.Read(i.Rs2), Word)
+		return ExcpNone
+	},
+	BEQ: func(cpu *CPU, raw uint64) Exception {
+		i := ParseB(raw)
+		if cpu.XRegs.Read(i.Rs1) == cpu.XRegs.Read(i.Rs2) {
+			cpu.PC += i.Imm - 4 // sub in advance as the PC is incremented later
+		}
 		return ExcpNone
 	},
 }
