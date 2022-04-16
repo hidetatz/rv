@@ -151,6 +151,8 @@ func (cpu *CPU) Decode(inst uint64) InstructionCode {
 			return BEQ
 		case 0b001:
 			return BNE
+		case 0b100:
+			return BLT
 		}
 	}
 
