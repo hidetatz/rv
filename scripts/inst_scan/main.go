@@ -20,7 +20,7 @@ func main() {
 	scanner := bufio.NewScanner(f)
 
 	codeDefinition := regexp.MustCompile(`^\s+.+\s+=\sInstructionCode\(".+"\)`)
-	funcDefinition := regexp.MustCompile(`^\s+.+:\sfunc\(cpu\s\*CPU,\sraw\suint64\)\sException\s\{$`)
+	funcDefinition := regexp.MustCompile(`^\s+.+:\sfunc\(cpu\s\*CPU,\sraw,\s_|pc\suint64\)\sException\s\{$`)
 
 	codes := map[string]struct{}{}
 	fns := map[string]struct{}{}
