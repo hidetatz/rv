@@ -157,6 +157,8 @@ func (cpu *CPU) Decode(inst uint64) InstructionCode {
 			return BGE
 		case 0b110:
 			return BLTU
+		case 0b111:
+			return BGEU
 		}
 	}
 
