@@ -245,6 +245,10 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 		// do nothing because rv currently does not apply any optimizations and no fence is needed.
 		return ExcpNone
 	},
+	SFENCE_VMA: func(cpu *CPU, raw, _ uint64) Exception {
+		// do nothing because rv currently does not apply any optimizations and no fence is needed.
+		return ExcpNone
+	},
 	ECALL: func(cpu *CPU, raw, _ uint64) Exception {
 		switch cpu.Mode {
 		case User:
