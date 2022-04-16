@@ -149,6 +149,8 @@ func (cpu *CPU) Decode(inst uint64) InstructionCode {
 		switch funct3 {
 		case 0b000:
 			return BEQ
+		case 0b001:
+			return BNE
 		}
 	}
 

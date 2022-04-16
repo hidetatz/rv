@@ -53,7 +53,7 @@ const (
 	JAL        = InstructionCode("JAL")
 	JALR       = InstructionCode("JALR")
 	BEQ        = InstructionCode("BEQ")
-	//BNE  = InstructionCode("BNE")
+	BNE        = InstructionCode("BNE")
 	//BLT = InstructionCode("BLT")
 	//BGE  = InstructionCode("BGE")
 	//BLTU       = InstructionCode("BLTU")
@@ -307,6 +307,13 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, addr uint64) Exceptio
 		i := ParseB(raw)
 		if cpu.XRegs.Read(i.Rs1) == cpu.XRegs.Read(i.Rs2) {
 			cpu.PC = addr + i.Imm
+		}
+		return ExcpNone
+	},
+	BNE: func(cpu *CPU, raw, pc uint64) Exception {
+		i := ParseB(raw)
+		if cpu.XRegs.Read(i.Rs1) != cpu.XRegs.Read(i.Rs2) {
+			cpu.PC = pc + i.Imm
 		}
 		return ExcpNone
 	},
