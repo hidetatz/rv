@@ -55,7 +55,7 @@ const (
 	BEQ        = InstructionCode("BEQ")
 	BNE        = InstructionCode("BNE")
 	BLT        = InstructionCode("BLT")
-	//BGE  = InstructionCode("BGE")
+	BGE        = InstructionCode("BGE")
 	//BLTU       = InstructionCode("BLTU")
 	//BGEU = InstructionCode("BGEU")
 
@@ -320,6 +320,13 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 	BLT: func(cpu *CPU, raw, pc uint64) Exception {
 		i := ParseB(raw)
 		if int64(cpu.XRegs.Read(i.Rs1)) < int64(cpu.XRegs.Read(i.Rs2)) {
+			cpu.PC = pc + i.Imm
+		}
+		return ExcpNone
+	},
+	BGE: func(cpu *CPU, raw, pc uint64) Exception {
+		i := ParseB(raw)
+		if int64(cpu.XRegs.Read(i.Rs1)) >= int64(cpu.XRegs.Read(i.Rs2)) {
 			cpu.PC = pc + i.Imm
 		}
 		return ExcpNone
