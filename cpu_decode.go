@@ -109,12 +109,14 @@ func (cpu *CPU) Decode(inst uint64) InstructionCode {
 			case 0b000_1001:
 				return SFENCE_VMA
 			case 0b000_0000:
-				imm := bits(inst, 31, 20)
+				imm := bits(inst, 24, 20)
 				switch imm {
-				case 0b0:
+				case 0b00:
 					return ECALL
-				case 0b1:
+				case 0b01:
 					return EBREAK
+				case 0b10:
+					return URET
 				}
 			}
 		case 0b001:
