@@ -112,8 +112,9 @@ func (cpu *CPU) Run() Exception {
 		inst = cpu.Fetch(Word)
 	}
 
-	// increment PC here. Note that PC might be changed in instruction operation,
+	// Save current PC, then increment PC here. Note that PC might be changed in instruction operation,
 	// but in that cases the changed value should be the next PC.
+	cur := cpu.PC
 	if compressed {
 		cpu.PC += 2
 	} else {
@@ -131,8 +132,6 @@ func (cpu *CPU) Run() Exception {
 	}
 
 	Debug("instCode: %v", instructionCode)
-
-	cur := cpu.PC
 
 	// Execute the instruction.
 	exception := cpu.Exec(instructionCode, inst, cur)
