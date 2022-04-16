@@ -78,7 +78,7 @@ func (ic InstructionCode) String() string {
 	return string(ic)
 }
 
-var Instructions = map[InstructionCode]func(cpu *CPU, raw, addr uint64) Exception{
+var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 	// RV64I
 	ADD: func(cpu *CPU, raw, _ uint64) Exception {
 		i := ParseR(raw)
@@ -271,14 +271,14 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, addr uint64) Exceptio
 		cpu.XRegs.Write(i.Rd, i.Imm)
 		return ExcpNone
 	},
-	JAL: func(cpu *CPU, raw, addr uint64) Exception {
+	JAL: func(cpu *CPU, raw, pc uint64) Exception {
 		i := ParseJ(raw)
 		tmp := cpu.PC + 4
 		if i.Rd == 0b0 {
 			i.Rd = 1 // x1 if rd is omitted
 		}
 		cpu.XRegs.Write(i.Rd, tmp)
-		cpu.PC = addr + i.Imm
+		cpu.PC = pc + i.Imm
 		return ExcpNone
 	},
 	WFI: func(cpu *CPU, raw, _ uint64) Exception {
@@ -287,26 +287,26 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, addr uint64) Exceptio
 	},
 	SB: func(cpu *CPU, raw, _ uint64) Exception {
 		i := ParseS(raw)
-		addr := cpu.XRegs.Read(i.Rs1) + i.Imm
-		cpu.Bus.Write(addr, cpu.XRegs.Read(i.Rs2), Byte)
+		pc := cpu.XRegs.Read(i.Rs1) + i.Imm
+		cpu.Bus.Write(pc, cpu.XRegs.Read(i.Rs2), Byte)
 		return ExcpNone
 	},
 	SH: func(cpu *CPU, raw, _ uint64) Exception {
 		i := ParseS(raw)
-		addr := cpu.XRegs.Read(i.Rs1) + i.Imm
-		cpu.Bus.Write(addr, cpu.XRegs.Read(i.Rs2), HalfWord)
+		pc := cpu.XRegs.Read(i.Rs1) + i.Imm
+		cpu.Bus.Write(pc, cpu.XRegs.Read(i.Rs2), HalfWord)
 		return ExcpNone
 	},
 	SW: func(cpu *CPU, raw, _ uint64) Exception {
 		i := ParseS(raw)
-		addr := cpu.XRegs.Read(i.Rs1) + i.Imm
-		cpu.Bus.Write(addr, cpu.XRegs.Read(i.Rs2), Word)
+		pc := cpu.XRegs.Read(i.Rs1) + i.Imm
+		cpu.Bus.Write(pc, cpu.XRegs.Read(i.Rs2), Word)
 		return ExcpNone
 	},
-	BEQ: func(cpu *CPU, raw, addr uint64) Exception {
+	BEQ: func(cpu *CPU, raw, pc uint64) Exception {
 		i := ParseB(raw)
 		if cpu.XRegs.Read(i.Rs1) == cpu.XRegs.Read(i.Rs2) {
-			cpu.PC = addr + i.Imm
+			cpu.PC = pc + i.Imm
 		}
 		return ExcpNone
 	},
