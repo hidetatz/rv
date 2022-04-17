@@ -1,7 +1,12 @@
 package main
 
+type Decoded struct {
+	Code   InstructionCode
+	Format InstructionFormat
+}
+
 // Decode returns the format of the instruction.
-func (cpu *CPU) Decode(inst uint64) InstructionCode {
+func (cpu *CPU) Decode(inst uint64) Decoded {
 	opcode := bits(inst, 6, 0)
 	funct7 := bits(inst, 31, 25)
 	funct3 := bits(inst, 14, 12)
@@ -17,76 +22,76 @@ func (cpu *CPU) Decode(inst uint64) InstructionCode {
 		case 0b000:
 			switch funct7 {
 			case 0b000_0000:
-				return ADD
+				return Decoded{ADD, InstructionFormatR}
 			case 0b010_0000:
-				return SUB
+				return Decoded{SUB, InstructionFormatR}
 			}
 		case 0b001:
-			return SLL
+			return Decoded{SLL, InstructionFormatR}
 		case 0b010:
-			return SLT
+			return Decoded{SLT, InstructionFormatR}
 		case 0b011:
-			return SLTU
+			return Decoded{SLTU, InstructionFormatR}
 		case 0b100:
-			return XOR
+			return Decoded{XOR, InstructionFormatR}
 		case 0b101:
 			switch funct7 {
 			case 0b000_0000:
-				return SRL
+				return Decoded{SRL, InstructionFormatR}
 			case 0b010_0000:
-				return SRA
+				return Decoded{SRA, InstructionFormatR}
 			}
 		case 0b110:
-			return OR
+			return Decoded{OR, InstructionFormatR}
 		case 0b111:
-			return AND
+			return Decoded{AND, InstructionFormatR}
 		}
 	case 0b110_0111:
-		return JALR
+		return Decoded{JALR, InstructionFormatI}
 	case 0b000_0011:
 		switch funct3 {
 		case 0b000:
-			return LB
+			return Decoded{LB, InstructionFormatI}
 		case 0b001:
-			return LH
+			return Decoded{LH, InstructionFormatI}
 		case 0b010:
-			return LW
+			return Decoded{LW, InstructionFormatI}
 		case 0b100:
-			return LBU
+			return Decoded{LBU, InstructionFormatI}
 		case 0b101:
-			return LHU
+			return Decoded{LHU, InstructionFormatI}
 		}
 	case 0b001_0011:
 		switch funct3 {
 		case 0b000:
-			return ADDI
+			return Decoded{ADDI, InstructionFormatI}
 		case 0b010:
-			return SLTI
+			return Decoded{SLTI, InstructionFormatI}
 		case 0b011:
-			return SLTIU
+			return Decoded{SLTIU, InstructionFormatI}
 		case 0b100:
-			return XORI
+			return Decoded{XORI, InstructionFormatI}
 		case 0b110:
-			return ORI
+			return Decoded{ORI, InstructionFormatI}
 		case 0b111:
-			return ANDI
+			return Decoded{ANDI, InstructionFormatI}
 		case 0b001:
-			return SLLI
+			return Decoded{SLLI, InstructionFormatI}
 		case 0b101:
 			imm := bits(inst, 31, 20)
 			switch imm >> 5 {
 			case 0b000_0000:
-				return SRLI
+				return Decoded{SRLI, InstructionFormatI}
 			case 0b010_0000:
-				return SRAI
+				return Decoded{SRAI, InstructionFormatI}
 			}
 		}
 	case 0b000_1111:
 		switch funct3 {
 		case 0b000:
-			return FENCE
+			return Decoded{FENCE, InstructionFormatI}
 		case 0b001:
-			return FENCE_I
+			return Decoded{FENCE_I, InstructionFormatI}
 		}
 	case 0b111_0011:
 		switch funct3 {
@@ -95,69 +100,69 @@ func (cpu *CPU) Decode(inst uint64) InstructionCode {
 			case 0b000_1000:
 				switch bits(inst, 24, 20) {
 				case 0b0_0010:
-					return SRET
+					return Decoded{SRET, InstructionFormatR}
 				case 0b0_0101:
-					return WFI
+					return Decoded{WFI, InstructionFormatR}
 				}
 			case 0b001_1000:
-				return MRET
+				return Decoded{MRET, InstructionFormatR}
 			case 0b000_1001:
-				return SFENCE_VMA
+				return Decoded{SFENCE_VMA, InstructionFormatR}
 			case 0b000_0000:
 				imm := bits(inst, 24, 20)
 				switch imm {
 				case 0b00:
-					return ECALL
+					return Decoded{ECALL, InstructionFormatI}
 				case 0b01:
-					return EBREAK
+					return Decoded{EBREAK, InstructionFormatI}
 				case 0b10:
-					return URET
+					return Decoded{URET, InstructionFormatR}
 				}
 			}
 		case 0b001:
-			return CSRRW
+			return Decoded{CSRRW, InstructionFormatI}
 		case 0b010:
-			return CSRRS
+			return Decoded{CSRRS, InstructionFormatI}
 		case 0b011:
-			return CSRRC
+			return Decoded{CSRRC, InstructionFormatI}
 		case 0b101:
-			return CSRRWI
+			return Decoded{CSRRWI, InstructionFormatI}
 		case 0b110:
-			return CSRRSI
+			return Decoded{CSRRSI, InstructionFormatI}
 		case 0b111:
-			return CSRRCI
+			return Decoded{CSRRCI, InstructionFormatI}
 		}
 	case 0b001_0111:
-		return AUIPC
+		return Decoded{AUIPC, InstructionFormatU}
 	case 0b011_0111:
-		return LUI
+		return Decoded{LUI, InstructionFormatU}
 	case 0b110_1111:
-		return JAL
+		return Decoded{JAL, InstructionFormatJ}
 	case 0b010_0011:
 		switch funct3 {
 		case 0b000:
-			return SB
+			return Decoded{SB, InstructionFormatS}
 		case 0b001:
-			return SH
+			return Decoded{SH, InstructionFormatS}
 		case 0b010:
-			return SW
+			return Decoded{SW, InstructionFormatS}
 		}
 	case 0b110_0011:
 		switch funct3 {
 		case 0b000:
-			return BEQ
+			return Decoded{BEQ, InstructionFormatB}
 		case 0b001:
-			return BNE
+			return Decoded{BNE, InstructionFormatB}
 		case 0b100:
-			return BLT
+			return Decoded{BLT, InstructionFormatB}
 		case 0b101:
-			return BGE
+			return Decoded{BGE, InstructionFormatB}
 		case 0b110:
-			return BLTU
+			return Decoded{BLTU, InstructionFormatB}
 		case 0b111:
-			return BGEU
+			return Decoded{BGEU, InstructionFormatB}
 		}
 	}
 
-	return _INVALID
+	return Decoded{_INVALID, InstructionFormatInvalid}
 }

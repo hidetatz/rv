@@ -101,6 +101,7 @@ func (cpu *CPU) Run() Exception {
 
 	// As of here, we are not sure if the next instruction is compressed. First we have to figure that out.
 	halfword := cpu.Fetch(HalfWord)
+
 	compressed := cpu.IsCompressed(halfword)
 	if compressed {
 		// if compressed, extract it to be a 32-bit one.
@@ -129,25 +130,77 @@ func (cpu *CPU) Run() Exception {
 	Debug("inst: %032b", inst)
 
 	// Decode the instruction
-	instructionCode := cpu.Decode(inst)
+	decoded := cpu.Decode(inst)
 
-	if instructionCode == _INVALID {
+	if decoded.Code == _INVALID {
 		panic("invalid instruction!")
 	}
 
-	Debug("instCode: %v", instructionCode)
+	Debug("instCode: %v", decoded.Code)
 
 	// Execute the instruction.
-	exception := cpu.Exec(instructionCode, inst, cur)
+	exception := cpu.Exec(decoded.Code, decoded.Format, inst, cur)
 
 	return exception
 }
 
-func (cpu *CPU) Exec(code InstructionCode, inst, addr uint64) Exception {
-	execution, ok := Instructions[code]
-	if !ok {
+func (cpu *CPU) Exec(code InstructionCode, format InstructionFormat, inst, addr uint64) Exception {
+	switch format {
+	case InstructionFormatR:
+		i := ParseR(inst)
+		execution, ok := RInstructions[code]
+		if !ok {
+			return ExcpIllegalInstruction
+		}
+
+		return execution(cpu, i, addr)
+
+	case InstructionFormatI:
+		i := ParseI(inst)
+		execution, ok := IInstructions[code]
+		if !ok {
+			return ExcpIllegalInstruction
+		}
+
+		return execution(cpu, i, addr)
+
+	case InstructionFormatS:
+		i := ParseS(inst)
+		execution, ok := SInstructions[code]
+		if !ok {
+			return ExcpIllegalInstruction
+		}
+
+		return execution(cpu, i, addr)
+
+	case InstructionFormatB:
+		i := ParseB(inst)
+		execution, ok := BInstructions[code]
+		if !ok {
+			return ExcpIllegalInstruction
+		}
+
+		return execution(cpu, i, addr)
+
+	case InstructionFormatU:
+		i := ParseU(inst)
+		execution, ok := UInstructions[code]
+		if !ok {
+			return ExcpIllegalInstruction
+		}
+
+		return execution(cpu, i, addr)
+
+	case InstructionFormatJ:
+		i := ParseJ(inst)
+		execution, ok := JInstructions[code]
+		if !ok {
+			return ExcpIllegalInstruction
+		}
+
+		return execution(cpu, i, addr)
+
+	default:
 		return ExcpIllegalInstruction
 	}
-
-	return execution(cpu, inst, addr)
 }

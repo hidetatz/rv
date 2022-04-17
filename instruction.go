@@ -1,5 +1,17 @@
 package main
 
+type InstructionFormat uint8
+
+const (
+	InstructionFormatInvalid InstructionFormat = iota
+	InstructionFormatR
+	InstructionFormatI
+	InstructionFormatS
+	InstructionFormatB
+	InstructionFormatU
+	InstructionFormatJ
+)
+
 type InstructionCode string
 
 const (
@@ -78,26 +90,21 @@ func (ic InstructionCode) String() string {
 	return string(ic)
 }
 
-var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
-	// RV64I
-	ADD: func(cpu *CPU, raw, _ uint64) Exception {
-		i := ParseR(raw)
+var RInstructions = map[InstructionCode]func(cpu *CPU, i *InstructionR, pc uint64) Exception{
+	ADD: func(cpu *CPU, i *InstructionR, _ uint64) Exception {
 		cpu.XRegs.Write(i.Rd, cpu.XRegs.Read(i.Rs1)+cpu.XRegs.Read(i.Rs2))
 		return ExcpNone
 	},
-	SUB: func(cpu *CPU, raw, _ uint64) Exception {
-		i := ParseR(raw)
+	SUB: func(cpu *CPU, i *InstructionR, _ uint64) Exception {
 		cpu.XRegs.Write(i.Rd, cpu.XRegs.Read(i.Rs1)-cpu.XRegs.Read(i.Rs2))
 		return ExcpNone
 	},
-	SLL: func(cpu *CPU, raw, _ uint64) Exception {
-		i := ParseR(raw)
+	SLL: func(cpu *CPU, i *InstructionR, _ uint64) Exception {
 		shamt := cpu.XRegs.Read(i.Rs2) & 0b111111
 		cpu.XRegs.Write(i.Rd, cpu.XRegs.Read(i.Rs1)<<shamt)
 		return ExcpNone
 	},
-	SLT: func(cpu *CPU, raw, _ uint64) Exception {
-		i := ParseR(raw)
+	SLT: func(cpu *CPU, i *InstructionR, _ uint64) Exception {
 		var v uint64 = 0
 		if int64(cpu.XRegs.Read(i.Rs1)) < int64(cpu.XRegs.Read(i.Rs2)) {
 			v = 1
@@ -105,8 +112,7 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 		cpu.XRegs.Write(i.Rd, v)
 		return ExcpNone
 	},
-	SLTU: func(cpu *CPU, raw, _ uint64) Exception {
-		i := ParseR(raw)
+	SLTU: func(cpu *CPU, i *InstructionR, _ uint64) Exception {
 		var v uint64 = 0
 		if cpu.XRegs.Read(i.Rs1) < cpu.XRegs.Read(i.Rs2) {
 			v = 1
@@ -114,242 +120,37 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 		cpu.XRegs.Write(i.Rd, v)
 		return ExcpNone
 	},
-	XOR: func(cpu *CPU, raw, _ uint64) Exception {
-		i := ParseR(raw)
+	XOR: func(cpu *CPU, i *InstructionR, _ uint64) Exception {
 		cpu.XRegs.Write(i.Rd, cpu.XRegs.Read(i.Rs1)^cpu.XRegs.Read(i.Rs2))
 		return ExcpNone
 	},
-	SRL: func(cpu *CPU, raw, _ uint64) Exception {
-		i := ParseR(raw)
+	SRL: func(cpu *CPU, i *InstructionR, _ uint64) Exception {
 		shift := cpu.XRegs.Read(i.Rs2) & 0b111111
 		cpu.XRegs.Write(i.Rd, cpu.XRegs.Read(i.Rs1)>>shift)
 		return ExcpNone
 	},
-	SRA: func(cpu *CPU, raw, _ uint64) Exception {
-		i := ParseR(raw)
+	SRA: func(cpu *CPU, i *InstructionR, _ uint64) Exception {
 		shift := cpu.XRegs.Read(i.Rs2) & 0b111111
 		cpu.XRegs.Write(i.Rd, uint64(int64(cpu.XRegs.Read(i.Rs1))>>shift))
 		return ExcpNone
 	},
-	OR: func(cpu *CPU, raw, _ uint64) Exception {
-		i := ParseR(raw)
+	OR: func(cpu *CPU, i *InstructionR, _ uint64) Exception {
 		cpu.XRegs.Write(i.Rd, cpu.XRegs.Read(i.Rs1)|cpu.XRegs.Read(i.Rs2))
 		return ExcpNone
 	},
-	AND: func(cpu *CPU, raw, _ uint64) Exception {
-		i := ParseR(raw)
+	AND: func(cpu *CPU, i *InstructionR, _ uint64) Exception {
 		cpu.XRegs.Write(i.Rd, cpu.XRegs.Read(i.Rs1)&cpu.XRegs.Read(i.Rs2))
 		return ExcpNone
 	},
-	JALR: func(cpu *CPU, raw, _ uint64) Exception {
-		i := ParseI(raw)
-		tmp := cpu.PC + 4
-		target := (cpu.XRegs.Read(i.Rs1) + i.Imm) & ^uint64(1)
-		cpu.PC = target - 4 // sub in advance as the PC is incremented later
-		cpu.XRegs.Write(i.Rd, tmp)
-		return ExcpNone
-	},
-	LB: func(cpu *CPU, raw, _ uint64) Exception {
-		i := ParseI(raw)
-		v := cpu.Bus.Read(cpu.XRegs.Read(i.Rs1)+i.Imm, 8)
-		cpu.XRegs.Write(i.Rd, uint64(int64(int8(v))))
-		return ExcpNone
-	},
-	LH: func(cpu *CPU, raw, _ uint64) Exception {
-		i := ParseI(raw)
-		v := cpu.Bus.Read(cpu.XRegs.Read(i.Rs1)+i.Imm, 16)
-		cpu.XRegs.Write(i.Rd, uint64(int64(int16(v))))
-		return ExcpNone
-	},
-	LW: func(cpu *CPU, raw, _ uint64) Exception {
-		i := ParseI(raw)
-		v := cpu.Bus.Read(cpu.XRegs.Read(i.Rs1)+i.Imm, 32)
-		cpu.XRegs.Write(i.Rd, uint64(int64(int32(v))))
-		return ExcpNone
-	},
-	LBU: func(cpu *CPU, raw, _ uint64) Exception {
-		i := ParseI(raw)
-		v := cpu.Bus.Read(cpu.XRegs.Read(i.Rs1)+i.Imm, 8)
-		cpu.XRegs.Write(i.Rd, v)
-		return ExcpNone
-	},
-	LHU: func(cpu *CPU, raw, _ uint64) Exception {
-		i := ParseI(raw)
-		v := cpu.Bus.Read(cpu.XRegs.Read(i.Rs1)+i.Imm, 16)
-		cpu.XRegs.Write(i.Rd, v)
-		return ExcpNone
-	},
-	ADDI: func(cpu *CPU, raw, _ uint64) Exception {
-		i := ParseI(raw)
-		cpu.XRegs.Write(i.Rd, i.Imm+cpu.XRegs.Read(i.Rs1))
-		return ExcpNone
-	},
-	SLTI: func(cpu *CPU, raw, _ uint64) Exception {
-		i := ParseI(raw)
-		var v uint64 = 0
-		// must compare as two's complement
-		if int64(cpu.XRegs.Read(i.Rs1)) < int64(i.Imm) {
-			v = 1
-		}
-		cpu.XRegs.Write(i.Rd, v)
-		return ExcpNone
-	},
-	SLTIU: func(cpu *CPU, raw, _ uint64) Exception {
-		i := ParseI(raw)
-		var v uint64 = 0
-		// must compare as two's complement
-		if cpu.XRegs.Read(i.Rs1) < i.Imm {
-			v = 1
-		}
-		cpu.XRegs.Write(i.Rd, v)
-		return ExcpNone
-	},
-	XORI: func(cpu *CPU, raw, _ uint64) Exception {
-		i := ParseI(raw)
-		cpu.XRegs.Write(i.Rd, cpu.XRegs.Read(i.Rs1)^i.Imm)
-		return ExcpNone
-	},
-	ORI: func(cpu *CPU, raw, _ uint64) Exception {
-		i := ParseI(raw)
-		cpu.XRegs.Write(i.Rd, cpu.XRegs.Read(i.Rs1)|i.Imm)
-		return ExcpNone
-	},
-	ANDI: func(cpu *CPU, raw, _ uint64) Exception {
-		i := ParseI(raw)
-		cpu.XRegs.Write(i.Rd, cpu.XRegs.Read(i.Rs1)&i.Imm)
-		return ExcpNone
-	},
-	SLLI: func(cpu *CPU, raw, _ uint64) Exception {
-		i := ParseI(raw)
-		shamt := i.Imm & 0b1_1111
-		cpu.XRegs.Write(i.Rd, cpu.XRegs.Read(i.Rs1)<<shamt)
-		return ExcpNone
-	},
-	SRLI: func(cpu *CPU, raw, _ uint64) Exception {
-		i := ParseI(raw)
-		shamt := i.Imm & 0b1_1111
-		cpu.XRegs.Write(i.Rd, cpu.XRegs.Read(i.Rs1)>>shamt)
-		return ExcpNone
-	},
-	SRAI: func(cpu *CPU, raw, _ uint64) Exception {
-		i := ParseI(raw)
-		shamt := i.Imm & 0b1_1111
-		cpu.XRegs.Write(i.Rd, uint64(int64(cpu.XRegs.Read(i.Rs1))>>shamt))
-		return ExcpNone
-	},
-	FENCE: func(cpu *CPU, raw, _ uint64) Exception {
+	SFENCE_VMA: func(cpu *CPU, i *InstructionR, _ uint64) Exception {
 		// do nothing because rv currently does not apply any optimizations and no fence is needed.
 		return ExcpNone
 	},
-	FENCE_I: func(cpu *CPU, raw, _ uint64) Exception {
-		// do nothing because rv currently does not apply any optimizations and no fence is needed.
-		return ExcpNone
-	},
-	SFENCE_VMA: func(cpu *CPU, raw, _ uint64) Exception {
-		// do nothing because rv currently does not apply any optimizations and no fence is needed.
-		return ExcpNone
-	},
-	ECALL: func(cpu *CPU, raw, _ uint64) Exception {
-		switch cpu.Mode {
-		case User:
-			return ExcpEnvironmentCallFromUmode
-		case Supervisor:
-			return ExcpEnvironmentCallFromSmode
-		case Machine:
-			return ExcpEnvironmentCallFromMmode
-		default:
-			return ExcpIllegalInstruction
-		}
-		return ExcpIllegalInstruction
-	},
-	EBREAK: func(cpu *CPU, raw, _ uint64) Exception {
-		return ExcpBreakpoint
-	},
-	AUIPC: func(cpu *CPU, raw, _ uint64) Exception {
-		i := ParseU(raw)
-		cpu.XRegs.Write(i.Rd, cpu.PC+i.Imm)
-		return ExcpNone
-	},
-	LUI: func(cpu *CPU, raw, _ uint64) Exception {
-		i := ParseU(raw)
-		cpu.XRegs.Write(i.Rd, i.Imm)
-		return ExcpNone
-	},
-	JAL: func(cpu *CPU, raw, pc uint64) Exception {
-		i := ParseJ(raw)
-		tmp := cpu.PC + 4
-		if i.Rd == 0b0 {
-			i.Rd = 1 // x1 if rd is omitted
-		}
-		cpu.XRegs.Write(i.Rd, tmp)
-		cpu.PC = pc + i.Imm
-		return ExcpNone
-	},
-	WFI: func(cpu *CPU, raw, _ uint64) Exception {
+	WFI: func(cpu *CPU, i *InstructionR, _ uint64) Exception {
 		cpu.Wfi = true
 		return ExcpNone
 	},
-	SB: func(cpu *CPU, raw, _ uint64) Exception {
-		i := ParseS(raw)
-		pc := cpu.XRegs.Read(i.Rs1) + i.Imm
-		cpu.Bus.Write(pc, cpu.XRegs.Read(i.Rs2), Byte)
-		return ExcpNone
-	},
-	SH: func(cpu *CPU, raw, _ uint64) Exception {
-		i := ParseS(raw)
-		pc := cpu.XRegs.Read(i.Rs1) + i.Imm
-		cpu.Bus.Write(pc, cpu.XRegs.Read(i.Rs2), HalfWord)
-		return ExcpNone
-	},
-	SW: func(cpu *CPU, raw, _ uint64) Exception {
-		i := ParseS(raw)
-		pc := cpu.XRegs.Read(i.Rs1) + i.Imm
-		cpu.Bus.Write(pc, cpu.XRegs.Read(i.Rs2), Word)
-		return ExcpNone
-	},
-	BEQ: func(cpu *CPU, raw, pc uint64) Exception {
-		i := ParseB(raw)
-		if cpu.XRegs.Read(i.Rs1) == cpu.XRegs.Read(i.Rs2) {
-			cpu.PC = pc + i.Imm
-		}
-		return ExcpNone
-	},
-	BNE: func(cpu *CPU, raw, pc uint64) Exception {
-		i := ParseB(raw)
-		if cpu.XRegs.Read(i.Rs1) != cpu.XRegs.Read(i.Rs2) {
-			cpu.PC = pc + i.Imm
-		}
-		return ExcpNone
-	},
-	BLT: func(cpu *CPU, raw, pc uint64) Exception {
-		i := ParseB(raw)
-		if int64(cpu.XRegs.Read(i.Rs1)) < int64(cpu.XRegs.Read(i.Rs2)) {
-			cpu.PC = pc + i.Imm
-		}
-		return ExcpNone
-	},
-	BGE: func(cpu *CPU, raw, pc uint64) Exception {
-		i := ParseB(raw)
-		if int64(cpu.XRegs.Read(i.Rs1)) >= int64(cpu.XRegs.Read(i.Rs2)) {
-			cpu.PC = pc + i.Imm
-		}
-		return ExcpNone
-	},
-	BLTU: func(cpu *CPU, raw, pc uint64) Exception {
-		i := ParseB(raw)
-		if cpu.XRegs.Read(i.Rs1) < cpu.XRegs.Read(i.Rs2) {
-			cpu.PC = pc + i.Imm
-		}
-		return ExcpNone
-	},
-	BGEU: func(cpu *CPU, raw, pc uint64) Exception {
-		i := ParseB(raw)
-		if cpu.XRegs.Read(i.Rs1) >= cpu.XRegs.Read(i.Rs2) {
-			cpu.PC = pc + i.Imm
-		}
-		return ExcpNone
-	},
-	SRET: func(cpu *CPU, raw, _ uint64) Exception {
+	SRET: func(cpu *CPU, i *InstructionR, _ uint64) Exception {
 		// First, set CSRs[SEPC] to program counter.
 		cpu.PC = cpu.CSR.Read(CsrSEPC)
 
@@ -395,7 +196,7 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 
 		return ExcpNone
 	},
-	MRET: func(cpu *CPU, raw, _ uint64) Exception {
+	MRET: func(cpu *CPU, i *InstructionR, _ uint64) Exception {
 		// First, set CSRs[MEPC] to program counter.
 		cpu.PC = cpu.CSR.Read(CsrMEPC)
 
@@ -439,7 +240,7 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 
 		return ExcpNone
 	},
-	URET: func(cpu *CPU, raw, _ uint64) Exception {
+	URET: func(cpu *CPU, i *InstructionR, _ uint64) Exception {
 		ustatus := cpu.CSR.Read(CsrUSTATUS)
 		upie := bit(ustatus, CsrStatusUPIE)
 
@@ -458,51 +259,233 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 
 		return ExcpNone
 	},
-	CSRRW: func(cpu *CPU, raw, _ uint64) Exception {
-		i := ParseI(raw)
+}
+
+var IInstructions = map[InstructionCode]func(cpu *CPU, i *InstructionI, pc uint64) Exception{
+	JALR: func(cpu *CPU, i *InstructionI, _ uint64) Exception {
+		tmp := cpu.PC + 4
+		target := (cpu.XRegs.Read(i.Rs1) + i.Imm) & ^uint64(1)
+		cpu.PC = target - 4 // sub in advance as the PC is incremented later
+		cpu.XRegs.Write(i.Rd, tmp)
+		return ExcpNone
+	},
+	LB: func(cpu *CPU, i *InstructionI, _ uint64) Exception {
+		v := cpu.Bus.Read(cpu.XRegs.Read(i.Rs1)+i.Imm, 8)
+		cpu.XRegs.Write(i.Rd, uint64(int64(int8(v))))
+		return ExcpNone
+	},
+	LH: func(cpu *CPU, i *InstructionI, _ uint64) Exception {
+		v := cpu.Bus.Read(cpu.XRegs.Read(i.Rs1)+i.Imm, 16)
+		cpu.XRegs.Write(i.Rd, uint64(int64(int16(v))))
+		return ExcpNone
+	},
+	LW: func(cpu *CPU, i *InstructionI, _ uint64) Exception {
+		v := cpu.Bus.Read(cpu.XRegs.Read(i.Rs1)+i.Imm, 32)
+		cpu.XRegs.Write(i.Rd, uint64(int64(int32(v))))
+		return ExcpNone
+	},
+	LBU: func(cpu *CPU, i *InstructionI, _ uint64) Exception {
+		v := cpu.Bus.Read(cpu.XRegs.Read(i.Rs1)+i.Imm, 8)
+		cpu.XRegs.Write(i.Rd, v)
+		return ExcpNone
+	},
+	LHU: func(cpu *CPU, i *InstructionI, _ uint64) Exception {
+		v := cpu.Bus.Read(cpu.XRegs.Read(i.Rs1)+i.Imm, 16)
+		cpu.XRegs.Write(i.Rd, v)
+		return ExcpNone
+	},
+	ADDI: func(cpu *CPU, i *InstructionI, _ uint64) Exception {
+		cpu.XRegs.Write(i.Rd, i.Imm+cpu.XRegs.Read(i.Rs1))
+		return ExcpNone
+	},
+	SLTI: func(cpu *CPU, i *InstructionI, _ uint64) Exception {
+		var v uint64 = 0
+		// must compare as two's complement
+		if int64(cpu.XRegs.Read(i.Rs1)) < int64(i.Imm) {
+			v = 1
+		}
+		cpu.XRegs.Write(i.Rd, v)
+		return ExcpNone
+	},
+	SLTIU: func(cpu *CPU, i *InstructionI, _ uint64) Exception {
+		var v uint64 = 0
+		// must compare as two's complement
+		if cpu.XRegs.Read(i.Rs1) < i.Imm {
+			v = 1
+		}
+		cpu.XRegs.Write(i.Rd, v)
+		return ExcpNone
+	},
+	XORI: func(cpu *CPU, i *InstructionI, _ uint64) Exception {
+		cpu.XRegs.Write(i.Rd, cpu.XRegs.Read(i.Rs1)^i.Imm)
+		return ExcpNone
+	},
+	ORI: func(cpu *CPU, i *InstructionI, _ uint64) Exception {
+		cpu.XRegs.Write(i.Rd, cpu.XRegs.Read(i.Rs1)|i.Imm)
+		return ExcpNone
+	},
+	ANDI: func(cpu *CPU, i *InstructionI, _ uint64) Exception {
+		cpu.XRegs.Write(i.Rd, cpu.XRegs.Read(i.Rs1)&i.Imm)
+		return ExcpNone
+	},
+	SLLI: func(cpu *CPU, i *InstructionI, _ uint64) Exception {
+		shamt := i.Imm & 0b1_1111
+		cpu.XRegs.Write(i.Rd, cpu.XRegs.Read(i.Rs1)<<shamt)
+		return ExcpNone
+	},
+	SRLI: func(cpu *CPU, i *InstructionI, _ uint64) Exception {
+		shamt := i.Imm & 0b1_1111
+		cpu.XRegs.Write(i.Rd, cpu.XRegs.Read(i.Rs1)>>shamt)
+		return ExcpNone
+	},
+	SRAI: func(cpu *CPU, i *InstructionI, _ uint64) Exception {
+		shamt := i.Imm & 0b1_1111
+		cpu.XRegs.Write(i.Rd, uint64(int64(cpu.XRegs.Read(i.Rs1))>>shamt))
+		return ExcpNone
+	},
+	FENCE: func(cpu *CPU, i *InstructionI, _ uint64) Exception {
+		// do nothing because rv currently does not apply any optimizations and no fence is needed.
+		return ExcpNone
+	},
+	FENCE_I: func(cpu *CPU, i *InstructionI, _ uint64) Exception {
+		// do nothing because rv currently does not apply any optimizations and no fence is needed.
+		return ExcpNone
+	},
+	ECALL: func(cpu *CPU, i *InstructionI, _ uint64) Exception {
+		switch cpu.Mode {
+		case User:
+			return ExcpEnvironmentCallFromUmode
+		case Supervisor:
+			return ExcpEnvironmentCallFromSmode
+		case Machine:
+			return ExcpEnvironmentCallFromMmode
+		default:
+			return ExcpIllegalInstruction
+		}
+		return ExcpIllegalInstruction
+	},
+	EBREAK: func(cpu *CPU, i *InstructionI, _ uint64) Exception {
+		return ExcpBreakpoint
+	},
+	CSRRW: func(cpu *CPU, i *InstructionI, _ uint64) Exception {
 		t := cpu.CSR.Read(i.Imm)
 		cpu.CSR.Write(i.Imm, cpu.XRegs.Read(i.Rs1))
 		cpu.XRegs.Write(i.Rd, t)
 
 		return ExcpNone
 	},
-	CSRRS: func(cpu *CPU, raw, _ uint64) Exception {
-		i := ParseI(raw)
+	CSRRS: func(cpu *CPU, i *InstructionI, _ uint64) Exception {
 		t := cpu.CSR.Read(i.Imm)
 		cpu.CSR.Write(i.Imm, (t | cpu.XRegs.Read(i.Rs1)))
 		cpu.XRegs.Write(i.Rd, t)
 
 		return ExcpNone
 	},
-	CSRRC: func(cpu *CPU, raw, _ uint64) Exception {
-		i := ParseI(raw)
+	CSRRC: func(cpu *CPU, i *InstructionI, _ uint64) Exception {
 		t := cpu.CSR.Read(i.Imm)
 		cpu.CSR.Write(i.Imm, (t & ^(cpu.XRegs.Read(i.Rs1))))
 		cpu.XRegs.Write(i.Rd, t)
 
 		return ExcpNone
 	},
-	CSRRWI: func(cpu *CPU, raw, _ uint64) Exception {
-		i := ParseI(raw)
+	CSRRWI: func(cpu *CPU, i *InstructionI, _ uint64) Exception {
 		cpu.XRegs.Write(i.Rd, cpu.CSR.Read(i.Imm))
 		cpu.CSR.Write(i.Imm, i.Rs1) // RS1 is zimm
 
 		return ExcpNone
 	},
-	CSRRSI: func(cpu *CPU, raw, _ uint64) Exception {
-		i := ParseI(raw)
+	CSRRSI: func(cpu *CPU, i *InstructionI, _ uint64) Exception {
 		t := cpu.CSR.Read(i.Imm)
 		cpu.CSR.Write(i.Imm, (t | i.Rs1)) // RS1 is zimm
 		cpu.XRegs.Write(i.Rd, t)
 
 		return ExcpNone
 	},
-	CSRRCI: func(cpu *CPU, raw, _ uint64) Exception {
-		i := ParseI(raw)
+	CSRRCI: func(cpu *CPU, i *InstructionI, _ uint64) Exception {
 		t := cpu.CSR.Read(i.Imm)
 		cpu.CSR.Write(i.Imm, (t & ^(i.Rs1)))
 		cpu.XRegs.Write(i.Rd, t)
 
+		return ExcpNone
+	},
+}
+
+var UInstructions = map[InstructionCode]func(cpu *CPU, i *InstructionU, pc uint64) Exception{
+	AUIPC: func(cpu *CPU, i *InstructionU, _ uint64) Exception {
+		cpu.XRegs.Write(i.Rd, cpu.PC+i.Imm)
+		return ExcpNone
+	},
+	LUI: func(cpu *CPU, i *InstructionU, _ uint64) Exception {
+		cpu.XRegs.Write(i.Rd, i.Imm)
+		return ExcpNone
+	},
+}
+
+var SInstructions = map[InstructionCode]func(cpu *CPU, i *InstructionS, pc uint64) Exception{
+	SB: func(cpu *CPU, i *InstructionS, _ uint64) Exception {
+		pc := cpu.XRegs.Read(i.Rs1) + i.Imm
+		cpu.Bus.Write(pc, cpu.XRegs.Read(i.Rs2), Byte)
+		return ExcpNone
+	},
+	SH: func(cpu *CPU, i *InstructionS, _ uint64) Exception {
+		pc := cpu.XRegs.Read(i.Rs1) + i.Imm
+		cpu.Bus.Write(pc, cpu.XRegs.Read(i.Rs2), HalfWord)
+		return ExcpNone
+	},
+	SW: func(cpu *CPU, i *InstructionS, _ uint64) Exception {
+		pc := cpu.XRegs.Read(i.Rs1) + i.Imm
+		cpu.Bus.Write(pc, cpu.XRegs.Read(i.Rs2), Word)
+		return ExcpNone
+	},
+}
+
+var BInstructions = map[InstructionCode]func(cpu *CPU, i *InstructionB, pc uint64) Exception{
+	BEQ: func(cpu *CPU, i *InstructionB, pc uint64) Exception {
+		if cpu.XRegs.Read(i.Rs1) == cpu.XRegs.Read(i.Rs2) {
+			cpu.PC = pc + i.Imm
+		}
+		return ExcpNone
+	},
+	BNE: func(cpu *CPU, i *InstructionB, pc uint64) Exception {
+		if cpu.XRegs.Read(i.Rs1) != cpu.XRegs.Read(i.Rs2) {
+			cpu.PC = pc + i.Imm
+		}
+		return ExcpNone
+	},
+	BLT: func(cpu *CPU, i *InstructionB, pc uint64) Exception {
+		if int64(cpu.XRegs.Read(i.Rs1)) < int64(cpu.XRegs.Read(i.Rs2)) {
+			cpu.PC = pc + i.Imm
+		}
+		return ExcpNone
+	},
+	BGE: func(cpu *CPU, i *InstructionB, pc uint64) Exception {
+		if int64(cpu.XRegs.Read(i.Rs1)) >= int64(cpu.XRegs.Read(i.Rs2)) {
+			cpu.PC = pc + i.Imm
+		}
+		return ExcpNone
+	},
+	BLTU: func(cpu *CPU, i *InstructionB, pc uint64) Exception {
+		if cpu.XRegs.Read(i.Rs1) < cpu.XRegs.Read(i.Rs2) {
+			cpu.PC = pc + i.Imm
+		}
+		return ExcpNone
+	},
+	BGEU: func(cpu *CPU, i *InstructionB, pc uint64) Exception {
+		if cpu.XRegs.Read(i.Rs1) >= cpu.XRegs.Read(i.Rs2) {
+			cpu.PC = pc + i.Imm
+		}
+		return ExcpNone
+	},
+}
+
+var JInstructions = map[InstructionCode]func(cpu *CPU, i *InstructionJ, pc uint64) Exception{
+	JAL: func(cpu *CPU, i *InstructionJ, pc uint64) Exception {
+		tmp := cpu.PC + 4
+		if i.Rd == 0b0 {
+			i.Rd = 1 // x1 if rd is omitted
+		}
+		cpu.XRegs.Write(i.Rd, tmp)
+		cpu.PC = pc + i.Imm
 		return ExcpNone
 	},
 }
