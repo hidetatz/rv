@@ -62,13 +62,17 @@ const (
 	CsrPMPCFG2    uint64 = 0x3a2 // Physical memory protection configuration.
 	CsrPMPCFG3    uint64 = 0x3a3 // Physical memory protection configuration, RV32 only.
 
-	// Named SSTATUS fields.
+	// Named SSTATUS fields index.
 	// Not all are listed up because they just are not needed.
 	CsrStatusUIE   = 0
 	CsrStatusSIE   = 1
+	CsrStatusMIE   = 3
 	CsrStatusUPIE  = 4
 	CsrStatusSPIE  = 5
+	CsrStatusMPIE  = 7
 	CsrStatusSPP   = 8
+	CsrStatusMPPLo = 11
+	CsrStatusMPPHi = 12
 	CsrStatusFSLo  = 13
 	CsrStatusFSHi  = 14
 	CsrStatusXSLo  = 15
