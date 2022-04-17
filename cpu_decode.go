@@ -9,7 +9,7 @@ type Decoded struct {
 	Param InstructionParam
 }
 
-// Decode returns the format of the instruction.
+// Decode returns the instruction to be executed.
 func (cpu *CPU) Decode(inst uint64) *Decoded {
 	opcode := bits(inst, 6, 0)
 	funct7 := bits(inst, 31, 25)
