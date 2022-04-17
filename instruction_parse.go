@@ -1,12 +1,12 @@
 package main
 
 type InstructionR struct {
-	Raw, Opcode, Rd, Funct3, Rs1, Rs2, Funct7 uint64
+	InstructionParam
+	Opcode, Rd, Funct3, Rs1, Rs2, Funct7 uint64
 }
 
 func ParseR(inst uint64) *InstructionR {
 	return &InstructionR{
-		Raw:    inst,
 		Opcode: bits(inst, 6, 0),
 		Rd:     bits(inst, 11, 7),
 		Funct3: bits(inst, 14, 12),
@@ -17,7 +17,8 @@ func ParseR(inst uint64) *InstructionR {
 }
 
 type InstructionI struct {
-	Raw, Opcode, Rd, Funct3, Rs1, Imm uint64
+	InstructionParam
+	Opcode, Rd, Funct3, Rs1, Imm uint64
 }
 
 func ParseI(inst uint64) *InstructionI {
@@ -29,7 +30,6 @@ func ParseI(inst uint64) *InstructionI {
 	}
 	imm |= mask
 	return &InstructionI{
-		Raw:    inst,
 		Opcode: bits(inst, 6, 0),
 		Rd:     bits(inst, 11, 7),
 		Funct3: bits(inst, 14, 12),
@@ -39,7 +39,8 @@ func ParseI(inst uint64) *InstructionI {
 }
 
 type InstructionS struct {
-	Raw, Opcode, Funct3, Rs1, Rs2, Imm uint64
+	InstructionParam
+	Opcode, Funct3, Rs1, Rs2, Imm uint64
 }
 
 func ParseS(inst uint64) *InstructionS {
@@ -53,7 +54,6 @@ func ParseS(inst uint64) *InstructionS {
 	}
 	imm |= mask
 	return &InstructionS{
-		Raw:    inst,
 		Opcode: bits(inst, 6, 0),
 		Funct3: bits(inst, 14, 12),
 		Rs1:    bits(inst, 19, 15),
@@ -63,7 +63,8 @@ func ParseS(inst uint64) *InstructionS {
 }
 
 type InstructionB struct {
-	Raw, Opcode, Funct3, Rs1, Rs2, Imm uint64
+	InstructionParam
+	Opcode, Funct3, Rs1, Rs2, Imm uint64
 }
 
 func ParseB(inst uint64) *InstructionB {
@@ -82,7 +83,6 @@ func ParseB(inst uint64) *InstructionB {
 	}
 	imm |= mask
 	return &InstructionB{
-		Raw:    inst,
 		Opcode: bits(inst, 6, 0),
 		Funct3: bits(inst, 14, 12),
 		Rs1:    bits(inst, 19, 15),
@@ -92,14 +92,14 @@ func ParseB(inst uint64) *InstructionB {
 }
 
 type InstructionU struct {
-	Raw, Opcode, Rd, Imm uint64
+	InstructionParam
+	Opcode, Rd, Imm uint64
 }
 
 func ParseU(inst uint64) *InstructionU {
 	imm := bits(inst, 31, 12)
 	imm = (imm << 12) | 0b0000_0000_0000
 	return &InstructionU{
-		Raw:    inst,
 		Opcode: bits(inst, 6, 0),
 		Rd:     bits(inst, 11, 7),
 		Imm:    imm,
@@ -107,7 +107,8 @@ func ParseU(inst uint64) *InstructionU {
 }
 
 type InstructionJ struct {
-	Raw, Opcode, Rd, Imm uint64
+	InstructionParam
+	Opcode, Rd, Imm uint64
 }
 
 func ParseJ(inst uint64) *InstructionJ {
@@ -123,7 +124,6 @@ func ParseJ(inst uint64) *InstructionJ {
 	}
 	imm |= mask
 	return &InstructionJ{
-		Raw:    inst,
 		Opcode: bits(inst, 6, 0),
 		Rd:     bits(inst, 11, 7),
 		Imm:    imm,

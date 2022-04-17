@@ -1,12 +1,16 @@
 package main
 
+type InstructionParam interface {
+	isInstParam()
+}
+
 type Decoded struct {
-	Code   InstructionCode
-	Format InstructionFormat
+	Code  InstructionCode
+	Param InstructionParam
 }
 
 // Decode returns the format of the instruction.
-func (cpu *CPU) Decode(inst uint64) Decoded {
+func (cpu *CPU) Decode(inst uint64) *Decoded {
 	opcode := bits(inst, 6, 0)
 	funct7 := bits(inst, 31, 25)
 	funct3 := bits(inst, 14, 12)
@@ -22,76 +26,76 @@ func (cpu *CPU) Decode(inst uint64) Decoded {
 		case 0b000:
 			switch funct7 {
 			case 0b000_0000:
-				return Decoded{ADD, InstructionFormatR}
+				return &Decoded{ADD, ParseR(inst)}
 			case 0b010_0000:
-				return Decoded{SUB, InstructionFormatR}
+				return &Decoded{SUB, ParseR(inst)}
 			}
 		case 0b001:
-			return Decoded{SLL, InstructionFormatR}
+			return &Decoded{SLL, ParseR(inst)}
 		case 0b010:
-			return Decoded{SLT, InstructionFormatR}
+			return &Decoded{SLT, ParseR(inst)}
 		case 0b011:
-			return Decoded{SLTU, InstructionFormatR}
+			return &Decoded{SLTU, ParseR(inst)}
 		case 0b100:
-			return Decoded{XOR, InstructionFormatR}
+			return &Decoded{XOR, ParseR(inst)}
 		case 0b101:
 			switch funct7 {
 			case 0b000_0000:
-				return Decoded{SRL, InstructionFormatR}
+				return &Decoded{SRL, ParseR(inst)}
 			case 0b010_0000:
-				return Decoded{SRA, InstructionFormatR}
+				return &Decoded{SRA, ParseR(inst)}
 			}
 		case 0b110:
-			return Decoded{OR, InstructionFormatR}
+			return &Decoded{OR, ParseR(inst)}
 		case 0b111:
-			return Decoded{AND, InstructionFormatR}
+			return &Decoded{AND, ParseR(inst)}
 		}
 	case 0b110_0111:
-		return Decoded{JALR, InstructionFormatI}
+		return &Decoded{JALR, ParseI(inst)}
 	case 0b000_0011:
 		switch funct3 {
 		case 0b000:
-			return Decoded{LB, InstructionFormatI}
+			return &Decoded{LB, ParseI(inst)}
 		case 0b001:
-			return Decoded{LH, InstructionFormatI}
+			return &Decoded{LH, ParseI(inst)}
 		case 0b010:
-			return Decoded{LW, InstructionFormatI}
+			return &Decoded{LW, ParseI(inst)}
 		case 0b100:
-			return Decoded{LBU, InstructionFormatI}
+			return &Decoded{LBU, ParseI(inst)}
 		case 0b101:
-			return Decoded{LHU, InstructionFormatI}
+			return &Decoded{LHU, ParseI(inst)}
 		}
 	case 0b001_0011:
 		switch funct3 {
 		case 0b000:
-			return Decoded{ADDI, InstructionFormatI}
+			return &Decoded{ADDI, ParseI(inst)}
 		case 0b010:
-			return Decoded{SLTI, InstructionFormatI}
+			return &Decoded{SLTI, ParseI(inst)}
 		case 0b011:
-			return Decoded{SLTIU, InstructionFormatI}
+			return &Decoded{SLTIU, ParseI(inst)}
 		case 0b100:
-			return Decoded{XORI, InstructionFormatI}
+			return &Decoded{XORI, ParseI(inst)}
 		case 0b110:
-			return Decoded{ORI, InstructionFormatI}
+			return &Decoded{ORI, ParseI(inst)}
 		case 0b111:
-			return Decoded{ANDI, InstructionFormatI}
+			return &Decoded{ANDI, ParseI(inst)}
 		case 0b001:
-			return Decoded{SLLI, InstructionFormatI}
+			return &Decoded{SLLI, ParseI(inst)}
 		case 0b101:
 			imm := bits(inst, 31, 20)
 			switch imm >> 5 {
 			case 0b000_0000:
-				return Decoded{SRLI, InstructionFormatI}
+				return &Decoded{SRLI, ParseI(inst)}
 			case 0b010_0000:
-				return Decoded{SRAI, InstructionFormatI}
+				return &Decoded{SRAI, ParseI(inst)}
 			}
 		}
 	case 0b000_1111:
 		switch funct3 {
 		case 0b000:
-			return Decoded{FENCE, InstructionFormatI}
+			return &Decoded{FENCE, ParseI(inst)}
 		case 0b001:
-			return Decoded{FENCE_I, InstructionFormatI}
+			return &Decoded{FENCE_I, ParseI(inst)}
 		}
 	case 0b111_0011:
 		switch funct3 {
@@ -100,69 +104,69 @@ func (cpu *CPU) Decode(inst uint64) Decoded {
 			case 0b000_1000:
 				switch bits(inst, 24, 20) {
 				case 0b0_0010:
-					return Decoded{SRET, InstructionFormatR}
+					return &Decoded{SRET, ParseR(inst)}
 				case 0b0_0101:
-					return Decoded{WFI, InstructionFormatR}
+					return &Decoded{WFI, ParseR(inst)}
 				}
 			case 0b001_1000:
-				return Decoded{MRET, InstructionFormatR}
+				return &Decoded{MRET, ParseR(inst)}
 			case 0b000_1001:
-				return Decoded{SFENCE_VMA, InstructionFormatR}
+				return &Decoded{SFENCE_VMA, ParseR(inst)}
 			case 0b000_0000:
 				imm := bits(inst, 24, 20)
 				switch imm {
 				case 0b00:
-					return Decoded{ECALL, InstructionFormatI}
+					return &Decoded{ECALL, ParseI(inst)}
 				case 0b01:
-					return Decoded{EBREAK, InstructionFormatI}
+					return &Decoded{EBREAK, ParseI(inst)}
 				case 0b10:
-					return Decoded{URET, InstructionFormatR}
+					return &Decoded{URET, ParseR(inst)}
 				}
 			}
 		case 0b001:
-			return Decoded{CSRRW, InstructionFormatI}
+			return &Decoded{CSRRW, ParseI(inst)}
 		case 0b010:
-			return Decoded{CSRRS, InstructionFormatI}
+			return &Decoded{CSRRS, ParseI(inst)}
 		case 0b011:
-			return Decoded{CSRRC, InstructionFormatI}
+			return &Decoded{CSRRC, ParseI(inst)}
 		case 0b101:
-			return Decoded{CSRRWI, InstructionFormatI}
+			return &Decoded{CSRRWI, ParseI(inst)}
 		case 0b110:
-			return Decoded{CSRRSI, InstructionFormatI}
+			return &Decoded{CSRRSI, ParseI(inst)}
 		case 0b111:
-			return Decoded{CSRRCI, InstructionFormatI}
+			return &Decoded{CSRRCI, ParseI(inst)}
 		}
 	case 0b001_0111:
-		return Decoded{AUIPC, InstructionFormatU}
+		return &Decoded{AUIPC, ParseU(inst)}
 	case 0b011_0111:
-		return Decoded{LUI, InstructionFormatU}
+		return &Decoded{LUI, ParseU(inst)}
 	case 0b110_1111:
-		return Decoded{JAL, InstructionFormatJ}
+		return &Decoded{JAL, ParseJ(inst)}
 	case 0b010_0011:
 		switch funct3 {
 		case 0b000:
-			return Decoded{SB, InstructionFormatS}
+			return &Decoded{SB, ParseS(inst)}
 		case 0b001:
-			return Decoded{SH, InstructionFormatS}
+			return &Decoded{SH, ParseS(inst)}
 		case 0b010:
-			return Decoded{SW, InstructionFormatS}
+			return &Decoded{SW, ParseS(inst)}
 		}
 	case 0b110_0011:
 		switch funct3 {
 		case 0b000:
-			return Decoded{BEQ, InstructionFormatB}
+			return &Decoded{BEQ, ParseB(inst)}
 		case 0b001:
-			return Decoded{BNE, InstructionFormatB}
+			return &Decoded{BNE, ParseB(inst)}
 		case 0b100:
-			return Decoded{BLT, InstructionFormatB}
+			return &Decoded{BLT, ParseB(inst)}
 		case 0b101:
-			return Decoded{BGE, InstructionFormatB}
+			return &Decoded{BGE, ParseB(inst)}
 		case 0b110:
-			return Decoded{BLTU, InstructionFormatB}
+			return &Decoded{BLTU, ParseB(inst)}
 		case 0b111:
-			return Decoded{BGEU, InstructionFormatB}
+			return &Decoded{BGEU, ParseB(inst)}
 		}
 	}
 
-	return Decoded{_INVALID, InstructionFormatInvalid}
+	return nil
 }

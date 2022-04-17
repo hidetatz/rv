@@ -97,14 +97,16 @@ func (cpu *CPU) Run() Exception {
 
 	// TODO: eventually physical <-> virtual memory translation must take place here.
 
-	var inst uint64
+	// save current PC
+	cur := cpu.PC
 
 	// As of here, we are not sure if the next instruction is compressed. First we have to figure that out.
 	halfword := cpu.Fetch(HalfWord)
 
+	var decoded *Decoded
+
 	compressed := cpu.IsCompressed(halfword)
 	if compressed {
-		// if compressed, extract it to be a 32-bit one.
 		decompressed, excp := cpu.Decompress(halfword)
 		if excp != ExcpNone {
 			if excp == ExcpIllegalInstruction {
@@ -112,95 +114,61 @@ func (cpu *CPU) Run() Exception {
 			}
 			return excp
 		}
-		inst = decompressed
-	} else {
-		inst = cpu.Fetch(Word)
-	}
-
-	// Save current PC, then increment PC here. Note that PC might be changed in instruction operation,
-	// but in that cases the changed value should be the next PC.
-	cur := cpu.PC
-	if compressed {
 		cpu.PC += 2
+		decoded = decompressed
 	} else {
+		decoded = cpu.Decode(cpu.Fetch(Word))
 		cpu.PC += 4
 	}
 
-	Debug("compressed: %v", compressed)
-	Debug("inst: %032b", inst)
-
-	// Decode the instruction
-	decoded := cpu.Decode(inst)
-
-	if decoded.Code == _INVALID {
-		panic("invalid instruction!")
-	}
-
-	Debug("instCode: %v", decoded.Code)
-
-	// Execute the instruction.
-	exception := cpu.Exec(decoded.Code, decoded.Format, inst, cur)
-
-	return exception
+	return cpu.Exec(decoded.Code, decoded.Param, cur)
 }
 
-func (cpu *CPU) Exec(code InstructionCode, format InstructionFormat, inst, addr uint64) Exception {
-	switch format {
-	case InstructionFormatR:
-		i := ParseR(inst)
+func (cpu *CPU) Exec(code InstructionCode, param InstructionParam, addr uint64) Exception {
+	switch i := param.(type) {
+	case *InstructionR:
 		execution, ok := RInstructions[code]
 		if !ok {
 			return ExcpIllegalInstruction
 		}
 
 		return execution(cpu, i, addr)
-
-	case InstructionFormatI:
-		i := ParseI(inst)
+	case *InstructionI:
 		execution, ok := IInstructions[code]
 		if !ok {
 			return ExcpIllegalInstruction
 		}
 
 		return execution(cpu, i, addr)
-
-	case InstructionFormatS:
-		i := ParseS(inst)
+	case *InstructionS:
 		execution, ok := SInstructions[code]
 		if !ok {
 			return ExcpIllegalInstruction
 		}
 
 		return execution(cpu, i, addr)
-
-	case InstructionFormatB:
-		i := ParseB(inst)
+	case *InstructionB:
 		execution, ok := BInstructions[code]
 		if !ok {
 			return ExcpIllegalInstruction
 		}
 
 		return execution(cpu, i, addr)
-
-	case InstructionFormatU:
-		i := ParseU(inst)
+	case *InstructionU:
 		execution, ok := UInstructions[code]
 		if !ok {
 			return ExcpIllegalInstruction
 		}
 
 		return execution(cpu, i, addr)
-
-	case InstructionFormatJ:
-		i := ParseJ(inst)
+	case *InstructionJ:
 		execution, ok := JInstructions[code]
 		if !ok {
 			return ExcpIllegalInstruction
 		}
 
 		return execution(cpu, i, addr)
-
-	default:
-		return ExcpIllegalInstruction
 	}
+
+	return ExcpIllegalInstruction
 }
