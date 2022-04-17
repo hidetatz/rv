@@ -96,8 +96,6 @@ func (cpu *CPU) DecompressCR(op, rs2, rdOrRs1, funct4 uint64) (uint64, Exception
 			rs2 += 8
 			and := uint64(0b0000000_00000_00000_111_00000_0110011)
 			return and | (rs2 << 20) | (rdOrRs1 << 15) | (rdOrRs1 << 7), ExcpNone
-		default:
-			return 0, ExcpIllegalInstruction
 		}
 	case 0b10:
 		switch funct4 & 0b1 {
@@ -117,12 +115,8 @@ func (cpu *CPU) DecompressCR(op, rs2, rdOrRs1, funct4 uint64) (uint64, Exception
 			}
 			add := uint64(0b0000000_00000_00000_000_00000_0110011)
 			return add | (rs2 << 20) | (rdOrRs1 << 15) | (rdOrRs1 << 7), ExcpNone
-		default:
-			return 0, ExcpIllegalInstruction
 
 		}
-	default:
-		return 0, ExcpIllegalInstruction
 	}
 
 	return 0, ExcpIllegalInstruction
@@ -231,11 +225,7 @@ func (cpu *CPU) DecompressCI(op, imm1, rdOrRs1, imm2, funct3 uint64) (uint64, Ex
 				return srai | (rdOrRs1 << 7) | (rdOrRs1 << 15) | (uimm << 20), ExcpNone
 			case 0b10:
 				// c.andi
-			default:
-				return 0, ExcpIllegalInstruction
 			}
-		default:
-			return 0, ExcpIllegalInstruction
 		}
 	case 0b10:
 		switch funct3 {
@@ -249,8 +239,6 @@ func (cpu *CPU) DecompressCI(op, imm1, rdOrRs1, imm2, funct3 uint64) (uint64, Ex
 		case 0b100:
 			// c.ebreak
 		}
-	default:
-		return 0, ExcpIllegalInstruction
 	}
 
 	return 0, ExcpIllegalInstruction
