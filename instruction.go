@@ -482,4 +482,11 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 
 		return ExcpNone
 	},
+	CSRRWI: func(cpu *CPU, raw, _ uint64) Exception {
+		i := ParseI(raw)
+		cpu.XRegs.Write(i.Rd, cpu.CSR.Read(i.Imm))
+		cpu.CSR.Write(i.Imm, i.Rs1) // RS1 is zimm
+
+		return ExcpNone
+	},
 }
