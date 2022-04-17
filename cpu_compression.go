@@ -225,6 +225,13 @@ func (cpu *CPU) DecompressCI(op, imm1, rdOrRs1, imm2, funct3 uint64) (uint64, Ex
 				return srai | (rdOrRs1 << 7) | (rdOrRs1 << 15) | (uimm << 20), ExcpNone
 			case 0b10:
 				// c.andi
+				// -> andi rd, rd, imm while rd = 8 + rd'
+				rdOrRs1 = rdOrRs1 & 0b111 // left 2-bit of rd is opcode
+				rdOrRs1 += 8
+				uimm := imm1 |
+					(imm2 << 5) // imm2 -> uimm[5]
+				andi := uint64(0b000000000000_00000_111_00000_0010011)
+				return andi | (rdOrRs1 << 7) | (rdOrRs1 << 15) | (uimm << 20), ExcpNone
 			}
 		}
 	case 0b10:
