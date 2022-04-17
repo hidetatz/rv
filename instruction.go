@@ -350,7 +350,7 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 		return ExcpNone
 	},
 	SRET: func(cpu *CPU, raw, _ uint64) Exception {
-		// First, set CSRs[sepc] to program counter.
+		// First, set CSRs[SEPC] to program counter.
 		cpu.PC = cpu.CSR.Read(CsrSEPC)
 
 		// Then, Modify SSTATUS.
@@ -370,17 +370,17 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 
 		spie := bit(sstatus, CsrStatusSPIE)
 
-		// set spie to sie
+		// set SPIE to SIE
 		if spie == 0 {
 			sstatus = clearBit(sstatus, CsrStatusSIE)
 		} else {
 			sstatus = setBit(sstatus, CsrStatusSIE)
 		}
 
-		// set 1 to spie
+		// set 1 to SPIE
 		sstatus = setBit(sstatus, CsrStatusSPIE)
 
-		// set 0 to spp
+		// set 0 to SPP
 		sstatus = clearBit(sstatus, CsrStatusSPP)
 
 		// update SSTATUS
