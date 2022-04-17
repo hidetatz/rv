@@ -63,19 +63,37 @@ const (
 	CsrPMPCFG3    uint64 = 0x3a3 // Physical memory protection configuration, RV32 only.
 
 	// Named SSTATUS fields.
-	CsrSstatusUie  = 0x0000_0000_0000_0001 // sstatus[0]
-	CsrSstatusSie  = 0x0000_0000_0000_0002 // sstatus[1]
-	CsrSstatusUpie = 0x0000_0000_0000_0010 // sstatus[4]
-	CsrSstatusSpie = 0x0000_0000_0000_0020 // sstatus[5]
-	CsrSstatusSpp  = 0x0000_0000_0000_0100 // sstatus[8]
-	CsrSstatusFs   = 0x0000_0000_0000_6000 // sstatus[14:13]
-	CsrSstatusXs   = 0x0000_0000_0001_8000 // sstatus[16:15]
-	CsrSstatusSum  = 0x0000_0000_0004_0000 // sstatus[18]
-	CsrSstatusMxr  = 0x0000_0000_0008_0000 // sstatus[19]
-	CsrSstatusUxl  = 0x0000_0003_0000_0000 // sstatus[33:32]
-	CsrSstatusSd   = 0x8000_0000_0000_0000 // sstatus[63]
+	// Not all are listed up because they just are not needed.
+	CsrStatusUIE   = 0
+	CsrStatusSIE   = 1
+	CsrStatusUPIE  = 4
+	CsrStatusSPIE  = 5
+	CsrStatusSPP   = 8
+	CsrStatusFSLo  = 13
+	CsrStatusFSHi  = 14
+	CsrStatusXSLo  = 15
+	CsrStatusXSHi  = 16
+	CsrStatusMPRV  = 17
+	CsrStatusSUM   = 18
+	CsrStatusMXR   = 19
+	CsrStatusUXLLo = 32
+	CsrStatusUXLHi = 33
+	CsrStatusSD    = 63
 	// CsrStatusMask is the field location which SSTATUS can access (= the access level is under the supervisor).
-	CsrSstatusMask = CsrSstatusUie | CsrSstatusSie | CsrSstatusUpie | CsrSstatusSpie | CsrSstatusSpp | CsrSstatusFs | CsrSstatusXs | CsrSstatusSum | CsrSstatusMxr | CsrSstatusUxl | CsrSstatusSd
+	CsrSstatusMask = (1 << CsrStatusUIE) |
+		(1 << CsrStatusSIE) |
+		(1 << CsrStatusUPIE) |
+		(1 << CsrStatusSPIE) |
+		(1 << CsrStatusSPP) |
+		(1 << CsrStatusFSLo) |
+		(1 << CsrStatusFSHi) |
+		(1 << CsrStatusXSLo) |
+		(1 << CsrStatusXSHi) |
+		(1 << CsrStatusSUM) |
+		(1 << CsrStatusMXR) |
+		(1 << CsrStatusUXLHi) |
+		(1 << CsrStatusUXLLo) |
+		(1 << CsrStatusSD)
 
 	// Named SIP fields.
 	CsrSipUSIP uint64 = 0x0000_0000_0000_0001 // sip[0]

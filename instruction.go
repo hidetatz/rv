@@ -349,4 +349,50 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 		}
 		return ExcpNone
 	},
+	SRET: func(cpu *CPU, raw, _ uint64) Exception {
+		// First, set CSRs[sepc] to program counter.
+		cpu.PC = cpu.CSR.Read(CsrSEPC)
+
+		// Then, Modify SSTATUS.
+
+		sstatus := cpu.CSR.Read(CsrSSTATUS)
+
+		// Set CPU mode according to SPP
+		switch bit(sstatus, CsrStatusSPP) {
+		case 0b0:
+			cpu.Mode = User
+		case 0b1:
+			cpu.Mode = Supervisor
+		default:
+			// should not happen
+			panic("invalid CSR SPP")
+		}
+
+		spie := bit(sstatus, CsrStatusSPIE)
+
+		// set spie to sie
+		if spie == 0 {
+			sstatus = clearBit(sstatus, CsrStatusSIE)
+		} else {
+			sstatus = setBit(sstatus, CsrStatusSIE)
+		}
+
+		// set 1 to spie
+		sstatus = setBit(sstatus, CsrStatusSPIE)
+
+		// set 0 to spp
+		sstatus = clearBit(sstatus, CsrStatusSPP)
+
+		// update SSTATUS
+		cpu.CSR.Write(CsrSSTATUS, sstatus)
+
+		// MPRV must be set 0 if the mode is not Machine.
+		if cpu.Mode == Supervisor {
+			mstatus := cpu.CSR.Read(CsrMSTATUS)
+			mstatus = clearBit(mstatus, CsrStatusMPRV)
+			cpu.CSR.Write(CsrMSTATUS, mstatus)
+		}
+
+		return ExcpNone
+	},
 }
