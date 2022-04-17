@@ -427,14 +427,14 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 			mstatus = setBit(mstatus, CsrStatusMIE)
 		}
 
-		// set 1 to SPIE
+		// set 1 to MPIE
 		mstatus = setBit(mstatus, CsrStatusMPIE)
 
 		// set 0 to MPP
 		mstatus = clearBit(mstatus, CsrStatusMPPHi)
 		mstatus = clearBit(mstatus, CsrStatusMPPLo)
 
-		// update SSTATUS
+		// update MSTATUS
 		cpu.CSR.Write(CsrMSTATUS, mstatus)
 
 		return ExcpNone
