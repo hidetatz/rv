@@ -439,4 +439,23 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 
 		return ExcpNone
 	},
+	URET: func(cpu *CPU, raw, _ uint64) Exception {
+		ustatus := cpu.CSR.Read(CsrUSTATUS)
+		upie := bit(ustatus, CsrStatusUPIE)
+
+		// set UPIE to UIE
+		if upie == 0 {
+			ustatus = clearBit(ustatus, CsrStatusUIE)
+		} else {
+			ustatus = setBit(ustatus, CsrStatusUIE)
+		}
+
+		// set 1 to SPIE
+		ustatus = setBit(ustatus, CsrStatusUPIE)
+
+		// update USTATUS
+		cpu.CSR.Write(CsrUSTATUS, ustatus)
+
+		return ExcpNone
+	},
 }
