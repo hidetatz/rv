@@ -60,6 +60,9 @@ type CPU struct {
 	Mode Mode
 	XLen XLen
 
+	// Status registers
+	CSR CSR
+
 	// Registers
 	XRegs *Registers
 	FRegs *FRegisters
@@ -74,6 +77,7 @@ func NewCPU() *CPU {
 		PC:    0,
 		Bus:   NewBus(),
 		Mode:  Machine,
+		CSR:   NewCSR(),
 		XLen:  XLen64,
 		XRegs: NewRegisters(),
 		FRegs: NewFRegisters(),

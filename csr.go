@@ -98,6 +98,10 @@ const (
 	CsrSieMask = CsrSieUSIE | CsrSieSSIE | CsrSieUTIE | CsrSieSTIE | CsrSieUEIE | CsrSieSEIE
 )
 
+func NewCSR() CSR {
+	return [CSRRegsCount]uint64{}
+}
+
 // Read reads CSR by the given address. CSR address is 12-bit.
 // This method does not validate the CPU mode. The validation should be the caller's responsibility.
 func (csr CSR) Read(addr uint16) uint64 {
