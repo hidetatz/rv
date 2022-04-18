@@ -1,20 +1,5 @@
 package main
 
-// CompressedInstructionFormat is a format for RV32C/RV64C.
-type CompressedInstructionFormat uint8
-
-const (
-	CompressedInstructionFormatInvalid CompressedInstructionFormat = iota
-	CompressedInstructionFormatCR
-	CompressedInstructionFormatCI
-	CompressedInstructionFormatCSS
-	CompressedInstructionFormatCIW
-	CompressedInstructionFormatCL
-	CompressedInstructionFormatCS
-	CompressedInstructionFormatCB
-	CompressedInstructionFormatCJ
-)
-
 // IsCompressed returns if the instruction is compressed 16-bit one.
 func (cpu *CPU) IsCompressed(inst uint64) bool {
 	last2bit := inst & 0b11
@@ -24,35 +9,173 @@ func (cpu *CPU) IsCompressed(inst uint64) bool {
 
 // Decompress extracts the given 16-bit instruction to 32-bit one.
 func (cpu *CPU) DecodeCompressed(compressed uint64) (*Decoded, Exception) {
-	format := cpu.DecodeCompressedInstructionFormat(compressed)
-	Debug("compressed: %016b", compressed)
-	if format == CompressedInstructionFormatInvalid {
-		return nil, ExcpIllegalInstruction
+	bs := func(hi, lo int) uint64 {
+		return bits(compressed, hi, lo)
 	}
 
-	switch format {
-	case CompressedInstructionFormatCR:
-		return cpu.DecompressCR(
-			bits(compressed, 1, 0),
-			bits(compressed, 6, 2),
-			bits(compressed, 11, 7),
-			bits(compressed, 15, 12),
-		)
-	case CompressedInstructionFormatCI:
-		return cpu.DecompressCI(
-			bits(compressed, 1, 0),
-			bits(compressed, 6, 2),
-			bits(compressed, 11, 7),
-			bits(compressed, 12, 12),
-			bits(compressed, 15, 13),
-		)
-	case CompressedInstructionFormatCSS:
-	case CompressedInstructionFormatCIW:
-	case CompressedInstructionFormatCL:
-	case CompressedInstructionFormatCS:
-	case CompressedInstructionFormatCB:
-	case CompressedInstructionFormatCJ:
+	op := bs(1, 0)
+
+	switch op {
+	case 0b00:
+		rdRs2 := bs(4, 2)
+		if rdRs2 == 0b0 {
+			return nil, ExcpIllegalInstruction
+		}
+
+		funct3 := bs(15, 13)
+		switch funct3 {
+		case 0b000:
+			// c.addi4spn
+		case 0b001:
+			// c.fld
+		case 0b010:
+			// c.lw
+		case 0b011:
+			// c.flw
+		case 0b101:
+			// c.fsd
+		case 0b110:
+			// c.sw
+		case 0b111:
+			// c.fsw
+		}
+	case 0b01:
+		funct3 := bs(15, 13)
+		switch funct3 {
+		case 0b000:
+			rdRs1 := bs(11, 7)
+			switch rdRs1 {
+			case 0b0:
+				return nil, ExcpIllegalInstruction
+			case 0b11:
+				// c.addi16sp
+			default:
+				// c.lui
+			}
+		case 0b001:
+			// c.jal
+		case 0b010:
+			// c.li
+		case 0b011:
+			rdRs1 := bs(11, 7)
+			switch rdRs1 {
+			case 0b0:
+				// c.nop
+			default:
+				// c.addi
+			}
+		case 0b100:
+			switch bs(11, 10) {
+			case 0b00:
+				// c.srli
+			case 0b01:
+				// c.srai
+			case 0b10:
+				// c.andi
+			case 0b11:
+				switch bs(6, 5) {
+				case 0b00:
+					// c.sub
+					// -> sub rd, rd, rs2 while rd = 8 + rd', rs2 = 8 + rs2'
+					rdRs1, rs2 := bs(6, 2), bs(11, 7)
+
+					rdRs1, rs2 = rdRs1&0b111, rs2&0b111 // upper 2-bits are constant
+					return &Decoded{
+						Code: SUB,
+						Param: &InstructionR{
+							Opcode: 0b0110011,
+							Rd:     rdRs1 + 8,
+							Funct3: 0b000,
+							Rs1:    rdRs1 + 8,
+							Rs2:    rs2 + 8,
+							Funct7: 0b0100000,
+						},
+					}, ExcpNone
+				case 0b01:
+					// c.xor
+				case 0b10:
+					// c.or
+				case 0b11:
+					// c.and
+				}
+			}
+		case 0b101:
+			// c.j
+		case 0b110:
+			// c.beqz
+		case 0b111:
+			// c.bnez
+		}
+	case 0b10:
+		funct3 := bits(compressed, 15, 13)
+		switch funct3 {
+		case 0b000:
+			switch bits(compressed, 6, 2) {
+			case 0b0:
+				// c.slli64
+			default:
+				// c.slli
+			}
+		case 0b001:
+			// c.fldsp
+		case 0b010:
+			// c.lwsp
+		case 0b011:
+			// c.flwsp
+		case 0b100:
+			switch bit(compressed, 12) {
+			case 0b0:
+				switch bits(compressed, 6, 2) {
+				case 0b0:
+					// c.jr
+				default:
+					// c.mv
+				}
+			case 0b1:
+				switch bits(compressed, 11, 7) {
+				case 0b0:
+					// c.ebreak
+				default:
+					switch bits(compressed, 6, 2) {
+					case 0b0:
+						// c.jalr
+					default:
+						// c.add
+					}
+				}
+			}
+		case 0b101:
+			// c.fsdsp
+		case 0b110:
+			// c.swsp
+		case 0b111:
+			// c.fswsp
+		}
 	}
+
+	//switch format {
+	//case CompressedInstructionFormatCR:
+	//	return cpu.DecompressCR(
+	//		bits(compressed, 1, 0),
+	//		bits(compressed, 6, 2),
+	//		bits(compressed, 11, 7),
+	//		bits(compressed, 15, 12),
+	//	)
+	//case CompressedInstructionFormatCI:
+	//	return cpu.DecompressCI(
+	//		bits(compressed, 1, 0),
+	//		bits(compressed, 6, 2),
+	//		bits(compressed, 11, 7),
+	//		bits(compressed, 12, 12),
+	//		bits(compressed, 15, 13),
+	//	)
+	//case CompressedInstructionFormatCSS:
+	//case CompressedInstructionFormatCIW:
+	//case CompressedInstructionFormatCL:
+	//case CompressedInstructionFormatCS:
+	//case CompressedInstructionFormatCB:
+	//case CompressedInstructionFormatCJ:
+	//}
 
 	return nil, ExcpIllegalInstruction
 }
@@ -65,20 +188,6 @@ func (cpu *CPU) DecompressCR(op, rs2, rdOrRs1, funct4 uint64) (*Decoded, Excepti
 	case 0b01:
 		switch rs2 >> 3 {
 		case 0b00:
-			// c.sub
-			// -> sub rd, rd, rs2 while rd = 8 + rd', rs2 = 8 + rs2'
-			rdOrRs1, rs2 = rdOrRs1&0b111, rs2&0b111 // upper 2-bits are constant
-			return &Decoded{
-				Code: SUB,
-				Param: &InstructionR{
-					Opcode: 0b0110011,
-					Rd:     rdOrRs1 + 8,
-					Funct3: 0b000,
-					Rs1:    rdOrRs1 + 8,
-					Rs2:    rs2 + 8,
-					Funct7: 0b0100000,
-				},
-			}, ExcpNone
 		case 0b01:
 			// c.xor
 			// -> xor rd, rd, rs2 while rd = 8 + rd', rs2 = 8 + rs2'
@@ -363,75 +472,4 @@ func (cpu *CPU) DecompressCI(op, imm1, rdOrRs1, imm2, funct3 uint64) (*Decoded, 
 	}
 
 	return nil, ExcpIllegalInstruction
-}
-
-// DecodeCompressedInstructionFormat decodes the given compressed instruction and returns its format.
-func (cpu *CPU) DecodeCompressedInstructionFormat(compressed uint64) CompressedInstructionFormat {
-	opcode := compressed & 0b11
-	funct3 := (compressed >> 13) & 0b111
-	switch opcode {
-	case 0b00:
-		switch funct3 {
-		case 0b000:
-			return CompressedInstructionFormatCIW
-		case 0b001, 0b010, 0b011, 0b101, 0b110, 0b111:
-			return CompressedInstructionFormatCL
-		default:
-			return CompressedInstructionFormatInvalid
-		}
-	case 0b01:
-		switch funct3 {
-		case 0b000, 0b010, 0b011:
-			return CompressedInstructionFormatCI
-		case 0b100:
-			f := (compressed >> 10) & 0b11
-			switch f {
-			case 0b00, 0b01, 0b10:
-				return CompressedInstructionFormatCI
-			case 0b11:
-				return CompressedInstructionFormatCR
-			default:
-				return CompressedInstructionFormatInvalid
-			}
-		case 0b001, 0b101:
-			return CompressedInstructionFormatCJ
-		case 0b110, 0b111:
-			return CompressedInstructionFormatCB
-		default:
-			return CompressedInstructionFormatInvalid
-		}
-	case 0b10:
-		switch funct3 {
-		case 0b000:
-			return CompressedInstructionFormatCI
-		case 0b100:
-			f1 := (compressed >> 12) & 0b1
-			f2 := (compressed >> 2) & 0b1_1111
-			f3 := (compressed >> 7) & 0b1_1111
-			switch f1 {
-			case 0b0:
-				if f2 == 0 {
-					return CompressedInstructionFormatCJ
-				} else {
-					return CompressedInstructionFormatCR
-				}
-			case 0b1:
-				if f2 == 0 && f3 == 0 {
-					return CompressedInstructionFormatCI
-				} else if f2 == 0 {
-					return CompressedInstructionFormatCJ
-				} else {
-					return CompressedInstructionFormatCR
-				}
-			}
-		case 0b001, 0b010, 0b011, 0b101, 0b110, 0b111:
-			return CompressedInstructionFormatCSS
-		default:
-			return CompressedInstructionFormatInvalid
-		}
-	default:
-		return CompressedInstructionFormatInvalid
-	}
-
-	return CompressedInstructionFormatInvalid
 }
