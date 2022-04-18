@@ -103,22 +103,26 @@ func (cpu *CPU) Run() Exception {
 	// As of here, we are not sure if the next instruction is compressed. First we have to figure that out.
 	halfword := cpu.Fetch(HalfWord)
 
-	var decoded *Decoded
+	var (
+		decoded *Decoded
+		excp    Exception
+	)
 
 	compressed := cpu.IsCompressed(halfword)
 	if compressed {
-		decompressed, excp := cpu.Decompress(halfword)
-		if excp != ExcpNone {
-			if excp == ExcpIllegalInstruction {
-				panic("invalid instruction!")
-			}
-			return excp
-		}
 		cpu.PC += 2
-		decoded = decompressed
+		decoded, excp = cpu.DecodeCompressed(halfword)
 	} else {
-		decoded = cpu.Decode(cpu.Fetch(Word))
 		cpu.PC += 4
+		decoded, excp = cpu.Decode(cpu.Fetch(Word))
+	}
+
+	if excp != ExcpNone {
+		if excp == ExcpIllegalInstruction {
+			// TODO: fix
+			panic("invalid instruction!")
+		}
+		return excp
 	}
 
 	return cpu.Exec(decoded.Code, decoded.Param, cur)
