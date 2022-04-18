@@ -117,6 +117,27 @@ func (ic InstructionCode) String() string {
 }
 
 var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
+	/*
+	 * RV32C
+	 */
+	C_ADDI4SPN: func(cpu *CPU, raw, _ uint64) Exception {
+		rd := bits(raw, 4, 2) + 8
+		nzuimm := (4 << bits(raw, 12, 11)) | // raw[12:11] -> nzuimm[5:4]
+			(6 << bits(raw, 10, 7)) | // raw[10:7] -> nzuimm[9:6]
+			(2 << bit(raw, 6) >> 4) | // raw[6] -> nzuimm[2]
+			(3 << bit(raw, 5) >> 2) // raw[5] -> nzuimm[3]
+
+		if nzuimm == 0 {
+			return ExcpIllegalInstruction
+		}
+
+		cpu.XRegs.Write(rd, cpu.XRegs.Read(2)+uint64(nzuimm))
+		return ExcpNone
+	},
+
+	/*
+	 * RV64I
+	 */
 	ADD: func(cpu *CPU, raw, _ uint64) Exception {
 		i := ParseR(raw)
 		cpu.XRegs.Write(i.Rd, cpu.XRegs.Read(i.Rs1)+cpu.XRegs.Read(i.Rs2))
