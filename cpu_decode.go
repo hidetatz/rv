@@ -1,16 +1,7 @@
 package main
 
-type InstructionParam interface {
-	isInstParam()
-}
-
-type Decoded struct {
-	Code  InstructionCode
-	Param InstructionParam
-}
-
 // Decode returns the instruction to be executed.
-func (cpu *CPU) Decode(inst uint64) (*Decoded, Exception) {
+func (cpu *CPU) Decode(inst uint64) InstructionCode {
 	opcode := bits(inst, 6, 0)
 	funct7 := bits(inst, 31, 25)
 	funct3 := bits(inst, 14, 12)
@@ -26,76 +17,76 @@ func (cpu *CPU) Decode(inst uint64) (*Decoded, Exception) {
 		case 0b000:
 			switch funct7 {
 			case 0b000_0000:
-				return &Decoded{ADD, ParseR(inst)}, ExcpNone
+				return ADD
 			case 0b010_0000:
-				return &Decoded{SUB, ParseR(inst)}, ExcpNone
+				return SUB
 			}
 		case 0b001:
-			return &Decoded{SLL, ParseR(inst)}, ExcpNone
+			return SLL
 		case 0b010:
-			return &Decoded{SLT, ParseR(inst)}, ExcpNone
+			return SLT
 		case 0b011:
-			return &Decoded{SLTU, ParseR(inst)}, ExcpNone
+			return SLTU
 		case 0b100:
-			return &Decoded{XOR, ParseR(inst)}, ExcpNone
+			return XOR
 		case 0b101:
 			switch funct7 {
 			case 0b000_0000:
-				return &Decoded{SRL, ParseR(inst)}, ExcpNone
+				return SRL
 			case 0b010_0000:
-				return &Decoded{SRA, ParseR(inst)}, ExcpNone
+				return SRA
 			}
 		case 0b110:
-			return &Decoded{OR, ParseR(inst)}, ExcpNone
+			return OR
 		case 0b111:
-			return &Decoded{AND, ParseR(inst)}, ExcpNone
+			return AND
 		}
 	case 0b110_0111:
-		return &Decoded{JALR, ParseI(inst)}, ExcpNone
+		return JALR
 	case 0b000_0011:
 		switch funct3 {
 		case 0b000:
-			return &Decoded{LB, ParseI(inst)}, ExcpNone
+			return LB
 		case 0b001:
-			return &Decoded{LH, ParseI(inst)}, ExcpNone
+			return LH
 		case 0b010:
-			return &Decoded{LW, ParseI(inst)}, ExcpNone
+			return LW
 		case 0b100:
-			return &Decoded{LBU, ParseI(inst)}, ExcpNone
+			return LBU
 		case 0b101:
-			return &Decoded{LHU, ParseI(inst)}, ExcpNone
+			return LHU
 		}
 	case 0b001_0011:
 		switch funct3 {
 		case 0b000:
-			return &Decoded{ADDI, ParseI(inst)}, ExcpNone
+			return ADDI
 		case 0b010:
-			return &Decoded{SLTI, ParseI(inst)}, ExcpNone
+			return SLTI
 		case 0b011:
-			return &Decoded{SLTIU, ParseI(inst)}, ExcpNone
+			return SLTIU
 		case 0b100:
-			return &Decoded{XORI, ParseI(inst)}, ExcpNone
+			return XORI
 		case 0b110:
-			return &Decoded{ORI, ParseI(inst)}, ExcpNone
+			return ORI
 		case 0b111:
-			return &Decoded{ANDI, ParseI(inst)}, ExcpNone
+			return ANDI
 		case 0b001:
-			return &Decoded{SLLI, ParseI(inst)}, ExcpNone
+			return SLLI
 		case 0b101:
 			imm := bits(inst, 31, 20)
 			switch imm >> 5 {
 			case 0b000_0000:
-				return &Decoded{SRLI, ParseI(inst)}, ExcpNone
+				return SRLI
 			case 0b010_0000:
-				return &Decoded{SRAI, ParseI(inst)}, ExcpNone
+				return SRAI
 			}
 		}
 	case 0b000_1111:
 		switch funct3 {
 		case 0b000:
-			return &Decoded{FENCE, ParseI(inst)}, ExcpNone
+			return FENCE
 		case 0b001:
-			return &Decoded{FENCE_I, ParseI(inst)}, ExcpNone
+			return FENCE_I
 		}
 	case 0b111_0011:
 		switch funct3 {
@@ -104,69 +95,69 @@ func (cpu *CPU) Decode(inst uint64) (*Decoded, Exception) {
 			case 0b000_1000:
 				switch bits(inst, 24, 20) {
 				case 0b0_0010:
-					return &Decoded{SRET, ParseR(inst)}, ExcpNone
+					return SRET
 				case 0b0_0101:
-					return &Decoded{WFI, ParseR(inst)}, ExcpNone
+					return WFI
 				}
 			case 0b001_1000:
-				return &Decoded{MRET, ParseR(inst)}, ExcpNone
+				return MRET
 			case 0b000_1001:
-				return &Decoded{SFENCE_VMA, ParseR(inst)}, ExcpNone
+				return SFENCE_VMA
 			case 0b000_0000:
 				imm := bits(inst, 24, 20)
 				switch imm {
 				case 0b00:
-					return &Decoded{ECALL, ParseI(inst)}, ExcpNone
+					return ECALL
 				case 0b01:
-					return &Decoded{EBREAK, ParseI(inst)}, ExcpNone
+					return EBREAK
 				case 0b10:
-					return &Decoded{URET, ParseR(inst)}, ExcpNone
+					return URET
 				}
 			}
 		case 0b001:
-			return &Decoded{CSRRW, ParseI(inst)}, ExcpNone
+			return CSRRW
 		case 0b010:
-			return &Decoded{CSRRS, ParseI(inst)}, ExcpNone
+			return CSRRS
 		case 0b011:
-			return &Decoded{CSRRC, ParseI(inst)}, ExcpNone
+			return CSRRC
 		case 0b101:
-			return &Decoded{CSRRWI, ParseI(inst)}, ExcpNone
+			return CSRRWI
 		case 0b110:
-			return &Decoded{CSRRSI, ParseI(inst)}, ExcpNone
+			return CSRRSI
 		case 0b111:
-			return &Decoded{CSRRCI, ParseI(inst)}, ExcpNone
+			return CSRRCI
 		}
 	case 0b001_0111:
-		return &Decoded{AUIPC, ParseU(inst)}, ExcpNone
+		return AUIPC
 	case 0b011_0111:
-		return &Decoded{LUI, ParseU(inst)}, ExcpNone
+		return LUI
 	case 0b110_1111:
-		return &Decoded{JAL, ParseJ(inst)}, ExcpNone
+		return JAL
 	case 0b010_0011:
 		switch funct3 {
 		case 0b000:
-			return &Decoded{SB, ParseS(inst)}, ExcpNone
+			return SB
 		case 0b001:
-			return &Decoded{SH, ParseS(inst)}, ExcpNone
+			return SH
 		case 0b010:
-			return &Decoded{SW, ParseS(inst)}, ExcpNone
+			return SW
 		}
 	case 0b110_0011:
 		switch funct3 {
 		case 0b000:
-			return &Decoded{BEQ, ParseB(inst)}, ExcpNone
+			return BEQ
 		case 0b001:
-			return &Decoded{BNE, ParseB(inst)}, ExcpNone
+			return BNE
 		case 0b100:
-			return &Decoded{BLT, ParseB(inst)}, ExcpNone
+			return BLT
 		case 0b101:
-			return &Decoded{BGE, ParseB(inst)}, ExcpNone
+			return BGE
 		case 0b110:
-			return &Decoded{BLTU, ParseB(inst)}, ExcpNone
+			return BLTU
 		case 0b111:
-			return &Decoded{BGEU, ParseB(inst)}, ExcpNone
+			return BGEU
 		}
 	}
 
-	return nil, ExcpIllegalInstruction
+	return _INVALID
 }

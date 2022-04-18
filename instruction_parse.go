@@ -1,7 +1,6 @@
 package main
 
 type InstructionR struct {
-	InstructionParam
 	Opcode, Rd, Funct3, Rs1, Rs2, Funct7 uint64
 }
 
@@ -17,7 +16,6 @@ func ParseR(inst uint64) *InstructionR {
 }
 
 type InstructionI struct {
-	InstructionParam
 	Opcode, Rd, Funct3, Rs1, Imm uint64
 }
 
@@ -39,7 +37,6 @@ func ParseI(inst uint64) *InstructionI {
 }
 
 type InstructionS struct {
-	InstructionParam
 	Opcode, Funct3, Rs1, Rs2, Imm uint64
 }
 
@@ -63,7 +60,6 @@ func ParseS(inst uint64) *InstructionS {
 }
 
 type InstructionB struct {
-	InstructionParam
 	Opcode, Funct3, Rs1, Rs2, Imm uint64
 }
 
@@ -92,7 +88,6 @@ func ParseB(inst uint64) *InstructionB {
 }
 
 type InstructionU struct {
-	InstructionParam
 	Opcode, Rd, Imm uint64
 }
 
@@ -107,7 +102,6 @@ func ParseU(inst uint64) *InstructionU {
 }
 
 type InstructionJ struct {
-	InstructionParam
 	Opcode, Rd, Imm uint64
 }
 

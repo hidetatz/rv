@@ -101,83 +101,37 @@ func (cpu *CPU) Run() Exception {
 	cur := cpu.PC
 	Debug("  PC: %x", cpu.PC)
 
+	var code InstructionCode
+
 	// As of here, we are not sure if the next instruction is compressed. First we have to figure that out.
-	halfword := cpu.Fetch(HalfWord)
+	raw := cpu.Fetch(HalfWord)
 
-	var (
-		decoded *Decoded
-		excp    Exception
-	)
-
-	compressed := cpu.IsCompressed(halfword)
-	if compressed {
+	if cpu.IsCompressed(raw) {
 		Debug("  compressed: true")
-		decoded, excp = cpu.DecodeCompressed(halfword)
+		code = cpu.DecodeCompressed(raw)
 		cpu.PC += 2
 	} else {
 		Debug("  compressed: false")
-		decoded, excp = cpu.Decode(cpu.Fetch(Word))
+		raw = cpu.Fetch(Word)
+		code = cpu.Decode(raw)
 		cpu.PC += 4
 	}
 
-	if excp != ExcpNone {
-		if excp == ExcpIllegalInstruction {
-			// TODO: fix
-			panic("invalid instruction!")
-		}
-		return excp
+	if code == _INVALID {
+		// TODO: fix
+		panic("invalid instruction!")
 	}
 
-	Debug("  Instruction: %s", decoded.Code)
+	Debug("  Instruction: %s", code)
 
-	return cpu.Exec(decoded.Code, decoded.Param, cur)
+	return cpu.Exec(code, raw, cur)
 }
 
-func (cpu *CPU) Exec(code InstructionCode, param InstructionParam, addr uint64) Exception {
-	switch i := param.(type) {
-	case *InstructionR:
-		execution, ok := RInstructions[code]
-		if !ok {
-			return ExcpIllegalInstruction
-		}
-
-		return execution(cpu, i, addr)
-	case *InstructionI:
-		execution, ok := IInstructions[code]
-		if !ok {
-			return ExcpIllegalInstruction
-		}
-
-		return execution(cpu, i, addr)
-	case *InstructionS:
-		execution, ok := SInstructions[code]
-		if !ok {
-			return ExcpIllegalInstruction
-		}
-
-		return execution(cpu, i, addr)
-	case *InstructionB:
-		execution, ok := BInstructions[code]
-		if !ok {
-			return ExcpIllegalInstruction
-		}
-
-		return execution(cpu, i, addr)
-	case *InstructionU:
-		execution, ok := UInstructions[code]
-		if !ok {
-			return ExcpIllegalInstruction
-		}
-
-		return execution(cpu, i, addr)
-	case *InstructionJ:
-		execution, ok := JInstructions[code]
-		if !ok {
-			return ExcpIllegalInstruction
-		}
-
-		return execution(cpu, i, addr)
+func (cpu *CPU) Exec(code InstructionCode, raw, cur uint64) Exception {
+	execution, ok := Instructions[code]
+	if !ok {
+		return ExcpIllegalInstruction
 	}
 
-	return ExcpIllegalInstruction
+	return execution(cpu, raw, cur)
 }
