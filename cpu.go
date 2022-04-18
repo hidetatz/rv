@@ -89,7 +89,7 @@ func (cpu *CPU) Fetch(size Size) uint64 {
 }
 
 func (cpu *CPU) Run() Exception {
-	Debug("Tick-------")
+	Debug("------Tick------")
 
 	if cpu.Wfi {
 		return ExcpNone
@@ -99,6 +99,7 @@ func (cpu *CPU) Run() Exception {
 
 	// save current PC
 	cur := cpu.PC
+	Debug("  PC: %x", cpu.PC)
 
 	// As of here, we are not sure if the next instruction is compressed. First we have to figure that out.
 	halfword := cpu.Fetch(HalfWord)
@@ -110,10 +111,11 @@ func (cpu *CPU) Run() Exception {
 
 	compressed := cpu.IsCompressed(halfword)
 	if compressed {
-		cpu.PC += 2
+		Debug("  compressed: true")
 		decoded, excp = cpu.DecodeCompressed(halfword)
 	} else {
 		cpu.PC += 4
+		Debug("  compressed: false")
 		decoded, excp = cpu.Decode(cpu.Fetch(Word))
 	}
 
@@ -124,6 +126,8 @@ func (cpu *CPU) Run() Exception {
 		}
 		return excp
 	}
+
+	Debug("  Instruction: %s", decoded.Code)
 
 	return cpu.Exec(decoded.Code, decoded.Param, cur)
 }
