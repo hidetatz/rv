@@ -113,10 +113,11 @@ func (cpu *CPU) Run() Exception {
 	if compressed {
 		Debug("  compressed: true")
 		decoded, excp = cpu.DecodeCompressed(halfword)
+		cpu.PC += 2
 	} else {
-		cpu.PC += 4
 		Debug("  compressed: false")
 		decoded, excp = cpu.Decode(cpu.Fetch(Word))
+		cpu.PC += 4
 	}
 
 	if excp != ExcpNone {
