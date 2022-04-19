@@ -124,10 +124,10 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 	 */
 	C_ADDI4SPN: func(cpu *CPU, raw, _ uint64) Exception {
 		rd := bits(raw, 4, 2) + 8
-		nzuimm := (4 << bits(raw, 12, 11)) | // raw[12:11] -> nzuimm[5:4]
-			(6 << bits(raw, 10, 7)) | // raw[10:7] -> nzuimm[9:6]
-			(2 << bit(raw, 6) >> 4) | // raw[6] -> nzuimm[2]
-			(3 << bit(raw, 5) >> 2) // raw[5] -> nzuimm[3]
+		nzuimm := (bits(raw, 12, 11) << 4) | // raw[12:11] -> nzuimm[5:4]
+			(bits(raw, 10, 7) << 6) | // raw[10:7] -> nzuimm[9:6]
+			(bit(raw, 6) << 2) | // raw[6] -> nzuimm[2]
+			(bit(raw, 5) << 3) // raw[5] -> nzuimm[3]
 
 		if nzuimm == 0 {
 			return ExcpIllegalInstruction
@@ -139,8 +139,8 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 	C_FLD: func(cpu *CPU, raw, _ uint64) Exception {
 		rd := bits(raw, 4, 2) + 8
 		rs1 := bits(raw, 9, 7) + 8
-		offset := (3 << bits(raw, 12, 10)) | // raw[12:10] -> offset[5:3]
-			(6 << bits(raw, 6, 5)) // raw[6:5] -> offset[7:6]
+		offset := (bits(raw, 12, 10) << 3) | // raw[12:10] -> offset[5:3]
+			(bits(raw, 6, 5) << 6) // raw[6:5] -> offset[7:6]
 
 		v := cpu.Bus.Read(cpu.XRegs.Read(rs1)+uint64(offset), DoubleWord)
 		cpu.FRegs.Write(rd, math.Float64frombits(v))
