@@ -1,5 +1,7 @@
 package main
 
+import "math"
+
 type InstructionCode string
 
 const (
@@ -132,6 +134,16 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 		}
 
 		cpu.XRegs.Write(rd, cpu.XRegs.Read(2)+uint64(nzuimm))
+		return ExcpNone
+	},
+	C_FLD: func(cpu *CPU, raw, _ uint64) Exception {
+		rd := bits(raw, 4, 2) + 8
+		rs1 := bits(raw, 9, 7) + 8
+		offset := (3 << bits(raw, 12, 10)) | // raw[12:10] -> offset[5:3]
+			(6 << bits(raw, 6, 5)) // raw[6:5] -> offset[7:6]
+
+		v := cpu.Bus.Read(cpu.XRegs.Read(rs1)+uint64(offset), DoubleWord)
+		cpu.FRegs.Write(rd, math.Float64frombits(v))
 		return ExcpNone
 	},
 
