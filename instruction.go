@@ -158,6 +158,16 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 		cpu.XRegs.Write(rd, uint64(int64(int32(v))))
 		return ExcpNone
 	},
+	C_FLW: func(cpu *CPU, raw, _ uint64) Exception {
+		rd := bits(raw, 4, 2) + 8
+		rs1 := bits(raw, 9, 7) + 8
+		offset := (bits(raw, 12, 10) << 3) | // raw[12:10] -> offset[5:3]
+			(bit(raw, 6) << 2) | // raw[6] -> offset[2]
+			(bit(raw, 5) << 6) // raw[5] -> offset[6]
+		v := cpu.Bus.Read(cpu.XRegs.Read(rs1)+offset, Word)
+		cpu.FRegs.Write(rd, math.Float64frombits(v))
+		return ExcpNone
+	},
 
 	/*
 	 * RV64I
