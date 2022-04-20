@@ -118,6 +118,10 @@ func (ic InstructionCode) String() string {
 	return string(ic)
 }
 
+// Instructions is the mapping of InstructionCode and the operation to be executed.
+// raw is the instruction machine code, which will be either 32-bit or 16-bit (if compressed).
+// pc is the program counter at which the instruction is fetched.
+// Note that cpu.PC is not the point the instruction is fetched, because it is already incremented on for the next iteration.
 var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 	/*
 	 * RV32C
@@ -350,9 +354,9 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 
 		return ExcpNone
 	},
-	JALR: func(cpu *CPU, raw, _ uint64) Exception {
+	JALR: func(cpu *CPU, raw, pc uint64) Exception {
 		i := ParseI(raw)
-		tmp := cpu.PC + 4
+		tmp := pc + 4
 		target := (cpu.XRegs.Read(i.Rs1) + i.Imm) & ^uint64(1)
 		cpu.PC = target - 4 // sub in advance as the PC is incremented later
 		cpu.XRegs.Write(i.Rd, tmp)
@@ -517,9 +521,9 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 
 		return ExcpNone
 	},
-	AUIPC: func(cpu *CPU, raw, _ uint64) Exception {
+	AUIPC: func(cpu *CPU, raw, pc uint64) Exception {
 		i := ParseU(raw)
-		cpu.XRegs.Write(i.Rd, cpu.PC+i.Imm)
+		cpu.XRegs.Write(i.Rd, pc+i.Imm)
 		return ExcpNone
 	},
 	LUI: func(cpu *CPU, raw, _ uint64) Exception {
