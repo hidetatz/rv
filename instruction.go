@@ -221,6 +221,26 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 		cpu.XRegs.Write(2, cpu.XRegs.Read(2)+imm)
 		return ExcpNone
 	},
+	C_LUI: func(cpu *CPU, raw, _ uint64) Exception {
+		rd := bits(raw, 11, 7)
+		if rd == 2 {
+			return ExcpNone
+		}
+
+		imm := (bit(raw, 12) << 17) | // raw[12] -> imm[17]
+			(bits(raw, 6, 2) << 12) // raw[6:2] -> imm[16:12]
+		if (imm & 0b10_0000_0000_0000_0000) != 0 {
+			// sign-extend
+			imm = uint64(int64(int32((imm | 0b1111_1111_1111_1100_0000_0000_0000_0000))))
+		}
+		if imm == 0 {
+			return ExcpNone
+		}
+
+		// write to stack pointer (x2)
+		cpu.XRegs.Write(rd, imm)
+		return ExcpNone
+	},
 
 	/*
 	 * RV64I
