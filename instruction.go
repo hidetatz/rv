@@ -241,6 +241,29 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 		cpu.XRegs.Write(rd, imm)
 		return ExcpNone
 	},
+	C_JAL: func(cpu *CPU, raw, pc uint64) Exception {
+		offset := (bit(raw, 12) << 11) | // raw[12] -> imm[11]
+			(bit(raw, 11) << 4) | // raw[11] -> imm[4]
+			(bit(raw, 10) << 9) | // raw[11] -> imm[4]
+			(bit(raw, 9) << 8) | // raw[11] -> imm[4]
+			(bit(raw, 8) << 10) | // raw[11] -> imm[4]
+			(bit(raw, 7) << 6) | // raw[11] -> imm[4]
+			(bit(raw, 6) << 7) | // raw[11] -> imm[4]
+			(bit(raw, 5) << 3) | // raw[11] -> imm[4]
+			(bit(raw, 4) << 2) | // raw[11] -> imm[4]
+			(bit(raw, 3) << 1) | // raw[11] -> imm[4]
+			(bit(raw, 2) << 5) // raw[11] -> imm[4]
+
+		if (offset & 0b1_0000_0000_0000) != 0 {
+			// sign-extend
+			offset = uint64(int64(int32(int16(offset | 0b1110_0000_0000_0000))))
+		}
+
+		tmp := pc + 2           // use 2 because compressed
+		cpu.XRegs.Write(1, tmp) // use x1
+		cpu.PC = pc + offset
+		return ExcpNone
+	},
 
 	/*
 	 * RV64I
