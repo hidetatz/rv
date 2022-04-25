@@ -685,7 +685,7 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 	},
 	JAL: func(cpu *CPU, raw, pc uint64) Exception {
 		i := ParseJ(raw)
-		tmp := cpu.PC + 4
+		tmp := pc + 4
 		if i.Rd == 0b0 {
 			i.Rd = 1 // x1 if rd is omitted
 		}
