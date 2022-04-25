@@ -202,6 +202,25 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 		cpu.Bus.Write(addr, math.Float64bits(cpu.FRegs.Read(rs2)), Word)
 		return ExcpNone
 	},
+	C_ADDI16SP: func(cpu *CPU, raw, _ uint64) Exception {
+		imm := (bit(raw, 12) << 9) | // raw[12] -> imm[9]
+			(bit(raw, 6) << 4) | // raw[6] -> imm[4]
+			(bit(raw, 5) << 6) | // raw[5] -> imm[6]
+			(bits(raw, 4, 3) << 7) | // raw[4:3] -> imm[8:7]
+			(bit(raw, 2) << 5) // raw[2] -> imm[5]
+		if (imm & 0b10_0000_0000) != 0 {
+			// sign-extend
+			imm = uint64(int64(int32(int16((imm | 0b1111_1100_0000_0000)))))
+		}
+
+		if imm == 0 {
+			return ExcpNone
+		}
+
+		// write to stack pointer (x2)
+		cpu.XRegs.Write(2, cpu.XRegs.Read(2)+imm)
+		return ExcpNone
+	},
 
 	/*
 	 * RV64I
