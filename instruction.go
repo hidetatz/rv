@@ -295,6 +295,12 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 		cpu.XRegs.Write(rd, (cpu.XRegs.Read(rd) >> shamt))
 		return ExcpNone
 	},
+	C_SRAI: func(cpu *CPU, raw, _ uint64) Exception {
+		rd := bits(raw, 9, 7) + 8
+		shamt := (bit(raw, 12) << 5) | bits(raw, 6, 2)
+		cpu.XRegs.Write(rd, uint64(int64(cpu.XRegs.Read(rd))>>shamt))
+		return ExcpNone
+	},
 
 	/*
 	 * RV64I
