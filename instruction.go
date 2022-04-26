@@ -275,6 +275,10 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 		cpu.XRegs.Write(rd, imm+cpu.XRegs.Read(0))
 		return ExcpNone
 	},
+	C_NOP: func(cpu *CPU, raw, _ uint64) Exception {
+		// nop does nothing
+		return ExcpNone
+	},
 
 	/*
 	 * RV64I
