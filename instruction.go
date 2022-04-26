@@ -301,6 +301,20 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 		cpu.XRegs.Write(rd, uint64(int64(cpu.XRegs.Read(rd))>>shamt))
 		return ExcpNone
 	},
+	C_ANDI: func(cpu *CPU, raw, _ uint64) Exception {
+		rd := bits(raw, 9, 7) + 8
+		uimm := (bit(raw, 12) << 5) | bits(raw, 6, 2)
+		if (uimm & 0b10_0000) != 0 {
+			// sign-extend
+			uimm = uint64(int64(int32(int16(uimm | 0b1111_1111_1100_0000))))
+		}
+		cpu.XRegs.Write(rd, (cpu.XRegs.Read(rd) & uimm))
+		return ExcpNone
+	},
+
+	//C_XX: func(cpu *CPU, raw, _ uint64) Exception {
+	//	return ExcpNone
+	//},
 
 	/*
 	 * RV64I
