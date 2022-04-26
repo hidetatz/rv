@@ -266,13 +266,13 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 	},
 	C_LI: func(cpu *CPU, raw, pc uint64) Exception {
 		rd := bits(raw, 11, 7)
-		imm := bit(raw, 12)<<5 | bits(raw, 6, 2)
+		imm := (bit(raw, 12) << 5) | bits(raw, 6, 2)
 		if (imm & 0b10_0000) != 0 {
 			// sign-extend
 			imm = uint64(int64(int32(int16(imm | 0b1111_1111_1100_0000))))
 		}
 
-		cpu.XRegs.Write(rd, imm+cpu.XRegs.Read(0))
+		cpu.XRegs.Write(rd, (imm + cpu.XRegs.Read(0)))
 		return ExcpNone
 	},
 	C_NOP: func(cpu *CPU, raw, _ uint64) Exception {
