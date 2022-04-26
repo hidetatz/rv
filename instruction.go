@@ -279,6 +279,16 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 		// nop does nothing
 		return ExcpNone
 	},
+	C_ADDI: func(cpu *CPU, raw, _ uint64) Exception {
+		rd := bits(raw, 11, 7)
+		nzimm := (bit(raw, 12) << 5) | bits(raw, 6, 2)
+		if (nzimm & 0b10_0000) != 0 {
+			// sign-extend
+			nzimm = uint64(int64(int32(int16(nzimm | 0b1111_1111_1100_0000))))
+		}
+		cpu.XRegs.Write(rd, (nzimm + cpu.XRegs.Read(rd)))
+		return ExcpNone
+	},
 
 	/*
 	 * RV64I
