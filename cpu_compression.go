@@ -31,7 +31,7 @@ func (cpu *CPU) DecodeCompressed(compressed uint64) InstructionCode {
 		case 0b010:
 			return C_LW
 		case 0b011:
-			return C_FLW
+			return C_LD
 		case 0b101:
 			return C_FSD
 		case 0b110:
