@@ -53,7 +53,7 @@ func (cpu *CPU) DecodeCompressed(compressed uint64) InstructionCode {
 				return C_LUI
 			}
 		case 0b001:
-			return C_JAL
+			return C_ADDIW
 		case 0b010:
 			return C_LI
 		case 0b011:
