@@ -19,7 +19,6 @@ const (
 	// Store
 	C_SW    = InstructionCode("C.SW")
 	C_SWSP  = InstructionCode("C.SWSP")
-	C_FSWSP = InstructionCode("C.FSWSP")
 	C_FSD   = InstructionCode("C.FSD")
 	C_FSDSP = InstructionCode("C.FSDSP")
 	// Arithmetic
@@ -430,14 +429,6 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 		cpu.Bus.Write(addr, cpu.XRegs.Read(rs2), Word)
 		return ExcpNone
 	},
-	C_FSWSP: func(cpu *CPU, raw, _ uint64) Exception {
-		rs2 := bits(raw, 4, 2)
-		uimm := bits(raw, 12, 9)<<2 | bits(raw, 8, 7)<<6
-		addr := cpu.XRegs.Read(2) + uimm
-		v := cpu.FRegs.Read(rs2)
-		cpu.Bus.Write(addr, math.Float64bits(v), Word)
-		return ExcpNone
-	},
 	C_ADDIW: func(cpu *CPU, raw, pc uint64) Exception {
 		rd := bits(raw, 11, 7)
 		imm := (bit(raw, 12) << 5) | bits(raw, 6, 2)
@@ -466,6 +457,13 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 		rs2 := bits(raw, 4, 2) + 8
 		uimm := (bits(raw, 12, 10) << 3) | (bits(raw, 6, 5) << 6)
 		addr := cpu.XRegs.Read(rs1) + uimm
+		cpu.Bus.Write(addr, cpu.XRegs.Read(rs2), DoubleWord)
+		return ExcpNone
+	},
+	C_SDSP: func(cpu *CPU, raw, _ uint64) Exception {
+		rs2 := bits(raw, 4, 2)
+		uimm := (bits(raw, 12, 10) << 3) | (bits(raw, 9, 7) << 6)
+		addr := cpu.XRegs.Read(2) + uimm
 		cpu.Bus.Write(addr, cpu.XRegs.Read(rs2), DoubleWord)
 		return ExcpNone
 	},

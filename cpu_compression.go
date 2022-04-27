@@ -139,7 +139,7 @@ func (cpu *CPU) DecodeCompressed(compressed uint64) InstructionCode {
 		case 0b110:
 			return C_SWSP
 		case 0b111:
-			return C_FSWSP
+			return C_SDSP
 		}
 	}
 
