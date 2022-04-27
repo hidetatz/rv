@@ -73,15 +73,23 @@ func (cpu *CPU) DecodeCompressed(compressed uint64) InstructionCode {
 			case 0b10:
 				return C_ANDI
 			case 0b11:
-				switch bs(6, 5) {
-				case 0b00:
-					return C_SUB
-				case 0b01:
-					return C_XOR
-				case 0b10:
-					return C_OR
-				case 0b11:
-					return C_AND
+				switch bit(raw, 12) {
+				case 0b0:
+					switch bs(6, 5) {
+					case 0b00:
+						return C_SUB
+					case 0b01:
+						return C_XOR
+					case 0b10:
+						return C_OR
+					case 0b11:
+						return C_AND
+					}
+				case 0b1:
+					switch bs(6, 5) {
+					case 0b01:
+						return C_ADDW
+					}
 				}
 			}
 		case 0b101:
