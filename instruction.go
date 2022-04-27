@@ -451,6 +451,13 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 		cpu.Bus.Write(addr, math.Float64bits(v), DoubleWord)
 		return ExcpNone
 	},
+	C_SWSP: func(cpu *CPU, raw, _ uint64) Exception {
+		rs2 := bits(raw, 4, 2)
+		uimm := bits(raw, 12, 9)<<2 | bits(raw, 8, 7)<<6
+		addr := cpu.XRegs.Read(2) + uimm
+		cpu.Bus.Write(addr, cpu.XRegs.Read(rs2), Word)
+		return ExcpNone
+	},
 
 	//C_XX: func(cpu *CPU, raw, _ uint64) Exception {
 	//	return ExcpNone
