@@ -389,6 +389,12 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 
 		return ExcpNone
 	},
+	C_SLLI: func(cpu *CPU, raw, _ uint64) Exception {
+		rd := bits(raw, 11, 7)
+		shamt := (bit(raw, 12) << 5) | bits(raw, 6, 2)
+		cpu.XRegs.Write(rd, (cpu.XRegs.Read(rd) << shamt))
+		return ExcpNone
+	},
 
 	//C_XX: func(cpu *CPU, raw, _ uint64) Exception {
 	//	return ExcpNone
