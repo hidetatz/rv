@@ -7,42 +7,68 @@ type InstructionCode string
 const (
 	_INVALID = InstructionCode("_INVALID")
 
-	// RV32C
-	C_ADDI4SPN = InstructionCode("C.ADDI4SPN")
-	C_FLD      = InstructionCode("C.FLD")
-	C_LW       = InstructionCode("C.LW")
-	C_FLW      = InstructionCode("C.FLW")
-	C_FSD      = InstructionCode("C.FSD")
-	C_SW       = InstructionCode("C.SW")
-	C_FSW      = InstructionCode("C.FSW")
-	C_ADDI16SP = InstructionCode("C.ADDI16SP")
-	C_LUI      = InstructionCode("C.LUI")
-	C_JAL      = InstructionCode("C.JAL")
-	C_LI       = InstructionCode("C.LI")
-	C_NOP      = InstructionCode("C.NOP")
-	C_ADDI     = InstructionCode("C.ADDI")
-	C_SRLI     = InstructionCode("C.SRLI")
-	C_SRAI     = InstructionCode("C.SRAI")
-	C_ANDI     = InstructionCode("C.ANDI")
-	C_SUB      = InstructionCode("C.SUB")
-	C_XOR      = InstructionCode("C.XOR")
-	C_OR       = InstructionCode("C.OR")
-	C_AND      = InstructionCode("C.AND")
-	C_J        = InstructionCode("C.J")
-	C_BEQZ     = InstructionCode("C.BEQZ")
-	C_BNEZ     = InstructionCode("C.BNEZ")
-	C_SLLI     = InstructionCode("C.SLLI")
-	C_FLDSP    = InstructionCode("C.FLDSP")
-	C_LWSP     = InstructionCode("C.LWSP")
-	C_FLWSP    = InstructionCode("C.FLWSP")
-	C_JR       = InstructionCode("C.JR")
-	C_MV       = InstructionCode("C.MV")
-	C_EBREAK   = InstructionCode("C.EBREAK")
-	C_JALR     = InstructionCode("C.JALR")
+	/*
+	 * RV32C
+	 */
+
+	// Load
+	C_LW    = InstructionCode("C.LW")
+	C_LWSP  = InstructionCode("C.LWSP")
+	C_FLW   = InstructionCode("C.FLW")
+	C_FLWSP = InstructionCode("C.FLWSP")
+	C_FLD   = InstructionCode("C.FLD")
+	C_FLDSP = InstructionCode("C.FLDSP")
+	// Store
+	C_SW    = InstructionCode("C.SW")
+	C_SWSP  = InstructionCode("C.SWSP")
+	C_FSW   = InstructionCode("C.FSW")
+	C_FSWSP = InstructionCode("C.FSWSP")
+	C_FSD   = InstructionCode("C.FSD")
+	C_FSDSP = InstructionCode("C.FSDSP")
+	// Arithmetic
 	C_ADD      = InstructionCode("C.ADD")
-	C_FSDSP    = InstructionCode("C.FSDSP")
-	C_SWSP     = InstructionCode("C.SWSP")
-	C_FSWSP    = InstructionCode("C.FSWSP")
+	C_ADDI     = InstructionCode("C.ADDI")
+	C_ADDI4SPN = InstructionCode("C.ADDI4SPN")
+	C_ADDI16SP = InstructionCode("C.ADDI16SP")
+	C_SUB      = InstructionCode("C.SUB")
+	C_AND      = InstructionCode("C.AND")
+	C_ANDI     = InstructionCode("C.ANDI")
+	C_OR       = InstructionCode("C.OR")
+	C_XOR      = InstructionCode("C.XOR")
+	C_MV       = InstructionCode("C.MV")
+	C_LI       = InstructionCode("C.LI")
+	C_LUI      = InstructionCode("C.LUI")
+	// Shift
+	C_SLLI = InstructionCode("C.SLLI")
+	C_SRAI = InstructionCode("C.SRAI")
+	C_SRLI = InstructionCode("C.SRLI")
+	// Branch
+	C_BEQZ = InstructionCode("C.BEQZ")
+	C_BNEZ = InstructionCode("C.BNEZ")
+	// Jump
+	C_J  = InstructionCode("C.J")
+	C_JR = InstructionCode("C.JR")
+	// Jump and Link
+	C_JALR = InstructionCode("C.JALR")
+	C_JAL  = InstructionCode("C.JAL")
+	// System
+	C_NOP    = InstructionCode("C.NOP")
+	C_EBREAK = InstructionCode("C.EBREAK")
+
+	/*
+	 * RV64C
+	 */
+
+	// Load
+	C_LD   = InstructionCode("C.LD")
+	C_LDSP = InstructionCode("C.LDSP")
+	// Store
+	C_SD   = InstructionCode("C.SD")
+	C_SDSP = InstructionCode("C.SDSP")
+	// Arithmetic
+	C_ADDW  = InstructionCode("C.ADDW")
+	C_ADDIW = InstructionCode("C.ADDIW")
+	C_SUBW  = InstructionCode("C.SUBW")
 
 	// RV32I, RV64I
 	LUI        = InstructionCode("LUI")
