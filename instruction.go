@@ -416,6 +416,11 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 		cpu.FRegs.Write(rd, math.Float64frombits(v))
 		return ExcpNone
 	},
+	C_JR: func(cpu *CPU, raw, _ uint64) Exception {
+		rs1 := bits(raw, 11, 7)
+		cpu.PC = cpu.XRegs.Read(rs1)
+		return ExcpNone
+	},
 
 	//C_XX: func(cpu *CPU, raw, _ uint64) Exception {
 	//	return ExcpNone
