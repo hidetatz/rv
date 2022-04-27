@@ -65,73 +65,102 @@ const (
 	C_ADDIW = InstructionCode("C.ADDIW")
 	C_SUBW  = InstructionCode("C.SUBW")
 
-	// RV32I, RV64I
-	LUI        = InstructionCode("LUI")
-	AUIPC      = InstructionCode("AUIPC")
-	ADDI       = InstructionCode("ADDI")
-	SLTI       = InstructionCode("SLTI")
-	SLTIU      = InstructionCode("SLTIU")
-	XORI       = InstructionCode("XORI")
-	ORI        = InstructionCode("ORI")
-	ANDI       = InstructionCode("ANDI")
-	SLLI       = InstructionCode("SLLI")
-	SRLI       = InstructionCode("SRLI")
-	SRAI       = InstructionCode("SRAI")
-	ADD        = InstructionCode("ADD")
-	SUB        = InstructionCode("SUB")
-	SLL        = InstructionCode("SLL")
-	SLT        = InstructionCode("SLT")
-	SLTU       = InstructionCode("SLTU")
-	XOR        = InstructionCode("XOR")
-	SRL        = InstructionCode("SRL")
-	SRA        = InstructionCode("SRA")
-	OR         = InstructionCode("OR")
-	AND        = InstructionCode("AND")
-	FENCE      = InstructionCode("FENCE")
-	FENCE_I    = InstructionCode("FENCE.I")
-	CSRRW      = InstructionCode("CSRRW")
-	CSRRS      = InstructionCode("CSRRS")
-	CSRRC      = InstructionCode("CSRRC")
-	CSRRWI     = InstructionCode("CSRRWI")
-	CSRRSI     = InstructionCode("CSRRSI")
-	CSRRCI     = InstructionCode("CSRRCI")
-	ECALL      = InstructionCode("ECALL")
-	EBREAK     = InstructionCode("EBREAK")
-	URET       = InstructionCode("URET")
-	SRET       = InstructionCode("SRET")
-	MRET       = InstructionCode("MRET")
-	WFI        = InstructionCode("WFI")
-	SFENCE_VMA = InstructionCode("SFENCE.VMA")
-	LB         = InstructionCode("LB")
-	LH         = InstructionCode("LH")
-	LW         = InstructionCode("LW")
-	LBU        = InstructionCode("LBU")
-	LHU        = InstructionCode("LHU")
-	SB         = InstructionCode("SB")
-	SH         = InstructionCode("SH")
-	SW         = InstructionCode("SW")
-	JAL        = InstructionCode("JAL")
-	JALR       = InstructionCode("JALR")
-	BEQ        = InstructionCode("BEQ")
-	BNE        = InstructionCode("BNE")
-	BLT        = InstructionCode("BLT")
-	BGE        = InstructionCode("BGE")
-	BLTU       = InstructionCode("BLTU")
-	BGEU       = InstructionCode("BGEU")
+	/*
+	 * RV32I
+	 */
 
-	// RV64I
-	//ADDIW = InstructionCode("ADDIW")
-	//SLLIW = InstructionCode("SLLIW")
-	//SRLIW = InstructionCode("SRLIW")
-	//SRAIW = InstructionCode("SRAIW")
-	//ADDW  = InstructionCode("ADDW")
-	//SUBW  = InstructionCode("SUBW")
-	//SLLW = InstructionCode("SLLW")
-	//SRLW  = InstructionCode("SRLW")
-	//SRAW  = InstructionCode("SRAW")
-	//LWU = InstructionCode("LWU")
-	//LD    = InstructionCode("LD")
-	//SD    = InstructionCode("SD")
+	// Shift
+	SLL  = InstructionCode("SLL")
+	SLLI = InstructionCode("SLLI")
+	SRL  = InstructionCode("SRL")
+	SRLI = InstructionCode("SRLI")
+	SRA  = InstructionCode("SRA")
+	SRAI = InstructionCode("SRAI")
+	// Arithmetic
+	ADD   = InstructionCode("ADD")
+	ADDI  = InstructionCode("ADDI")
+	SUB   = InstructionCode("SUB")
+	LUI   = InstructionCode("LUI")
+	AUIPC = InstructionCode("AUIPC")
+	// Logical
+	XOR  = InstructionCode("XOR")
+	XORI = InstructionCode("XORI")
+	OR   = InstructionCode("OR")
+	ORI  = InstructionCode("ORI")
+	AND  = InstructionCode("AND")
+	ANDI = InstructionCode("ANDI")
+	// If
+	SLT   = InstructionCode("SLT")
+	SLTI  = InstructionCode("SLTI")
+	SLTU  = InstructionCode("SLTU")
+	SLTIU = InstructionCode("SLTIU")
+	// Branch
+	BEQ  = InstructionCode("BEQ")
+	BNE  = InstructionCode("BNE")
+	BLT  = InstructionCode("BLT")
+	BGE  = InstructionCode("BGE")
+	BLTU = InstructionCode("BLTU")
+	BGEU = InstructionCode("BGEU")
+	// Jump
+	JAL  = InstructionCode("JAL")
+	JALR = InstructionCode("JALR")
+	// Synchronize
+	FENCE   = InstructionCode("FENCE")
+	FENCE_I = InstructionCode("FENCE.I")
+	// Environment
+	ECALL  = InstructionCode("ECALL")
+	EBREAK = InstructionCode("EBREAK")
+	// CSR manipulation
+	CSRRW  = InstructionCode("CSRRW")
+	CSRRS  = InstructionCode("CSRRS")
+	CSRRC  = InstructionCode("CSRRC")
+	CSRRWI = InstructionCode("CSRRWI")
+	CSRRSI = InstructionCode("CSRRSI")
+	CSRRCI = InstructionCode("CSRRCI")
+	// Load
+	LB  = InstructionCode("LB")
+	LH  = InstructionCode("LH")
+	LBU = InstructionCode("LBU")
+	LHU = InstructionCode("LHU")
+	LW  = InstructionCode("LW")
+	// Store
+	SB = InstructionCode("SB")
+	SH = InstructionCode("SH")
+	SW = InstructionCode("SW")
+
+	/*
+	 * RV64I
+	 */
+
+	// Shift
+	SLLW  = InstructionCode("SLLW")
+	SLLIW = InstructionCode("SLLIW")
+	SRLW  = InstructionCode("SRLW")
+	SRLIW = InstructionCode("SRLIW")
+	SRAW  = InstructionCode("SRAW")
+	SRAIW = InstructionCode("SRAIW")
+	// Arithmetic
+	ADDW  = InstructionCode("ADDW")
+	ADDIW = InstructionCode("ADDIW")
+	SUBW  = InstructionCode("SUBW")
+	// Load
+	LWU = InstructionCode("LWU")
+	LD  = InstructionCode("LD")
+	// Store
+	SD = InstructionCode("SD")
+
+	/*
+	 * RV Privileged
+	 */
+
+	// Trap
+	URET = InstructionCode("URET")
+	SRET = InstructionCode("SRET")
+	MRET = InstructionCode("MRET")
+	// Interrupt
+	WFI = InstructionCode("WFI")
+	// MMU
+	SFENCE_VMA = InstructionCode("SFENCE.VMA")
 )
 
 func (ic InstructionCode) String() string {
