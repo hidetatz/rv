@@ -354,6 +354,24 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 		cpu.PC = pc + offset
 		return ExcpNone
 	},
+	C_BEQZ: func(cpu *CPU, raw, pc uint64) Exception {
+		rs1 := bits(raw, 9, 7) + 8
+		offset := (bit(raw, 12) << 8) |
+			(bits(raw, 11, 10) << 3) |
+			(bits(raw, 6, 5) << 6) |
+			(bits(raw, 4, 3) << 1) |
+			(bit(raw, 2) << 5)
+		if (offset & 0b1_0000_0000_0000) != 0 {
+			// sign-extend
+			offset = uint64(int64(int32(int16(offset | 0b1110_0000_0000_0000))))
+		}
+
+		if cpu.XRegs.Read(rs1) == 0 {
+			cpu.PC = pc + offset
+		}
+
+		return ExcpNone
+	},
 
 	//C_XX: func(cpu *CPU, raw, _ uint64) Exception {
 	//	return ExcpNone
