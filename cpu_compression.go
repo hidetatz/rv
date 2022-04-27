@@ -37,7 +37,7 @@ func (cpu *CPU) DecodeCompressed(compressed uint64) InstructionCode {
 		case 0b110:
 			return C_SW
 		case 0b111:
-			return C_FSW
+			return C_SD
 		}
 	case 0b01:
 		funct3 := bs(15, 13)
