@@ -443,6 +443,14 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 		cpu.XRegs.Write(rd, cpu.XRegs.Read(rd)+cpu.XRegs.Read(rs2))
 		return ExcpNone
 	},
+	C_FSDSP: func(cpu *CPU, raw, _ uint64) Exception {
+		rs2 := bits(raw, 4, 2)
+		uimm := bits(raw, 12, 10)<<3 | bits(raw, 9, 7)<<6
+		addr := cpu.XRegs.Read(2) + uimm
+		v := cpu.FRegs.Read(rs2)
+		cpu.Bus.Write(addr, math.Float64bits(v), DoubleWord)
+		return ExcpNone
+	},
 
 	//C_XX: func(cpu *CPU, raw, _ uint64) Exception {
 	//	return ExcpNone
