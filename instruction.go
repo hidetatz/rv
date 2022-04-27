@@ -31,7 +31,6 @@ const (
 	C_J        = InstructionCode("C.J")
 	C_BEQZ     = InstructionCode("C.BEQZ")
 	C_BNEZ     = InstructionCode("C.BNEZ")
-	C_SLLI64   = InstructionCode("C.SLLI64")
 	C_SLLI     = InstructionCode("C.SLLI")
 	C_FLDSP    = InstructionCode("C.FLDSP")
 	C_LWSP     = InstructionCode("C.LWSP")

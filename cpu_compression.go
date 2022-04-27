@@ -95,12 +95,7 @@ func (cpu *CPU) DecodeCompressed(compressed uint64) InstructionCode {
 		funct3 := bits(compressed, 15, 13)
 		switch funct3 {
 		case 0b000:
-			switch bits(compressed, 6, 2) {
-			case 0b0:
-				return C_SLLI64
-			default:
-				return C_SLLI
-			}
+			return C_SLLI
 		case 0b001:
 			return C_FLDSP
 		case 0b010:
