@@ -14,7 +14,6 @@ const (
 	// Load
 	C_LW    = InstructionCode("C.LW")
 	C_LWSP  = InstructionCode("C.LWSP")
-	C_FLWSP = InstructionCode("C.FLWSP")
 	C_FLD   = InstructionCode("C.FLD")
 	C_FLDSP = InstructionCode("C.FLDSP")
 	// Store
@@ -400,13 +399,6 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 		cpu.XRegs.Write(rd, uint64(int64(int32(v))))
 		return ExcpNone
 	},
-	C_FLWSP: func(cpu *CPU, raw, _ uint64) Exception {
-		rd := bits(raw, 11, 7)
-		uimm := (bit(raw, 12) << 5) | (bits(raw, 6, 4) << 2) | (bits(raw, 3, 2) << 6)
-		v := cpu.Bus.Read(cpu.XRegs.Read(2)+uimm, Word)
-		cpu.FRegs.Write(rd, math.Float64frombits(v))
-		return ExcpNone
-	},
 	C_JR: func(cpu *CPU, raw, _ uint64) Exception {
 		rs1 := bits(raw, 11, 7)
 		cpu.PC = cpu.XRegs.Read(rs1)
@@ -472,6 +464,12 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 		rd := bits(raw, 4, 2) + 8
 		uimm := (bits(raw, 12, 10) << 3) | (bits(raw, 6, 5) << 6)
 		cpu.XRegs.Write(rd, cpu.Bus.Read(cpu.XRegs.Read(rs1)+uimm, DoubleWord))
+		return ExcpNone
+	},
+	C_LDSP: func(cpu *CPU, raw, _ uint64) Exception {
+		rd := bits(raw, 11, 7)
+		uimm := (bit(raw, 12) << 5) | (bits(raw, 6, 5) << 3) | (bits(raw, 4, 2) << 6)
+		cpu.XRegs.Write(rd, cpu.Bus.Read(cpu.XRegs.Read(2)+uimm, DoubleWord))
 		return ExcpNone
 	},
 

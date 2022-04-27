@@ -111,7 +111,7 @@ func (cpu *CPU) DecodeCompressed(compressed uint64) InstructionCode {
 		case 0b010:
 			return C_LWSP
 		case 0b011:
-			return C_FLWSP
+			return C_LDSP
 		case 0b100:
 			switch bit(compressed, 12) {
 			case 0b0:
