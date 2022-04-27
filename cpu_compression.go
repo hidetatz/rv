@@ -87,6 +87,8 @@ func (cpu *CPU) DecodeCompressed(compressed uint64) InstructionCode {
 					}
 				case 0b1:
 					switch bs(6, 5) {
+					case 0b00:
+						return C_SUBW
 					case 0b01:
 						return C_ADDW
 					}
