@@ -46,6 +46,8 @@ func (cpu *CPU) Decode(inst uint64) InstructionCode {
 			return LH
 		case 0b010:
 			return LW
+		case 0b011:
+			return LD
 		case 0b100:
 			return LBU
 		case 0b101:
