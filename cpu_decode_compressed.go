@@ -1,12 +1,5 @@
 package main
 
-// IsCompressed returns if the instruction is compressed 16-bit one.
-func (cpu *CPU) IsCompressed(inst uint64) bool {
-	last2bit := inst & 0b11
-	// if the last 2-bit is one of 00/01/10, it is 16-bit instruction.
-	return last2bit == 0b00 || last2bit == 0b01 || last2bit == 0b10
-}
-
 // Decompress extracts the given 16-bit instruction to 32-bit one.
 func (cpu *CPU) DecodeCompressed(compressed uint64) InstructionCode {
 	bs := func(hi, lo int) uint64 {

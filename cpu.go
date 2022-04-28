@@ -110,7 +110,7 @@ func (cpu *CPU) Run() Exception {
 	raw := cpu.Fetch(HalfWord)
 	dbg += fmt.Sprintf(", raw: %x", raw)
 
-	if cpu.IsCompressed(raw) {
+	if IsCompressed(raw) {
 		dbg += ", compressed: true"
 		code = cpu.DecodeCompressed(raw)
 		cpu.PC += 2
@@ -140,4 +140,11 @@ func (cpu *CPU) Exec(code InstructionCode, raw, cur uint64) Exception {
 	}
 
 	return execution(cpu, raw, cur)
+}
+
+// IsCompressed returns if the instruction is compressed 16-bit one.
+func IsCompressed(inst uint64) bool {
+	last2bit := inst & 0b11
+	// if the last 2-bit is one of 00/01/10, it is 16-bit instruction.
+	return last2bit == 0b00 || last2bit == 0b01 || last2bit == 0b10
 }
