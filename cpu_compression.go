@@ -46,11 +46,9 @@ func (cpu *CPU) DecodeCompressed(compressed uint64) InstructionCode {
 			rdRs1 := bs(11, 7)
 			switch rdRs1 {
 			case 0b0:
-				return _INVALID
-			case 0b11:
-				return C_ADDI16SP
+				return C_NOP
 			default:
-				return C_LUI
+				return C_ADDI
 			}
 		case 0b001:
 			return C_ADDIW
@@ -59,10 +57,12 @@ func (cpu *CPU) DecodeCompressed(compressed uint64) InstructionCode {
 		case 0b011:
 			rdRs1 := bs(11, 7)
 			switch rdRs1 {
-			case 0b0:
-				return C_NOP
+			case 0b00000:
+				return _INVALID
+			case 0b00010:
+				return C_ADDI16SP
 			default:
-				return C_ADDI
+				return C_LUI
 			}
 		case 0b100:
 			switch bs(11, 10) {
