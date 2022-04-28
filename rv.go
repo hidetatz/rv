@@ -14,8 +14,6 @@ func New(prog []byte) (*RV, error) {
 		return nil, fmt.Errorf("Load ELF file: %w", err)
 	}
 
-	Debug("elf dump: %v", elf)
-
 	if elf.Header.Class != 2 { // 64-bit
 		return nil, fmt.Errorf("ELF class is not 64-bit but %d. Cannot execute", elf.Header.Class)
 	}
@@ -46,12 +44,11 @@ func New(prog []byte) (*RV, error) {
 			addr := p.VAddr + uint64(i)
 			val := uint64(prog[int(p.Offset)+i])
 			cpu.Bus.Write(addr, val, Byte)
-			Debug("writing: addr: %x, val: %x", addr, val)
 		}
 	}
 
 	cpu.PC = elf.Header.Entry
-	Debug("PC: %x", cpu.PC)
+	Debug("Load ELF succeeded: PC: %x", cpu.PC)
 
 	return &RV{cpu: cpu}, nil
 }
