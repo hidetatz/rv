@@ -8,11 +8,11 @@ const DramBase = 0x0
 // Memory is a DRAM emulator.
 type Memory struct {
 	// 1GiB
-	Mem [1024 * 1024 * 1024]uint8
+	Mem [4 * 1024 * 1024 * 1024]uint8
 }
 
 func NewMemory() *Memory {
-	return &Memory{Mem: [1024 * 1024 * 1024]uint8{}}
+	return &Memory{Mem: [4 * 1024 * 1024 * 1024]uint8{}}
 }
 
 func (mem *Memory) Set(data []uint8) {
