@@ -153,7 +153,12 @@ func (cpu *CPU) Decode(inst uint64) InstructionCode {
 			return BGEU
 		}
 	case 0b011_1011:
-		return SLLW
+		switch funct3 {
+		case 0b001:
+			return SLLW
+		case 0b101:
+			return SRLW
+		}
 	case 0b001_1011:
 		return SLLIW
 	}
