@@ -61,9 +61,3 @@ func (r *RV) Start() {
 		}
 	}
 }
-
-func (r *RV) StartForTest(count int) {
-	for i := 0; i < count; i++ {
-		r.cpu.Run()
-	}
-}
