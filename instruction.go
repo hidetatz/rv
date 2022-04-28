@@ -782,6 +782,7 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 	},
 	CSRRS: func(cpu *CPU, raw, _ uint64) Exception {
 		i := ParseI(raw)
+		i.Imm = i.Imm & 0b111111111111
 		t := cpu.CSR.Read(i.Imm)
 		cpu.CSR.Write(i.Imm, (t | cpu.XRegs.Read(i.Rs1)))
 		cpu.XRegs.Write(i.Rd, t)
