@@ -6,10 +6,6 @@ func (cpu *CPU) Decode(inst uint64) InstructionCode {
 	funct7 := bits(inst, 31, 25)
 	funct3 := bits(inst, 14, 12)
 
-	Debug("opcode: %07b", opcode)
-	Debug("funct7: %07b", funct7)
-	Debug("funct3: %03b", funct3)
-
 	switch opcode {
 	// RV64I
 	case 0b011_0011:

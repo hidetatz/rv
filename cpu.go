@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 type Bus struct {
 	Memory *Memory
 }
@@ -89,7 +91,7 @@ func (cpu *CPU) Fetch(size Size) uint64 {
 }
 
 func (cpu *CPU) Run() Exception {
-	Debug("------Tick------")
+	dbg := ""
 
 	if cpu.Wfi {
 		return ExcpNone
@@ -99,19 +101,21 @@ func (cpu *CPU) Run() Exception {
 
 	// save current PC
 	cur := cpu.PC
-	Debug("  PC: %x", cpu.PC)
+	Debug("PC: %x", cpu.PC)
+	dbg += fmt.Sprintf("  PC: %x", cpu.PC)
 
 	var code InstructionCode
 
 	// As of here, we are not sure if the next instruction is compressed. First we have to figure that out.
 	raw := cpu.Fetch(HalfWord)
+	dbg += fmt.Sprintf(", raw: %x", raw)
 
 	if cpu.IsCompressed(raw) {
-		Debug("  compressed: true")
+		dbg += ", compressed: true"
 		code = cpu.DecodeCompressed(raw)
 		cpu.PC += 2
 	} else {
-		Debug("  compressed: false")
+		dbg += ", compressed: false"
 		raw = cpu.Fetch(Word)
 		code = cpu.Decode(raw)
 		cpu.PC += 4
@@ -122,7 +126,9 @@ func (cpu *CPU) Run() Exception {
 		panic("invalid instruction!")
 	}
 
-	Debug("  Instruction: %s", code)
+	dbg += fmt.Sprintf(", Instruction: %s", code)
+
+	Debug(dbg)
 
 	return cpu.Exec(code, raw, cur)
 }
