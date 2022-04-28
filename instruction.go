@@ -518,13 +518,6 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 		cpu.XRegs.Write(rd, v)
 		return ExcpNone
 	},
-	C_SUBW: func(cpu *CPU, raw, pc uint64) Exception {
-		rd := bits(raw, 9, 7) + 8
-		rs2 := bits(raw, 4, 2) + 8
-		v := uint64(int64(int32(cpu.XRegs.Read(rd) - cpu.XRegs.Read(rs2))))
-		cpu.XRegs.Write(rd, v)
-		return ExcpNone
-	},
 	C_ADDIW: func(cpu *CPU, raw, pc uint64) Exception {
 		rd := bits(raw, 11, 7)
 		imm := (bit(raw, 12) << 5) | bits(raw, 6, 2)
@@ -533,6 +526,13 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 			imm = uint64(int64(int8(imm | 0b1100_0000)))
 		}
 		cpu.XRegs.Write(rd, uint64(int64(int32(cpu.XRegs.Read(rd)+imm))))
+		return ExcpNone
+	},
+	C_SUBW: func(cpu *CPU, raw, pc uint64) Exception {
+		rd := bits(raw, 9, 7) + 8
+		rs2 := bits(raw, 4, 2) + 8
+		v := uint64(int64(int32(cpu.XRegs.Read(rd) - cpu.XRegs.Read(rs2))))
+		cpu.XRegs.Write(rd, v)
 		return ExcpNone
 	},
 
