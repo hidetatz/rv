@@ -913,6 +913,9 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 	ADDW: func(cpu *CPU, raw, _ uint64) Exception {
 		i := ParseR(raw)
 		cpu.XRegs.Write(i.Rd, uint64(int64(int32(cpu.XRegs.Read(i.Rs1))+cpu.XRegs.Read(i.Rs2))))
+	ADDIW: func(cpu *CPU, raw, _ uint64) Exception {
+		i := ParseI(raw)
+		cpu.XRegs.Write(i.Rd, uint64(int64(int32(cpu.XRegs.Read(i.Rs1)+i.Imm))))
 		return ExcpNone
 	},
 	SUBW: func(cpu *CPU, raw, _ uint64) Exception {
