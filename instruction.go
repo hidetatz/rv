@@ -1,6 +1,8 @@
 package main
 
-import "math"
+import (
+	"math"
+)
 
 type InstructionCode string
 
@@ -400,9 +402,9 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 			(bits(raw, 6, 5) << 6) |
 			(bits(raw, 4, 3) << 1) |
 			(bit(raw, 2) << 5)
-		if (offset & 0b1_0000_0000_0000) != 0 {
+		if (offset & 0b1_0000_0000) != 0 {
 			// sign-extend
-			offset = uint64(int64(int32(int16(offset | 0b1110_0000_0000_0000))))
+			offset = uint64(int64(int32(int16(offset | 0b1111_1110_0000_0000))))
 		}
 
 		if cpu.XRegs.Read(rs1) == 0 {
@@ -418,9 +420,9 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 			(bits(raw, 6, 5) << 6) |
 			(bits(raw, 4, 3) << 1) |
 			(bit(raw, 2) << 5)
-		if (offset & 0b1_0000_0000_0000) != 0 {
+		if (offset & 0b1_0000_0000) != 0 {
 			// sign-extend
-			offset = uint64(int64(int32(int16(offset | 0b1110_0000_0000_0000))))
+			offset = uint64(int64(int32(int16(offset | 0b1111_1110_0000_0000))))
 		}
 
 		if cpu.XRegs.Read(rs1) != 0 {
@@ -443,9 +445,9 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 			(bit(raw, 4) << 2) | // raw[11] -> imm[4]
 			(bit(raw, 3) << 1) | // raw[11] -> imm[4]
 			(bit(raw, 2) << 5) // raw[11] -> imm[4]
-		if (offset & 0b1_0000_0000_0000) != 0 {
+		if (offset & 0b1000_0000_0000) != 0 {
 			// sign-extend
-			offset = uint64(int64(int32(int16(offset | 0b1110_0000_0000_0000))))
+			offset = uint64(int64(int32(int16(offset | 0b1111_0000_0000_0000))))
 		}
 		cpu.PC = pc + offset
 		return ExcpNone
