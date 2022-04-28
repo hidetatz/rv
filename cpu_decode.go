@@ -156,6 +156,8 @@ func (cpu *CPU) Decode(inst uint64) InstructionCode {
 		switch funct7 {
 		case 0b000_0000:
 			switch funct3 {
+			case 0b000:
+				return ADDW
 			case 0b001:
 				return SLLW
 			case 0b101:
