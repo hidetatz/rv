@@ -50,6 +50,8 @@ func (cpu *CPU) Decode(inst uint64) InstructionCode {
 			return LBU
 		case 0b101:
 			return LHU
+		case 0b110:
+			return LWU
 		}
 	case 0b001_0011:
 		switch funct3 {

@@ -927,6 +927,12 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 	},
 
 	// Load
+	LWU: func(cpu *CPU, raw, _ uint64) Exception {
+		i := ParseI(raw)
+		addr := cpu.XRegs.Read(i.Rs1) + i.Imm
+		cpu.XRegs.Write(i.Rd, cpu.Bus.Read(addr, Word))
+		return ExcpNone
+	},
 
 	// Store
 
