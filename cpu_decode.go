@@ -160,7 +160,12 @@ func (cpu *CPU) Decode(inst uint64) InstructionCode {
 			return SRLW
 		}
 	case 0b001_1011:
-		return SLLIW
+		switch funct3 {
+		case 0b001:
+			return SLLIW
+		case 0b101:
+			return SRLIW
+		}
 	}
 
 	return _INVALID
