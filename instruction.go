@@ -853,20 +853,20 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 	// Store
 	SB: func(cpu *CPU, raw, _ uint64) Exception {
 		i := ParseS(raw)
-		pc := cpu.XRegs.Read(i.Rs1) + i.Imm
-		cpu.Bus.Write(pc, cpu.XRegs.Read(i.Rs2), Byte)
+		addr := cpu.XRegs.Read(i.Rs1) + i.Imm
+		cpu.Bus.Write(addr, cpu.XRegs.Read(i.Rs2), Byte)
 		return ExcpNone
 	},
 	SH: func(cpu *CPU, raw, _ uint64) Exception {
 		i := ParseS(raw)
-		pc := cpu.XRegs.Read(i.Rs1) + i.Imm
-		cpu.Bus.Write(pc, cpu.XRegs.Read(i.Rs2), HalfWord)
+		addr := cpu.XRegs.Read(i.Rs1) + i.Imm
+		cpu.Bus.Write(addr, cpu.XRegs.Read(i.Rs2), HalfWord)
 		return ExcpNone
 	},
 	SW: func(cpu *CPU, raw, _ uint64) Exception {
 		i := ParseS(raw)
-		pc := cpu.XRegs.Read(i.Rs1) + i.Imm
-		cpu.Bus.Write(pc, cpu.XRegs.Read(i.Rs2), Word)
+		addr := cpu.XRegs.Read(i.Rs1) + i.Imm
+		cpu.Bus.Write(addr, cpu.XRegs.Read(i.Rs2), Word)
 		return ExcpNone
 	},
 
