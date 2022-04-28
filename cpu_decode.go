@@ -140,6 +140,8 @@ func (cpu *CPU) Decode(inst uint64) InstructionCode {
 			return SH
 		case 0b010:
 			return SW
+		case 0b011:
+			return SD
 		}
 	case 0b110_0011:
 		switch funct3 {

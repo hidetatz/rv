@@ -941,6 +941,12 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 	},
 
 	// Store
+	SD: func(cpu *CPU, raw, _ uint64) Exception {
+		i := ParseS(raw)
+		addr := cpu.XRegs.Read(i.Rs1) + i.Imm
+		cpu.Bus.Write(addr, cpu.XRegs.Read(i.Rs2), DoubleWord)
+		return ExcpNone
+	},
 
 	/*
 	 * RV Privileged
