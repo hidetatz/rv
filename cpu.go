@@ -128,9 +128,12 @@ func (cpu *CPU) Run() Exception {
 
 	dbg += fmt.Sprintf(", Instruction: %s", code)
 
+	excp := cpu.Exec(code, raw, cur)
+
+	dbg += fmt.Sprintf(", SP: %d", cpu.XRegs.Read(2))
 	Debug(dbg)
 
-	return cpu.Exec(code, raw, cur)
+	return excp
 }
 
 func (cpu *CPU) Exec(code InstructionCode, raw, cur uint64) Exception {
