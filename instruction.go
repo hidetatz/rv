@@ -875,6 +875,11 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 	 */
 
 	// Shirt
+	SLLW: func(cpu *CPU, raw, _ uint64) Exception {
+		i := ParseR(raw)
+		cpu.XRegs.Write(i.Rd, uint64(int64(int32(cpu.XRegs.Read(i.Rs1)<<i.Rs2))))
+		return ExcpNone
+	},
 
 	// Arithmetic
 

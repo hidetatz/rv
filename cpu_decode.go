@@ -7,7 +7,6 @@ func (cpu *CPU) Decode(inst uint64) InstructionCode {
 	funct3 := bits(inst, 14, 12)
 
 	switch opcode {
-	// RV64I
 	case 0b011_0011:
 		switch funct3 {
 		case 0b000:
@@ -153,6 +152,8 @@ func (cpu *CPU) Decode(inst uint64) InstructionCode {
 		case 0b111:
 			return BGEU
 		}
+	case 0b011_1011:
+		return SLLW
 	}
 
 	return _INVALID
