@@ -3,7 +3,8 @@ package main
 import "fmt"
 
 type RV struct {
-	cpu *CPU
+	cpu  *CPU
+	term uint64
 }
 
 func New(prog []byte) (*RV, error) {
@@ -46,11 +47,13 @@ func New(prog []byte) (*RV, error) {
 			cpu.Bus.Write(addr, val, Byte)
 		}
 	}
-
 	cpu.PC = elf.Header.Entry
-	Debug("Load ELF succeeded: PC: %x", cpu.PC)
 
-	return &RV{cpu: cpu}, nil
+	rv := &RV{cpu: cpu, term: elf.ToHost}
+
+	Debug("Load ELF succeeded: PC: %x, ToHost: %x", cpu.PC, rv.term)
+
+	return rv, nil
 }
 
 func (r *RV) Start() {
@@ -58,6 +61,19 @@ func (r *RV) Start() {
 		excp := r.cpu.Run()
 		if excp != ExcpNone {
 			panic("done")
+		}
+
+		if r.term == 0 {
+			continue
+		}
+
+		if code := r.cpu.Bus.Read(r.term, Word); code != 0 {
+			if code == 1 {
+				fmt.Println("Successfully done")
+				return
+			}
+			fmt.Printf("fail: %v\n", code)
+			return
 		}
 	}
 }
