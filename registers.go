@@ -1,5 +1,10 @@
 package main
 
+import (
+	"fmt"
+	"strings"
+)
+
 type Registers struct {
 	// every register size is 64bit
 	Regs [32]uint64
@@ -19,6 +24,19 @@ func (r *Registers) Write(i uint64, val uint64) {
 	if i != 0 {
 		r.Regs[i] = val
 	}
+}
+
+func (r *Registers) String() string {
+	var sb strings.Builder
+	sb.WriteString("[")
+	for i, r := range r.Regs {
+		if i != 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(fmt.Sprintf("x%d: %x", i, r))
+	}
+	sb.WriteString("]")
+	return sb.String()
 }
 
 type FRegisters struct {

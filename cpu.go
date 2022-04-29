@@ -91,6 +91,7 @@ func (cpu *CPU) Fetch(size Size) uint64 {
 }
 
 func (cpu *CPU) Run() Exception {
+	Debug("----------------------------------")
 	dbg := ""
 
 	if cpu.Wfi {
@@ -133,6 +134,7 @@ func (cpu *CPU) Run() Exception {
 
 	dbg += fmt.Sprintf(", SP: %d", cpu.XRegs.Read(2))
 	Debug(dbg)
+	Debug("  x: %v", cpu.XRegs)
 
 	return excp
 }
