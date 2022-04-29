@@ -108,15 +108,16 @@ func (cpu *CPU) Run() Exception {
 
 	// As of here, we are not sure if the next instruction is compressed. First we have to figure that out.
 	raw := cpu.Fetch(HalfWord)
-	dbg += fmt.Sprintf(", raw: %x", raw)
 
 	if IsCompressed(raw) {
 		dbg += ", compressed: true"
+		dbg += fmt.Sprintf(", raw: %04x", raw)
 		code = cpu.DecodeCompressed(raw)
 		cpu.PC += 2
 	} else {
 		dbg += ", compressed: false"
 		raw = cpu.Fetch(Word)
+		dbg += fmt.Sprintf(", raw: %08x", raw)
 		code = cpu.Decode(raw)
 		cpu.PC += 4
 	}
