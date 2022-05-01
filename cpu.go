@@ -1,6 +1,12 @@
 package main
 
-import "fmt"
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
+)
 
 type Bus struct {
 	Memory *Memory
@@ -72,17 +78,20 @@ type CPU struct {
 	// Wfi represents "wait for interrupt". When this is true, CPU does not run until
 	// an interrupt occurs.
 	Wfi bool
+
+	interactive bool
 }
 
-func NewCPU() *CPU {
+func NewCPU(interactive bool) *CPU {
 	return &CPU{
-		PC:    0,
-		Bus:   NewBus(),
-		Mode:  Machine,
-		CSR:   NewCSR(),
-		XLen:  XLen64,
-		XRegs: NewRegisters(),
-		FRegs: NewFRegisters(),
+		PC:          0,
+		Bus:         NewBus(),
+		Mode:        Machine,
+		CSR:         NewCSR(),
+		XLen:        XLen64,
+		XRegs:       NewRegisters(),
+		FRegs:       NewFRegisters(),
+		interactive: interactive,
 	}
 }
 
@@ -90,8 +99,56 @@ func (cpu *CPU) Fetch(size Size) uint64 {
 	return cpu.Bus.Read(cpu.PC, size)
 }
 
+func (cpu *CPU) Interactive() {
+	if !cpu.interactive {
+		return
+	}
+
+	for {
+		reader := bufio.NewReader(os.Stdin)
+		fmt.Print("(rv): ")
+		text, err := reader.ReadString('\n')
+		if err != nil {
+			fmt.Printf("fail to read input: %s\n", err)
+			return
+		}
+
+		text = strings.TrimSuffix(text, "\n")
+
+		if text == "" {
+			return
+		}
+
+		if text == "x" {
+			fmt.Println(cpu.XRegs.Regs)
+			continue
+		}
+
+		sp := strings.Split(text, " ")
+		if len(sp) != 2 {
+			fmt.Printf("invalid input\n")
+			continue
+		}
+
+		if sp[0] != "x" {
+			fmt.Printf("first input must be 'x'\n")
+			continue
+		}
+
+		idxs := sp[1]
+		idx, err := strconv.ParseUint(idxs, 10, 64)
+		if err != nil {
+			fmt.Printf("invalid reg: %s\n", idxs)
+			continue
+		}
+
+		fmt.Printf("0x%x\n", cpu.XRegs.Read(uint64(idx)))
+	}
+}
+
 func (cpu *CPU) Run() Exception {
-	Debug("----------------------------------")
+	cpu.Interactive()
+
 	dbg := ""
 
 	if cpu.Wfi {
@@ -102,8 +159,8 @@ func (cpu *CPU) Run() Exception {
 
 	// save current PC
 	cur := cpu.PC
-	Debug("PC: %x", cpu.PC)
-	dbg += fmt.Sprintf("  PC: %x", cpu.PC)
+
+	dbg += fmt.Sprintf("0x%x", cpu.PC)
 
 	var code InstructionCode
 
@@ -111,14 +168,12 @@ func (cpu *CPU) Run() Exception {
 	raw := cpu.Fetch(HalfWord)
 
 	if IsCompressed(raw) {
-		dbg += ", compressed: true"
-		dbg += fmt.Sprintf(", raw: %04x", raw)
+		dbg += fmt.Sprintf(" (0x%04x)", raw)
 		code = cpu.DecodeCompressed(raw)
 		cpu.PC += 2
 	} else {
-		dbg += ", compressed: false"
 		raw = cpu.Fetch(Word)
-		dbg += fmt.Sprintf(", raw: %08x", raw)
+		dbg += fmt.Sprintf(" (0x%08x)", raw)
 		code = cpu.Decode(raw)
 		cpu.PC += 4
 	}
@@ -128,13 +183,13 @@ func (cpu *CPU) Run() Exception {
 		panic("invalid instruction!")
 	}
 
-	dbg += fmt.Sprintf(", Instruction: %s", code)
+	dbg += fmt.Sprintf(" %s", code)
 
 	excp := cpu.Exec(code, raw, cur)
 
-	dbg += fmt.Sprintf(", SP: %d", cpu.XRegs.Read(2))
+	dbg += fmt.Sprintf(" next: 0x%x", cpu.PC)
+
 	Debug(dbg)
-	Debug("  x: %v", cpu.XRegs)
 
 	return excp
 }

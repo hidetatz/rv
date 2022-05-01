@@ -11,8 +11,9 @@ var debug bool
 
 func main() {
 	var (
-		program = flag.String("p", "", "ELF program to run")
-		dbg     = flag.Bool("d", false, "print out debug log if specified")
+		program     = flag.String("p", "", "ELF program to run")
+		dbg         = flag.Bool("d", false, "print out debug log if specified")
+		interactive = flag.Bool("i", false, "run rv as interactive mode")
 	)
 
 	flag.Parse()
@@ -38,7 +39,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	emulator, err := New(buff)
+	emulator, err := New(buff, *interactive)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Err: initialize program: %v\n", err)
 		os.Exit(1)
