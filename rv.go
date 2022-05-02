@@ -62,7 +62,7 @@ func New(prog []byte) (*RV, error) {
 func (r *RV) Start() {
 	for {
 		excp := r.cpu.Run()
-		if excp != ExcpNone {
+		if excp.Code != -1 {
 			panic("done")
 		}
 

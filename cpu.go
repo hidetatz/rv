@@ -92,9 +92,9 @@ func (cpu *CPU) Fetch(size Size) uint64 {
 	return cpu.Bus.Read(cpu.PC, size)
 }
 
-func (cpu *CPU) Run() Exception {
+func (cpu *CPU) Run() *Exception {
 	if cpu.Wfi {
-		return ExcpNone
+		return ExcpNone()
 	}
 
 	// TODO: eventually physical <-> virtual memory translation must take place here.
@@ -131,10 +131,10 @@ func (cpu *CPU) Run() Exception {
 	return excp
 }
 
-func (cpu *CPU) Exec(code InstructionCode, raw, cur uint64) Exception {
+func (cpu *CPU) Exec(code InstructionCode, raw, cur uint64) *Exception {
 	execution, ok := Instructions[code]
 	if !ok {
-		return ExcpIllegalInstruction
+		return ExcpIllegalInstruction(raw)
 	}
 
 	return execution(cpu, raw, cur)
