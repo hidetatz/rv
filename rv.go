@@ -3,8 +3,11 @@ package main
 import "fmt"
 
 type RV struct {
-	cpu  *CPU
-	term uint64
+	cpu *CPU
+	// tohost is an special address which shows a message from program to the host.
+	// For now, tohost is used to terminate the execution of riscv-tests program.
+	// https://riscv.org/wp-content/uploads/2015/01/riscv-testing-frameworks-bootcamp-jan2015.pdf
+	tohost uint64
 }
 
 func New(prog []byte) (*RV, error) {
@@ -49,9 +52,9 @@ func New(prog []byte) (*RV, error) {
 	}
 	cpu.PC = elf.Header.Entry
 
-	rv := &RV{cpu: cpu, term: elf.ToHost}
+	rv := &RV{cpu: cpu, tohost: elf.ToHost}
 
-	Debug("Load ELF succeeded: PC: %x, ToHost: %x", cpu.PC, rv.term)
+	Debug("Load ELF succeeded: PC: %x, ToHost: %x", cpu.PC, rv.tohost)
 
 	return rv, nil
 }
@@ -63,11 +66,11 @@ func (r *RV) Start() {
 			panic("done")
 		}
 
-		if r.term == 0 {
+		if r.tohost == 0 {
 			continue
 		}
 
-		if code := r.cpu.Bus.Read(r.term, Word); code != 0 {
+		if code := r.cpu.Bus.Read(r.tohost, Word); code != 0 {
 			if code == 1 {
 				fmt.Println("Successfully done")
 				return
