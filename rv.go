@@ -7,8 +7,8 @@ type RV struct {
 	term uint64
 }
 
-func New(prog []byte, interactive bool) (*RV, error) {
-	cpu := NewCPU(interactive)
+func New(prog []byte) (*RV, error) {
+	cpu := NewCPU()
 
 	elf, err := LoadELF(prog)
 	if err != nil {
