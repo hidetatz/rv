@@ -93,8 +93,6 @@ func (cpu *CPU) Fetch(size Size) uint64 {
 }
 
 func (cpu *CPU) Run() Exception {
-	dbg := ""
-
 	if cpu.Wfi {
 		return ExcpNone
 	}
@@ -104,20 +102,16 @@ func (cpu *CPU) Run() Exception {
 	// save current PC
 	cur := cpu.PC
 
-	dbg += fmt.Sprintf("0x%x", cpu.PC)
-
 	var code InstructionCode
 
 	// As of here, we are not sure if the next instruction is compressed. First we have to figure that out.
 	raw := cpu.Fetch(HalfWord)
 
 	if IsCompressed(raw) {
-		dbg += fmt.Sprintf(" (0x%04x)", raw)
 		code = cpu.DecodeCompressed(raw)
 		cpu.PC += 2
 	} else {
 		raw = cpu.Fetch(Word)
-		dbg += fmt.Sprintf(" (0x%08x)", raw)
 		code = cpu.Decode(raw)
 		cpu.PC += 4
 	}
@@ -127,13 +121,12 @@ func (cpu *CPU) Run() Exception {
 		panic("invalid instruction!")
 	}
 
-	dbg += fmt.Sprintf(" %s", code)
-
 	excp := cpu.Exec(code, raw, cur)
 
-	dbg += fmt.Sprintf(" next: 0x%x", cpu.PC)
-
-	Debug(dbg)
+	Debug("------")
+	Debug(fmt.Sprintf("PC:0x%x	inst:%032b	code:%s	next:0x%x", cur, raw, code, cpu.PC))
+	Debug(fmt.Sprintf("x:%v", cpu.XRegs))
+	Debug(fmt.Sprintf("f:%v", cpu.FRegs))
 
 	return excp
 }
