@@ -87,20 +87,6 @@ func ParseB(inst uint64) *InstructionB {
 	}
 }
 
-type InstructionU struct {
-	Opcode, Rd, Imm uint64
-}
-
-func ParseU(inst uint64) *InstructionU {
-	imm := bits(inst, 31, 12)
-	imm = (imm << 12) | 0b0000_0000_0000
-	return &InstructionU{
-		Opcode: bits(inst, 6, 0),
-		Rd:     bits(inst, 11, 7),
-		Imm:    imm,
-	}
-}
-
 type InstructionJ struct {
 	Opcode, Rd, Imm uint64
 }

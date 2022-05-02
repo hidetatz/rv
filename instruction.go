@@ -597,13 +597,16 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) Exception{
 		return ExcpNone
 	},
 	LUI: func(cpu *CPU, raw, _ uint64) Exception {
-		i := ParseU(raw)
-		cpu.XRegs.Write(i.Rd, i.Imm)
+		imm := uint64(int64(int32(uint32(bits(raw, 31, 12) << 12))))
+		rd := bits(raw, 11, 7)
+
+		cpu.XRegs.Write(rd, imm)
 		return ExcpNone
 	},
 	AUIPC: func(cpu *CPU, raw, pc uint64) Exception {
-		i := ParseU(raw)
-		cpu.XRegs.Write(i.Rd, pc+i.Imm)
+		imm := uint64(int64(int32(uint32(bits(raw, 31, 12) << 12))))
+		rd := bits(raw, 11, 7)
+		cpu.XRegs.Write(rd, pc+imm)
 		return ExcpNone
 	},
 
