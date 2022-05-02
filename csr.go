@@ -1,6 +1,8 @@
 package main
 
-type CSR [CSRRegsCount]uint64
+type CSR struct {
+	Regs [CSRRegsCount]uint64
+}
 
 const (
 	// The number of CSR registers.
@@ -120,76 +122,76 @@ const (
 	CsrSieMask = CsrSieUSIE | CsrSieSSIE | CsrSieUTIE | CsrSieSTIE | CsrSieUEIE | CsrSieSEIE
 )
 
-func NewCSR() CSR {
-	return [CSRRegsCount]uint64{}
+func NewCSR() *CSR {
+	return &CSR{Regs: [CSRRegsCount]uint64{}}
 }
 
 // Read reads CSR by the given address. CSR address is 12-bit.
 // This method does not validate the CPU mode. The validation should be the caller's responsibility.
-func (csr CSR) Read(addr uint64) uint64 {
+func (csr *CSR) Read(addr uint64) uint64 {
 	// assuming addr is small enough, not checking the index
 
 	if addr == CsrFFLAGS {
 		// FCSR consists of FRM (3-bit) + FFLAGS (5-bit)
-		return csr[CsrFCSR] & 0x1f
+		return csr.Regs[CsrFCSR] & 0x1f
 	}
 
 	if addr == CsrFRM {
 		// FCSR consists of FRM (3-bit) + FFLAGS (5-bit)
-		return (csr[CsrFCSR] & 0xe0) >> 5
+		return (csr.Regs[CsrFCSR] & 0xe0) >> 5
 	}
 
 	// when any of SSTATUS, SIP, SIE is requested, masked MSTATUS, MIP, MIE should be returned because they are subsets.
 	// See RISC-V Privileged Architecture Spec 4.1
 	if addr == CsrSSTATUS {
-		return csr[CsrMSTATUS] & CsrSstatusMask
+		return csr.Regs[CsrMSTATUS] & CsrSstatusMask
 	}
 
 	if addr == CsrSIP {
-		return csr[CsrMIP] & CsrSipMask
+		return csr.Regs[CsrMIP] & CsrSipMask
 	}
 
 	if addr == CsrSIE {
-		return csr[CsrMIE] & CsrSieMask
+		return csr.Regs[CsrMIE] & CsrSieMask
 	}
 
-	return csr[addr]
+	return csr.Regs[addr]
 }
 
 // WriteCSR write the given value to the CSR.
 // This method does not validate the CPU mode. The validation should be the caller's responsibility.
-func (csr CSR) Write(addr uint64, value uint64) {
+func (csr *CSR) Write(addr uint64, value uint64) {
 	if addr == CsrFFLAGS {
 		// FCSR consists of FRM (3-bit) + FFLAGS (5-bit)
-		csr[CsrFCSR] &= ^uint64(0x1f) // clear fcsr[4:0]
-		csr[CsrFCSR] |= value & 0x1f  // write the value[4:0] to the fcsr[4:0]
+		csr.Regs[CsrFCSR] &= ^uint64(0x1f) // clear fcsr[4:0]
+		csr.Regs[CsrFCSR] |= value & 0x1f  // write the value[4:0] to the fcsr[4:0]
 		return
 	}
 
 	if addr == CsrFRM {
 		// FCSR consists of FRM (3-bit) + FFLAGS (5-bit)
-		csr[CsrFCSR] &= ^uint64(0xe0)       // clear fcsr[7:5]
-		csr[CsrFCSR] |= (value << 5) & 0xe0 // write the value[2:0] to the fcsr[7:5]
+		csr.Regs[CsrFCSR] &= ^uint64(0xe0)       // clear fcsr[7:5]
+		csr.Regs[CsrFCSR] |= (value << 5) & 0xe0 // write the value[2:0] to the fcsr[7:5]
 		return
 	}
 
 	if addr == CsrSSTATUS {
 		// SSTATUS is a subset of MSTATUS
-		csr[CsrMSTATUS] &= ^uint64(CsrSstatusMask) // clear mask
-		csr[CsrMSTATUS] |= value & CsrSstatusMask  // write only mask
+		csr.Regs[CsrMSTATUS] &= ^uint64(CsrSstatusMask) // clear mask
+		csr.Regs[CsrMSTATUS] |= value & CsrSstatusMask  // write only mask
 	}
 
 	if addr == CsrSIE {
 		// SIE is a subset of MIE
-		csr[CsrMIE] &= ^uint64(CsrSieMask)
-		csr[CsrMIE] |= value & CsrSieMask
+		csr.Regs[CsrMIE] &= ^uint64(CsrSieMask)
+		csr.Regs[CsrMIE] |= value & CsrSieMask
 	}
 
 	if addr == CsrSIP {
 		// SIE is a subset of MIE
-		csr[CsrMIP] &= ^uint64(CsrSieMask)
-		csr[CsrMIP] |= value & CsrSieMask
+		csr.Regs[CsrMIP] &= ^uint64(CsrSieMask)
+		csr.Regs[CsrMIP] |= value & CsrSieMask
 	}
 
-	csr[addr] = value
+	csr.Regs[addr] = value
 }

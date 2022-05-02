@@ -65,7 +65,7 @@ type CPU struct {
 	XLen XLen
 
 	// Status registers
-	CSR CSR
+	CSR *CSR
 
 	// Registers
 	XRegs *Registers
