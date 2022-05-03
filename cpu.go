@@ -92,9 +92,9 @@ func (cpu *CPU) Fetch(size Size) uint64 {
 	return cpu.Bus.Read(cpu.PC, size)
 }
 
-func (cpu *CPU) Run() *Exception {
+func (cpu *CPU) Run() Trap {
 	if cpu.Wfi {
-		return ExcpNone()
+		return TrapNone
 	}
 
 	// TODO: eventually physical <-> virtual memory translation must take place here.
@@ -118,7 +118,7 @@ func (cpu *CPU) Run() *Exception {
 
 	if code == _INVALID {
 		// TODO: fix
-		panic("invalid instruction!")
+		return cpu.HandleException(cur, ExcpIllegalInstruction(raw))
 	}
 
 	excp := cpu.Exec(code, raw, cur)
@@ -128,7 +128,11 @@ func (cpu *CPU) Run() *Exception {
 	Debug(fmt.Sprintf("x:%v", cpu.XRegs))
 	Debug(fmt.Sprintf("f:%v", cpu.FRegs))
 
-	return excp
+	if excp.Code != ExcpCodeNone {
+		return cpu.HandleException(cur, excp)
+	}
+
+	return TrapNone
 }
 
 func (cpu *CPU) Exec(code InstructionCode, raw, cur uint64) *Exception {
@@ -145,4 +149,179 @@ func IsCompressed(inst uint64) bool {
 	last2bit := inst & 0b11
 	// if the last 2-bit is one of 00/01/10, it is 16-bit instruction.
 	return last2bit == 0b00 || last2bit == 0b01 || last2bit == 0b10
+}
+
+func (cpu *CPU) HandleException(pc uint64, excp *Exception) Trap {
+	curPC := pc
+	origMode := cpu.Mode
+	cause := excp.Code
+
+	mdeleg := cpu.CSR.Read(CsrMEDELEG)
+	sdeleg := cpu.CSR.Read(CsrSEDELEG)
+
+	// First, determine the upcoming mode
+	if ((mdeleg >> cause) & 1) == 0 {
+		cpu.Mode = Machine
+	} else if ((sdeleg >> cause) & 1) == 0 {
+		cpu.Mode = Supervisor
+	} else {
+		cpu.Mode = User
+	}
+
+	// Then, start handling exception in the mode
+	switch cpu.Mode {
+	case Machine:
+		// MEPC is written with the virtual address of the instruction that was
+		// interrupted or that encountered the exception.
+		cpu.CSR.Write(CsrMEPC, curPC)
+
+		// MCAUSE is written with a code indicating the event that caused the trap.
+		cpu.CSR.Write(CsrMCAUSE, uint64(cause))
+
+		// MTVAL is either set to zero or written with exception-specific information to
+		// assist software in handling the trap.
+		cpu.CSR.Write(CsrMTVAL, excp.TrapValue)
+
+		// PC is updated with the trap-handler base address (MTVEC).
+		cpu.PC = cpu.CSR.Read(CsrMTVEC)
+		if (cpu.PC & 0b11) != 0 {
+			// Add 4 * cause if MTVEC has vector type address.
+			// copied from: https://github.com/takahirox/riscv-rust/blob/master/src/cpu.rs#L625
+			cpu.PC = (cpu.PC & ^uint64(0b11)) + uint64((4 * (cause * 0xffff)))
+		}
+
+		status := cpu.CSR.Read(CsrMSTATUS)
+		// update MPIE with MIE.
+		if bit(status, CsrStatusMIE) == 0 {
+			status = clearBit(status, CsrStatusMPIE)
+		} else {
+			status = setBit(status, CsrStatusMPIE)
+		}
+
+		// Clear MIE.
+		status = clearBit(status, CsrStatusMIE)
+
+		// Update MPP with the previous privilege mode.
+		switch origMode {
+		case Machine:
+			status = setBit(status, CsrStatusMPPLo)
+			status = setBit(status, CsrStatusMPPHi)
+		case Supervisor:
+			status = setBit(status, CsrStatusMPPLo)
+			status = clearBit(status, CsrStatusMPPHi)
+		case User:
+			status = clearBit(status, CsrStatusMPPLo)
+			status = clearBit(status, CsrStatusMPPHi)
+		}
+
+		cpu.CSR.Write(CsrMSTATUS, status)
+	case Supervisor:
+		// SEPC is written with the virtual address of the instruction that was
+		// interrupted or that encountered the exception.
+		cpu.CSR.Write(CsrSEPC, curPC)
+
+		// SCAUSE is written with a code indicating the event that caused the trap.
+		cpu.CSR.Write(CsrSCAUSE, uint64(cause))
+
+		// STVAL is either set to zero or written with exception-specific information to
+		// assist software in handling the trap.
+		cpu.CSR.Write(CsrSTVAL, excp.TrapValue)
+
+		// PC is updated with the trap-handler base address (STVEC).
+		cpu.PC = cpu.CSR.Read(CsrSTVEC)
+		if (cpu.PC & 0b11) != 0 {
+			// Add 4 * cause if STVEC has vector type address.
+			// copied from: https://github.com/takahirox/riscv-rust/blob/master/src/cpu.rs#L625
+			cpu.PC = (cpu.PC & ^uint64(0b11)) + uint64((4 * (cause * 0xffff)))
+		}
+
+		status := cpu.CSR.Read(CsrSSTATUS)
+		// update SPIE with SIE.
+		if bit(status, CsrStatusSIE) == 0 {
+			status = clearBit(status, CsrStatusSPIE)
+		} else {
+			status = setBit(status, CsrStatusSPIE)
+		}
+
+		// Clear SIE.
+		status = clearBit(status, CsrStatusSIE)
+
+		// Update SPP with the previous privilege mode.
+		switch origMode {
+		case Supervisor:
+			status = setBit(status, CsrStatusSPP)
+		case User:
+			status = clearBit(status, CsrStatusSPP)
+		}
+
+		cpu.CSR.Write(CsrSSTATUS, status)
+	case User:
+		// UEPC is written with the virtual address of the instruction that was
+		// interrupted or that encountered the exception.
+		cpu.CSR.Write(CsrUEPC, curPC)
+
+		// UCAUSE is written with a code indicating the event that caused the trap.
+		cpu.CSR.Write(CsrUCAUSE, uint64(cause))
+
+		// UTVAL is either set to zero or written with exception-specific information to
+		// assist software in handling the trap.
+		cpu.CSR.Write(CsrUTVAL, excp.TrapValue)
+
+		// PC is updated with the trap-handler base address (UTVEC).
+		cpu.PC = cpu.CSR.Read(CsrUTVEC)
+		if (cpu.PC & 0b11) != 0 {
+			// Add 4 * cause if UTVEC has vector type address.
+			// copied from: https://github.com/takahirox/riscv-rust/blob/master/src/cpu.rs#L625
+			cpu.PC = (cpu.PC & ^uint64(0b11)) + uint64((4 * (cause * 0xffff)))
+		}
+	}
+
+	switch excp.Code {
+	case ExcpCodeInstructionAddressMisalighed:
+		return TrapFatal
+
+	case ExcpCodeInstructionAccessFault:
+		return TrapFatal
+
+	case ExcpCodeIllegalInstruction:
+		return TrapFatal
+
+	case ExcpCodeBreakpoint:
+		return TrapRequested
+
+	case ExcpCodeLoadAddressMisaligned:
+		return TrapFatal
+
+	case ExcpCodeLoadAccessFault:
+		return TrapFatal
+
+	case ExcpCodeStoreAMOAddressMisaligned:
+		return TrapFatal
+
+	case ExcpCodeStoreAMOAccessFault:
+		return TrapFatal
+
+	case ExcpCodeEnvironmentCallFromUmode:
+		return TrapRequested
+
+	case ExcpCodeEnvironmentCallFromSmode:
+		return TrapRequested
+
+	case ExcpCodeEnvironmentCallFromMmode:
+		return TrapRequested
+
+	case ExcpCodeInstructionPageFault:
+		return TrapInvisible
+
+	case ExcpCodeLoadPageFault:
+		return TrapInvisible
+
+	case ExcpCodeStoreAMOPageFault:
+		return TrapInvisible
+
+	default:
+		// must not come here
+		panic("ExcpNone is unexpectedly handled")
+
+	}
 }

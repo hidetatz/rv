@@ -61,9 +61,10 @@ func New(prog []byte) (*RV, error) {
 
 func (r *RV) Start() {
 	for {
-		excp := r.cpu.Run()
-		if excp.Code != -1 {
-			panic("done")
+		trap := r.cpu.Run()
+		if trap == TrapFatal {
+			fmt.Println("Fatal trap is returned!")
+			return
 		}
 
 		if r.tohost == 0 {
