@@ -1,14 +1,8 @@
 package main
 
 func ParseIImm(inst uint64) uint64 {
-	imm := bits(inst, 31, 20)
-	mask := uint64(0b0)
-	if imm>>11 == 1 {
-		// sign-extend. inst[31] should be extended.
-		mask = ^uint64(0b1111_1111_1111)
-	}
-	imm |= mask
-	return imm
+	// sign-extend
+	return uint64(int64(int32(inst)) >> 20)
 }
 
 func ParseSImm(inst uint64) uint64 {
