@@ -1,25 +1,6 @@
 package main
 
-type InstructionR struct {
-	Opcode, Rd, Funct3, Rs1, Rs2, Funct7 uint64
-}
-
-func ParseR(inst uint64) *InstructionR {
-	return &InstructionR{
-		Opcode: bits(inst, 6, 0),
-		Rd:     bits(inst, 11, 7),
-		Funct3: bits(inst, 14, 12),
-		Rs1:    bits(inst, 19, 15),
-		Rs2:    bits(inst, 24, 20),
-		Funct7: bits(inst, 31, 25),
-	}
-}
-
-type InstructionI struct {
-	Opcode, Rd, Funct3, Rs1, Imm uint64
-}
-
-func ParseI(inst uint64) *InstructionI {
+func ParseIImm(inst uint64) uint64 {
 	imm := bits(inst, 31, 20)
 	mask := uint64(0b0)
 	if imm>>11 == 1 {
@@ -27,20 +8,10 @@ func ParseI(inst uint64) *InstructionI {
 		mask = ^uint64(0b1111_1111_1111)
 	}
 	imm |= mask
-	return &InstructionI{
-		Opcode: bits(inst, 6, 0),
-		Rd:     bits(inst, 11, 7),
-		Funct3: bits(inst, 14, 12),
-		Rs1:    bits(inst, 19, 15),
-		Imm:    imm,
-	}
+	return imm
 }
 
-type InstructionS struct {
-	Opcode, Funct3, Rs1, Rs2, Imm uint64
-}
-
-func ParseS(inst uint64) *InstructionS {
+func ParseSImm(inst uint64) uint64 {
 	imm1 := bits(inst, 11, 7)
 	imm2 := bits(inst, 31, 25)
 	imm := imm1 | (imm2 << 5)
@@ -50,20 +21,10 @@ func ParseS(inst uint64) *InstructionS {
 		mask = ^uint64(0b1111_1111_1111)
 	}
 	imm |= mask
-	return &InstructionS{
-		Opcode: bits(inst, 6, 0),
-		Funct3: bits(inst, 14, 12),
-		Rs1:    bits(inst, 19, 15),
-		Rs2:    bits(inst, 24, 20),
-		Imm:    imm,
-	}
+	return imm
 }
 
-type InstructionB struct {
-	Opcode, Funct3, Rs1, Rs2, Imm uint64
-}
-
-func ParseB(inst uint64) *InstructionB {
+func ParseBImm(inst uint64) uint64 {
 	imm1 := bits(inst, 11, 7)  // imm1[4:0] -> imm[4:1|11]
 	imm2 := bits(inst, 31, 25) // imm2[7:0] -> imm[12|10:5]
 
@@ -78,20 +39,10 @@ func ParseB(inst uint64) *InstructionB {
 		mask = ^uint64(0b1_1111_1111_1111)
 	}
 	imm |= mask
-	return &InstructionB{
-		Opcode: bits(inst, 6, 0),
-		Funct3: bits(inst, 14, 12),
-		Rs1:    bits(inst, 19, 15),
-		Rs2:    bits(inst, 24, 20),
-		Imm:    imm,
-	}
+	return imm
 }
 
-type InstructionJ struct {
-	Opcode, Rd, Imm uint64
-}
-
-func ParseJ(inst uint64) *InstructionJ {
+func ParseJImm(inst uint64) uint64 {
 	i := bits(inst, 31, 12)            // imm[20|10:1|11|19:12]
 	imm := ((i & 0b1111_1111) << 12) | // i[7:0] -> imm[19:12]
 		((i & 0b1_0000_0000) << 3) | // i[8] -> imm[11]
@@ -103,9 +54,5 @@ func ParseJ(inst uint64) *InstructionJ {
 		mask = ^uint64(0b1_1111_1111_1111_1111_1111)
 	}
 	imm |= mask
-	return &InstructionJ{
-		Opcode: bits(inst, 6, 0),
-		Rd:     bits(inst, 11, 7),
-		Imm:    imm,
-	}
+	return imm
 }

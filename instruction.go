@@ -551,56 +551,56 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 
 	// Shift
 	SLL: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseR(raw)
-		shamt := cpu.XRegs.Read(i.Rs2) & 0b111111
-		cpu.XRegs.Write(i.Rd, cpu.XRegs.Read(i.Rs1)<<shamt)
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		shamt := cpu.XRegs.Read(rs2) & 0b111111
+		cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)<<shamt)
 		return ExcpNone()
 	},
 	SLLI: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseI(raw)
-		shamt := i.Imm & 0b1_1111
-		cpu.XRegs.Write(i.Rd, cpu.XRegs.Read(i.Rs1)<<shamt)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		shamt := imm & 0b1_1111
+		cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)<<shamt)
 		return ExcpNone()
 	},
 	SRL: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseR(raw)
-		shift := cpu.XRegs.Read(i.Rs2) & 0b111111
-		cpu.XRegs.Write(i.Rd, cpu.XRegs.Read(i.Rs1)>>shift)
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		shift := cpu.XRegs.Read(rs2) & 0b111111
+		cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)>>shift)
 		return ExcpNone()
 	},
 	SRLI: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseI(raw)
-		shamt := i.Imm & 0b1_1111
-		cpu.XRegs.Write(i.Rd, cpu.XRegs.Read(i.Rs1)>>shamt)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		shamt := imm & 0b1_1111
+		cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)>>shamt)
 		return ExcpNone()
 	},
 	SRA: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseR(raw)
-		shift := cpu.XRegs.Read(i.Rs2) & 0b111111
-		cpu.XRegs.Write(i.Rd, uint64(int64(cpu.XRegs.Read(i.Rs1))>>shift))
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		shift := cpu.XRegs.Read(rs2) & 0b111111
+		cpu.XRegs.Write(rd, uint64(int64(cpu.XRegs.Read(rs1))>>shift))
 		return ExcpNone()
 	},
 	SRAI: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseI(raw)
-		shamt := i.Imm & 0b1_1111
-		cpu.XRegs.Write(i.Rd, uint64(int64(cpu.XRegs.Read(i.Rs1))>>shamt))
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		shamt := imm & 0b1_1111
+		cpu.XRegs.Write(rd, uint64(int64(cpu.XRegs.Read(rs1))>>shamt))
 		return ExcpNone()
 	},
 
 	// Arithmetic
 	ADD: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseR(raw)
-		cpu.XRegs.Write(i.Rd, cpu.XRegs.Read(i.Rs1)+cpu.XRegs.Read(i.Rs2))
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)+cpu.XRegs.Read(rs2))
 		return ExcpNone()
 	},
 	ADDI: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseI(raw)
-		cpu.XRegs.Write(i.Rd, i.Imm+cpu.XRegs.Read(i.Rs1))
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		cpu.XRegs.Write(rd, imm+cpu.XRegs.Read(rs1))
 		return ExcpNone()
 	},
 	SUB: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseR(raw)
-		cpu.XRegs.Write(i.Rd, cpu.XRegs.Read(i.Rs1)-cpu.XRegs.Read(i.Rs2))
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)-cpu.XRegs.Read(rs2))
 		return ExcpNone()
 	},
 	LUI: func(cpu *CPU, raw, _ uint64) *Exception {
@@ -619,137 +619,137 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 
 	// Logical
 	XOR: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseR(raw)
-		cpu.XRegs.Write(i.Rd, cpu.XRegs.Read(i.Rs1)^cpu.XRegs.Read(i.Rs2))
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)^cpu.XRegs.Read(rs2))
 		return ExcpNone()
 	},
 	XORI: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseI(raw)
-		cpu.XRegs.Write(i.Rd, cpu.XRegs.Read(i.Rs1)^i.Imm)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)^imm)
 		return ExcpNone()
 	},
 	OR: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseR(raw)
-		cpu.XRegs.Write(i.Rd, cpu.XRegs.Read(i.Rs1)|cpu.XRegs.Read(i.Rs2))
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)|cpu.XRegs.Read(rs2))
 		return ExcpNone()
 	},
 	ORI: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseI(raw)
-		cpu.XRegs.Write(i.Rd, cpu.XRegs.Read(i.Rs1)|i.Imm)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)|imm)
 		return ExcpNone()
 	},
 	AND: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseR(raw)
-		cpu.XRegs.Write(i.Rd, cpu.XRegs.Read(i.Rs1)&cpu.XRegs.Read(i.Rs2))
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)&cpu.XRegs.Read(rs2))
 		return ExcpNone()
 	},
 	ANDI: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseI(raw)
-		cpu.XRegs.Write(i.Rd, cpu.XRegs.Read(i.Rs1)&i.Imm)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)&imm)
 		return ExcpNone()
 	},
 
 	// If
 	SLT: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseR(raw)
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
 		var v uint64 = 0
-		if int64(cpu.XRegs.Read(i.Rs1)) < int64(cpu.XRegs.Read(i.Rs2)) {
+		if int64(cpu.XRegs.Read(rs1)) < int64(cpu.XRegs.Read(rs2)) {
 			v = 1
 		}
-		cpu.XRegs.Write(i.Rd, v)
+		cpu.XRegs.Write(rd, v)
 		return ExcpNone()
 	},
 	SLTI: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseI(raw)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
 		var v uint64 = 0
 		// must compare as two's complement
-		if int64(cpu.XRegs.Read(i.Rs1)) < int64(i.Imm) {
+		if int64(cpu.XRegs.Read(rs1)) < int64(imm) {
 			v = 1
 		}
-		cpu.XRegs.Write(i.Rd, v)
+		cpu.XRegs.Write(rd, v)
 		return ExcpNone()
 	},
 	SLTU: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseR(raw)
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
 		var v uint64 = 0
-		if cpu.XRegs.Read(i.Rs1) < cpu.XRegs.Read(i.Rs2) {
+		if cpu.XRegs.Read(rs1) < cpu.XRegs.Read(rs2) {
 			v = 1
 		}
-		cpu.XRegs.Write(i.Rd, v)
+		cpu.XRegs.Write(rd, v)
 		return ExcpNone()
 	},
 	SLTIU: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseI(raw)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
 		var v uint64 = 0
 		// must compare as two's complement
-		if cpu.XRegs.Read(i.Rs1) < i.Imm {
+		if cpu.XRegs.Read(rs1) < imm {
 			v = 1
 		}
-		cpu.XRegs.Write(i.Rd, v)
+		cpu.XRegs.Write(rd, v)
 		return ExcpNone()
 	},
 
 	// Branch
 	BEQ: func(cpu *CPU, raw, pc uint64) *Exception {
-		i := ParseB(raw)
-		if cpu.XRegs.Read(i.Rs1) == cpu.XRegs.Read(i.Rs2) {
-			cpu.PC = pc + i.Imm
+		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), ParseBImm(raw)
+		if cpu.XRegs.Read(rs1) == cpu.XRegs.Read(rs2) {
+			cpu.PC = pc + imm
 		}
 		return ExcpNone()
 	},
 	BNE: func(cpu *CPU, raw, pc uint64) *Exception {
-		i := ParseB(raw)
-		if cpu.XRegs.Read(i.Rs1) != cpu.XRegs.Read(i.Rs2) {
-			cpu.PC = pc + i.Imm
+		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), ParseBImm(raw)
+		if cpu.XRegs.Read(rs1) != cpu.XRegs.Read(rs2) {
+			cpu.PC = pc + imm
 		}
 		return ExcpNone()
 	},
 	BLT: func(cpu *CPU, raw, pc uint64) *Exception {
-		i := ParseB(raw)
-		if int64(cpu.XRegs.Read(i.Rs1)) < int64(cpu.XRegs.Read(i.Rs2)) {
-			cpu.PC = pc + i.Imm
+		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), ParseBImm(raw)
+		if int64(cpu.XRegs.Read(rs1)) < int64(cpu.XRegs.Read(rs2)) {
+			cpu.PC = pc + imm
 		}
 		return ExcpNone()
 	},
 	BGE: func(cpu *CPU, raw, pc uint64) *Exception {
-		i := ParseB(raw)
-		if int64(cpu.XRegs.Read(i.Rs1)) >= int64(cpu.XRegs.Read(i.Rs2)) {
-			cpu.PC = pc + i.Imm
+		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), ParseBImm(raw)
+		if int64(cpu.XRegs.Read(rs1)) >= int64(cpu.XRegs.Read(rs2)) {
+			cpu.PC = pc + imm
 		}
 		return ExcpNone()
 	},
 	BLTU: func(cpu *CPU, raw, pc uint64) *Exception {
-		i := ParseB(raw)
-		if cpu.XRegs.Read(i.Rs1) < cpu.XRegs.Read(i.Rs2) {
-			cpu.PC = pc + i.Imm
+		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), ParseBImm(raw)
+		if cpu.XRegs.Read(rs1) < cpu.XRegs.Read(rs2) {
+			cpu.PC = pc + imm
 		}
 		return ExcpNone()
 	},
 	BGEU: func(cpu *CPU, raw, pc uint64) *Exception {
-		i := ParseB(raw)
-		if cpu.XRegs.Read(i.Rs1) >= cpu.XRegs.Read(i.Rs2) {
-			cpu.PC = pc + i.Imm
+		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), ParseBImm(raw)
+		if cpu.XRegs.Read(rs1) >= cpu.XRegs.Read(rs2) {
+			cpu.PC = pc + imm
 		}
 		return ExcpNone()
 	},
 
 	// Jump
 	JAL: func(cpu *CPU, raw, pc uint64) *Exception {
-		i := ParseJ(raw)
+		rd, imm := bits(raw, 11, 7), ParseJImm(raw)
 		tmp := pc + 4
-		if i.Rd == 0b0 {
-			i.Rd = 1 // x1 if rd is omitted
+		if rd == 0b0 {
+			rd = 1 // x1 if rd is omitted
 		}
-		cpu.XRegs.Write(i.Rd, tmp)
-		cpu.PC = pc + i.Imm
+		cpu.XRegs.Write(rd, tmp)
+		cpu.PC = pc + imm
 		return ExcpNone()
 	},
 	JALR: func(cpu *CPU, raw, pc uint64) *Exception {
-		i := ParseI(raw)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
 		tmp := pc + 4
-		target := (cpu.XRegs.Read(i.Rs1) + i.Imm) & ^uint64(1)
+		target := (cpu.XRegs.Read(rs1) + imm) & ^uint64(1)
 		cpu.PC = target - 4 // sub in advance as the PC is incremented later
-		cpu.XRegs.Write(i.Rd, tmp)
+		cpu.XRegs.Write(rd, tmp)
 		return ExcpNone()
 	},
 
@@ -778,53 +778,53 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 
 	// Load
 	LB: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseI(raw)
-		v := cpu.Bus.Read(cpu.XRegs.Read(i.Rs1)+i.Imm, 8)
-		cpu.XRegs.Write(i.Rd, uint64(int64(int8(v))))
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		v := cpu.Bus.Read(cpu.XRegs.Read(rs1)+imm, 8)
+		cpu.XRegs.Write(rd, uint64(int64(int8(v))))
 		return ExcpNone()
 	},
 	LH: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseI(raw)
-		v := cpu.Bus.Read(cpu.XRegs.Read(i.Rs1)+i.Imm, 16)
-		cpu.XRegs.Write(i.Rd, uint64(int64(int16(v))))
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		v := cpu.Bus.Read(cpu.XRegs.Read(rs1)+imm, 16)
+		cpu.XRegs.Write(rd, uint64(int64(int16(v))))
 		return ExcpNone()
 	},
 	LBU: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseI(raw)
-		v := cpu.Bus.Read(cpu.XRegs.Read(i.Rs1)+i.Imm, 8)
-		cpu.XRegs.Write(i.Rd, v)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		v := cpu.Bus.Read(cpu.XRegs.Read(rs1)+imm, 8)
+		cpu.XRegs.Write(rd, v)
 		return ExcpNone()
 	},
 	LHU: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseI(raw)
-		v := cpu.Bus.Read(cpu.XRegs.Read(i.Rs1)+i.Imm, 16)
-		cpu.XRegs.Write(i.Rd, v)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		v := cpu.Bus.Read(cpu.XRegs.Read(rs1)+imm, 16)
+		cpu.XRegs.Write(rd, v)
 		return ExcpNone()
 	},
 	LW: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseI(raw)
-		v := cpu.Bus.Read(cpu.XRegs.Read(i.Rs1)+i.Imm, 32)
-		cpu.XRegs.Write(i.Rd, uint64(int64(int32(v))))
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		v := cpu.Bus.Read(cpu.XRegs.Read(rs1)+imm, 32)
+		cpu.XRegs.Write(rd, uint64(int64(int32(v))))
 		return ExcpNone()
 	},
 
 	// Store
 	SB: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseS(raw)
-		addr := cpu.XRegs.Read(i.Rs1) + i.Imm
-		cpu.Bus.Write(addr, cpu.XRegs.Read(i.Rs2), Byte)
+		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), ParseSImm(raw)
+		addr := cpu.XRegs.Read(rs1) + imm
+		cpu.Bus.Write(addr, cpu.XRegs.Read(rs2), Byte)
 		return ExcpNone()
 	},
 	SH: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseS(raw)
-		addr := cpu.XRegs.Read(i.Rs1) + i.Imm
-		cpu.Bus.Write(addr, cpu.XRegs.Read(i.Rs2), HalfWord)
+		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), ParseSImm(raw)
+		addr := cpu.XRegs.Read(rs1) + imm
+		cpu.Bus.Write(addr, cpu.XRegs.Read(rs2), HalfWord)
 		return ExcpNone()
 	},
 	SW: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseS(raw)
-		addr := cpu.XRegs.Read(i.Rs1) + i.Imm
-		cpu.Bus.Write(addr, cpu.XRegs.Read(i.Rs2), Word)
+		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), ParseSImm(raw)
+		addr := cpu.XRegs.Read(rs1) + imm
+		cpu.Bus.Write(addr, cpu.XRegs.Read(rs2), Word)
 		return ExcpNone()
 	},
 
@@ -834,75 +834,75 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 
 	// Shirt
 	SLLW: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseR(raw)
-		cpu.XRegs.Write(i.Rd, uint64(int64(int32(cpu.XRegs.Read(i.Rs1)<<i.Rs2))))
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		cpu.XRegs.Write(rd, uint64(int64(int32(cpu.XRegs.Read(rs1)<<rs2))))
 		return ExcpNone()
 	},
 	SLLIW: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseI(raw)
-		shamt := i.Imm & 0b1_1111
-		cpu.XRegs.Write(i.Rd, uint64(int64(int32(cpu.XRegs.Read(i.Rs1)<<shamt))))
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		shamt := imm & 0b1_1111
+		cpu.XRegs.Write(rd, uint64(int64(int32(cpu.XRegs.Read(rs1)<<shamt))))
 		return ExcpNone()
 	},
 	SRLW: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseR(raw)
-		cpu.XRegs.Write(i.Rd, uint64(int64(int32(cpu.XRegs.Read(i.Rs1)>>i.Rs2))))
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		cpu.XRegs.Write(rd, uint64(int64(int32(cpu.XRegs.Read(rs1)>>rs2))))
 		return ExcpNone()
 	},
 	SRLIW: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseI(raw)
-		shamt := i.Imm & 0b1_1111
-		cpu.XRegs.Write(i.Rd, uint64(int64(int32(uint32(cpu.XRegs.Read(i.Rs1))>>shamt))))
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		shamt := imm & 0b1_1111
+		cpu.XRegs.Write(rd, uint64(int64(int32(uint32(cpu.XRegs.Read(rs1))>>shamt))))
 		return ExcpNone()
 	},
 	SRAW: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseR(raw)
-		cpu.XRegs.Write(i.Rd, uint64(int64(int32(cpu.XRegs.Read(i.Rs1))>>i.Rs2)))
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		cpu.XRegs.Write(rd, uint64(int64(int32(cpu.XRegs.Read(rs1))>>rs2)))
 		return ExcpNone()
 	},
 	SRAIW: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseI(raw)
-		shamt := i.Imm & 0b1_1111
-		cpu.XRegs.Write(i.Rd, uint64(int64(int32(cpu.XRegs.Read(i.Rs1))>>shamt)))
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		shamt := imm & 0b1_1111
+		cpu.XRegs.Write(rd, uint64(int64(int32(cpu.XRegs.Read(rs1))>>shamt)))
 		return ExcpNone()
 	},
 
 	// Arithmetic
 	ADDW: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseR(raw)
-		cpu.XRegs.Write(i.Rd, uint64(int64(int32(cpu.XRegs.Read(i.Rs1)+cpu.XRegs.Read(i.Rs2)))))
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		cpu.XRegs.Write(rd, uint64(int64(int32(cpu.XRegs.Read(rs1)+cpu.XRegs.Read(rs2)))))
 		return ExcpNone()
 	},
 	ADDIW: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseI(raw)
-		cpu.XRegs.Write(i.Rd, uint64(int64(int32(cpu.XRegs.Read(i.Rs1)+i.Imm))))
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		cpu.XRegs.Write(rd, uint64(int64(int32(cpu.XRegs.Read(rs1)+imm))))
 		return ExcpNone()
 	},
 	SUBW: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseR(raw)
-		cpu.XRegs.Write(i.Rd, uint64(int64(int32(cpu.XRegs.Read(i.Rs1)-cpu.XRegs.Read(i.Rs2)))))
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		cpu.XRegs.Write(rd, uint64(int64(int32(cpu.XRegs.Read(rs1)-cpu.XRegs.Read(rs2)))))
 		return ExcpNone()
 	},
 
 	// Load
 	LWU: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseI(raw)
-		addr := cpu.XRegs.Read(i.Rs1) + i.Imm
-		cpu.XRegs.Write(i.Rd, cpu.Bus.Read(addr, Word))
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		addr := cpu.XRegs.Read(rs1) + imm
+		cpu.XRegs.Write(rd, cpu.Bus.Read(addr, Word))
 		return ExcpNone()
 	},
 	LD: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseI(raw)
-		addr := cpu.XRegs.Read(i.Rs1) + i.Imm
-		cpu.XRegs.Write(i.Rd, cpu.Bus.Read(addr, DoubleWord))
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		addr := cpu.XRegs.Read(rs1) + imm
+		cpu.XRegs.Write(rd, cpu.Bus.Read(addr, DoubleWord))
 		return ExcpNone()
 	},
 
 	// Store
 	SD: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseS(raw)
-		addr := cpu.XRegs.Read(i.Rs1) + i.Imm
-		cpu.Bus.Write(addr, cpu.XRegs.Read(i.Rs2), DoubleWord)
+		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), ParseSImm(raw)
+		addr := cpu.XRegs.Read(rs1) + imm
+		cpu.Bus.Write(addr, cpu.XRegs.Read(rs2), DoubleWord)
 		return ExcpNone()
 	},
 
@@ -1045,50 +1045,50 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 	 * Zicsr
 	 */
 	CSRRW: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseI(raw)
-		t := cpu.CSR.Read(i.Imm)
-		cpu.CSR.Write(i.Imm, cpu.XRegs.Read(i.Rs1))
-		cpu.XRegs.Write(i.Rd, t)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		t := cpu.CSR.Read(imm)
+		cpu.CSR.Write(imm, cpu.XRegs.Read(rs1))
+		cpu.XRegs.Write(rd, t)
 
 		return ExcpNone()
 	},
 	CSRRS: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseI(raw)
-		i.Imm = i.Imm & 0b111111111111
-		t := cpu.CSR.Read(i.Imm)
-		cpu.CSR.Write(i.Imm, (t | cpu.XRegs.Read(i.Rs1)))
-		cpu.XRegs.Write(i.Rd, t)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		imm = imm & 0b111111111111
+		t := cpu.CSR.Read(imm)
+		cpu.CSR.Write(imm, (t | cpu.XRegs.Read(rs1)))
+		cpu.XRegs.Write(rd, t)
 
 		return ExcpNone()
 	},
 	CSRRC: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseI(raw)
-		t := cpu.CSR.Read(i.Imm)
-		cpu.CSR.Write(i.Imm, (t & ^(cpu.XRegs.Read(i.Rs1))))
-		cpu.XRegs.Write(i.Rd, t)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		t := cpu.CSR.Read(imm)
+		cpu.CSR.Write(imm, (t & ^(cpu.XRegs.Read(rs1))))
+		cpu.XRegs.Write(rd, t)
 
 		return ExcpNone()
 	},
 	CSRRWI: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseI(raw)
-		cpu.XRegs.Write(i.Rd, cpu.CSR.Read(i.Imm))
-		cpu.CSR.Write(i.Imm, i.Rs1) // RS1 is zimm
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		cpu.XRegs.Write(rd, cpu.CSR.Read(imm))
+		cpu.CSR.Write(imm, rs1) // RS1 is zimm
 
 		return ExcpNone()
 	},
 	CSRRSI: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseI(raw)
-		t := cpu.CSR.Read(i.Imm)
-		cpu.CSR.Write(i.Imm, (t | i.Rs1)) // RS1 is zimm
-		cpu.XRegs.Write(i.Rd, t)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		t := cpu.CSR.Read(imm)
+		cpu.CSR.Write(imm, (t | rs1)) // RS1 is zimm
+		cpu.XRegs.Write(rd, t)
 
 		return ExcpNone()
 	},
 	CSRRCI: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseI(raw)
-		t := cpu.CSR.Read(i.Imm)
-		cpu.CSR.Write(i.Imm, (t & ^(i.Rs1)))
-		cpu.XRegs.Write(i.Rd, t)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		t := cpu.CSR.Read(imm)
+		cpu.CSR.Write(imm, (t & ^(rs1)))
+		cpu.XRegs.Write(rd, t)
 
 		return ExcpNone()
 	},
