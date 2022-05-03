@@ -17,7 +17,7 @@ Pass an ELF program to run to `rv`.
 rv -p ./hello
 ```
 
-Debug will be enabled if `-d` option is passed.
+Debug log will be enabled if `-d` option is passed (note that this dumps all the executed instructions and some other information).
 
 ## Supported instructions
 
