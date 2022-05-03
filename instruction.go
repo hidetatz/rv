@@ -107,18 +107,10 @@ const (
 	JAL  = InstructionCode("JAL")
 	JALR = InstructionCode("JALR")
 	// Synchronize
-	FENCE   = InstructionCode("FENCE")
-	FENCE_I = InstructionCode("FENCE.I")
+	FENCE = InstructionCode("FENCE")
 	// Environment
 	ECALL  = InstructionCode("ECALL")
 	EBREAK = InstructionCode("EBREAK")
-	// CSR manipulation
-	CSRRW  = InstructionCode("CSRRW")
-	CSRRS  = InstructionCode("CSRRS")
-	CSRRC  = InstructionCode("CSRRC")
-	CSRRWI = InstructionCode("CSRRWI")
-	CSRRSI = InstructionCode("CSRRSI")
-	CSRRCI = InstructionCode("CSRRCI")
 	// Load
 	LB  = InstructionCode("LB")
 	LH  = InstructionCode("LH")
@@ -163,6 +155,21 @@ const (
 	WFI = InstructionCode("WFI")
 	// MMU
 	SFENCE_VMA = InstructionCode("SFENCE.VMA")
+
+	/*
+	 * Zifencei
+	 */
+	FENCE_I = InstructionCode("FENCE.I")
+
+	/*
+	 * Zicsr
+	 */
+	CSRRW  = InstructionCode("CSRRW")
+	CSRRS  = InstructionCode("CSRRS")
+	CSRRC  = InstructionCode("CSRRC")
+	CSRRWI = InstructionCode("CSRRWI")
+	CSRRSI = InstructionCode("CSRRSI")
+	CSRRCI = InstructionCode("CSRRCI")
 )
 
 func (ic InstructionCode) String() string {
@@ -751,10 +758,6 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		// do nothing because rv currently does not apply any optimizations and no fence is needed.
 		return ExcpNone()
 	},
-	FENCE_I: func(cpu *CPU, raw, _ uint64) *Exception {
-		// do nothing because rv currently does not apply any optimizations and no fence is needed.
-		return ExcpNone()
-	},
 
 	// Environment
 	ECALL: func(cpu *CPU, raw, _ uint64) *Exception {
@@ -772,56 +775,6 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 	},
 	EBREAK: func(cpu *CPU, raw, pc uint64) *Exception {
 		return ExcpBreakpoint(pc)
-	},
-
-	// CSR manipulation
-	CSRRW: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseI(raw)
-		t := cpu.CSR.Read(i.Imm)
-		cpu.CSR.Write(i.Imm, cpu.XRegs.Read(i.Rs1))
-		cpu.XRegs.Write(i.Rd, t)
-
-		return ExcpNone()
-	},
-	CSRRS: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseI(raw)
-		i.Imm = i.Imm & 0b111111111111
-		t := cpu.CSR.Read(i.Imm)
-		cpu.CSR.Write(i.Imm, (t | cpu.XRegs.Read(i.Rs1)))
-		cpu.XRegs.Write(i.Rd, t)
-
-		return ExcpNone()
-	},
-	CSRRC: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseI(raw)
-		t := cpu.CSR.Read(i.Imm)
-		cpu.CSR.Write(i.Imm, (t & ^(cpu.XRegs.Read(i.Rs1))))
-		cpu.XRegs.Write(i.Rd, t)
-
-		return ExcpNone()
-	},
-	CSRRWI: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseI(raw)
-		cpu.XRegs.Write(i.Rd, cpu.CSR.Read(i.Imm))
-		cpu.CSR.Write(i.Imm, i.Rs1) // RS1 is zimm
-
-		return ExcpNone()
-	},
-	CSRRSI: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseI(raw)
-		t := cpu.CSR.Read(i.Imm)
-		cpu.CSR.Write(i.Imm, (t | i.Rs1)) // RS1 is zimm
-		cpu.XRegs.Write(i.Rd, t)
-
-		return ExcpNone()
-	},
-	CSRRCI: func(cpu *CPU, raw, _ uint64) *Exception {
-		i := ParseI(raw)
-		t := cpu.CSR.Read(i.Imm)
-		cpu.CSR.Write(i.Imm, (t & ^(i.Rs1)))
-		cpu.XRegs.Write(i.Rd, t)
-
-		return ExcpNone()
 	},
 
 	// Load
@@ -1078,6 +1031,66 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 	// MMU
 	SFENCE_VMA: func(cpu *CPU, raw, _ uint64) *Exception {
 		// do nothing because rv currently does not apply any optimizations and no fence is needed.
+		return ExcpNone()
+	},
+
+	/*
+	 * Zifencei
+	 */
+	FENCE_I: func(cpu *CPU, raw, _ uint64) *Exception {
+		// do nothing because rv currently does not apply any optimizations and no fence is needed.
+		return ExcpNone()
+	},
+
+	/*
+	 * Zicsr
+	 */
+	CSRRW: func(cpu *CPU, raw, _ uint64) *Exception {
+		i := ParseI(raw)
+		t := cpu.CSR.Read(i.Imm)
+		cpu.CSR.Write(i.Imm, cpu.XRegs.Read(i.Rs1))
+		cpu.XRegs.Write(i.Rd, t)
+
+		return ExcpNone()
+	},
+	CSRRS: func(cpu *CPU, raw, _ uint64) *Exception {
+		i := ParseI(raw)
+		i.Imm = i.Imm & 0b111111111111
+		t := cpu.CSR.Read(i.Imm)
+		cpu.CSR.Write(i.Imm, (t | cpu.XRegs.Read(i.Rs1)))
+		cpu.XRegs.Write(i.Rd, t)
+
+		return ExcpNone()
+	},
+	CSRRC: func(cpu *CPU, raw, _ uint64) *Exception {
+		i := ParseI(raw)
+		t := cpu.CSR.Read(i.Imm)
+		cpu.CSR.Write(i.Imm, (t & ^(cpu.XRegs.Read(i.Rs1))))
+		cpu.XRegs.Write(i.Rd, t)
+
+		return ExcpNone()
+	},
+	CSRRWI: func(cpu *CPU, raw, _ uint64) *Exception {
+		i := ParseI(raw)
+		cpu.XRegs.Write(i.Rd, cpu.CSR.Read(i.Imm))
+		cpu.CSR.Write(i.Imm, i.Rs1) // RS1 is zimm
+
+		return ExcpNone()
+	},
+	CSRRSI: func(cpu *CPU, raw, _ uint64) *Exception {
+		i := ParseI(raw)
+		t := cpu.CSR.Read(i.Imm)
+		cpu.CSR.Write(i.Imm, (t | i.Rs1)) // RS1 is zimm
+		cpu.XRegs.Write(i.Rd, t)
+
+		return ExcpNone()
+	},
+	CSRRCI: func(cpu *CPU, raw, _ uint64) *Exception {
+		i := ParseI(raw)
+		t := cpu.CSR.Read(i.Imm)
+		cpu.CSR.Write(i.Imm, (t & ^(i.Rs1)))
+		cpu.XRegs.Write(i.Rd, t)
+
 		return ExcpNone()
 	},
 }
