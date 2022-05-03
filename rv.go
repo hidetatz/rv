@@ -35,7 +35,7 @@ func New(prog []byte) (*RV, error) {
 	}
 
 	if elf.Header.PhNum == 0 { // assert just in case
-		return nil, fmt.Errorf("ELF contains no program headers. Cannot execute", elf.Header.Machine)
+		return nil, fmt.Errorf("ELF contains no program headers. Cannot execute")
 	}
 
 	for _, p := range elf.Programs {
