@@ -57,21 +57,21 @@ func (mem *Memory) Write(addr, val uint64, size Size) {
 	case Byte:
 		mem.Mem[index] = uint8(val)
 	case HalfWord:
-		mem.Mem[index] = uint8(val & 0x1111_1111)
-		mem.Mem[index+1] = uint8((val >> 8) & 0x1111_1111)
+		mem.Mem[index] = uint8(val & 0b1111_1111)
+		mem.Mem[index+1] = uint8((val >> 8) & 0b1111_1111)
 	case Word:
-		mem.Mem[index] = uint8(val & 0x1111_1111)
-		mem.Mem[index+1] = uint8((val >> 8) & 0x1111_1111)
-		mem.Mem[index+2] = uint8((val >> 16) & 0x1111_1111)
-		mem.Mem[index+3] = uint8((val >> 24) & 0x1111_1111)
+		mem.Mem[index] = uint8(val & 0b1111_1111)
+		mem.Mem[index+1] = uint8((val >> 8) & 0b1111_1111)
+		mem.Mem[index+2] = uint8((val >> 16) & 0b1111_1111)
+		mem.Mem[index+3] = uint8((val >> 24) & 0b1111_1111)
 	case DoubleWord:
-		mem.Mem[index] = uint8(val & 0x1111_1111)
-		mem.Mem[index+1] = uint8((val >> 8) & 0x1111_1111)
-		mem.Mem[index+2] = uint8((val >> 16) & 0x1111_1111)
-		mem.Mem[index+3] = uint8((val >> 24) & 0x1111_1111)
-		mem.Mem[index+4] = uint8((val >> 32) & 0x1111_1111)
-		mem.Mem[index+5] = uint8((val >> 40) & 0x1111_1111)
-		mem.Mem[index+6] = uint8((val >> 48) & 0x1111_1111)
-		mem.Mem[index+7] = uint8((val >> 56) & 0x1111_1111)
+		mem.Mem[index] = uint8(val & 0b1111_1111)
+		mem.Mem[index+1] = uint8((val >> 8) & 0b1111_1111)
+		mem.Mem[index+2] = uint8((val >> 16) & 0b1111_1111)
+		mem.Mem[index+3] = uint8((val >> 24) & 0b1111_1111)
+		mem.Mem[index+4] = uint8((val >> 32) & 0b1111_1111)
+		mem.Mem[index+5] = uint8((val >> 40) & 0b1111_1111)
+		mem.Mem[index+6] = uint8((val >> 48) & 0b1111_1111)
+		mem.Mem[index+7] = uint8((val >> 56) & 0b1111_1111)
 	}
 }
