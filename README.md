@@ -32,7 +32,7 @@ Debug log will be enabled if `-d` option is passed (note that this dumps all the
 - [x] RV64C ISA
 - [x] Privileged ISA
 
-For the full list of the implemented instructions, see [instructions.go](./instructions.go).
+For the full list of the implemented instructions, see [instruction.go](./instruction.go).
 
 ## Supported features
 
