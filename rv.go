@@ -62,6 +62,8 @@ func New(prog []byte) (*RV, error) {
 func (r *RV) Start() {
 	for {
 		trap := r.cpu.Run()
+
+		// For now, only handle Fatal trap to terminate the program execution.
 		if trap == TrapFatal {
 			fmt.Println("Fatal trap is returned!")
 			return
