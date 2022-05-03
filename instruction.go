@@ -771,7 +771,6 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		default:
 			return ExcpIllegalInstruction(raw)
 		}
-		return ExcpIllegalInstruction(raw)
 	},
 	EBREAK: func(cpu *CPU, raw, pc uint64) *Exception {
 		return ExcpBreakpoint(pc)
