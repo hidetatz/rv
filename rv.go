@@ -59,14 +59,13 @@ func New(prog []byte) (*RV, error) {
 	return rv, nil
 }
 
-func (r *RV) Start() {
+func (r *RV) Start() error {
 	for {
 		trap := r.cpu.Run()
 
 		// For now, only handle Fatal trap to terminate the program execution.
 		if trap == TrapFatal {
-			fmt.Println("Fatal trap is returned!")
-			return
+			return fmt.Errorf("Fatal trap is returned!")
 		}
 
 		if r.tohost == 0 {
@@ -75,11 +74,10 @@ func (r *RV) Start() {
 
 		if code := r.cpu.Bus.Read(r.tohost, Word); code != 0 {
 			if code == 1 {
-				fmt.Println("Successfully done")
-				return
+				return nil
 			}
-			fmt.Printf("fail: %v\n", code)
-			return
+
+			return fmt.Errorf("terminated, the tohost code is not success but %v", code)
 		}
 	}
 }

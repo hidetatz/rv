@@ -44,5 +44,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	emulator.Start()
+	if err := emulator.Start(); err != nil {
+		fmt.Fprintf(os.Stderr, "Err: run program: %v\n", err)
+		os.Exit(1)
+	}
 }
