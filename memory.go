@@ -7,7 +7,7 @@ const DramBase = 0x0
 
 // Memory is a DRAM emulator.
 type Memory struct {
-	// 1GiB
+	// 4GiB
 	Mem [4 * 1024 * 1024 * 1024]uint8
 }
 
