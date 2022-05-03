@@ -127,6 +127,7 @@ func (cpu *CPU) Run() Trap {
 	Debug(fmt.Sprintf("PC:0x%x	inst:%032b	code:%s	next:0x%x", cur, raw, code, cpu.PC))
 	Debug(fmt.Sprintf("x:%v", cpu.XRegs))
 	Debug(fmt.Sprintf("f:%v", cpu.FRegs))
+	Debug(fmt.Sprintf("excp:%v", excp.Code))
 
 	if excp.Code != ExcpCodeNone {
 		return cpu.HandleException(cur, excp)
