@@ -58,7 +58,7 @@ func TestE2E(t *testing.T) {
 		"rv64ui-p-srl",
 		"rv64ui-p-srli",
 		"rv64ui-p-srliw",
-		//"rv64ui-p-srlw",
+		"rv64ui-p-srlw",
 		"rv64ui-p-sub",
 		"rv64ui-p-subw",
 		"rv64ui-p-sw",
