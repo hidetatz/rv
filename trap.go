@@ -1,12 +1,11 @@
 package main
 
+// Trap represents a trap including exceptions and interrupts.
 type Trap int
 
 const (
-	TrapNone Trap = iota
-
 	// TrapContained is a trap which is visible to, and handled by, software running inside the execution environment.
-	TrapContained
+	TrapContained Trap = iota + 1
 
 	// TrapRequested is a trap which is a synchronous exception that is an explicit call to the execution
 	// environment requesting an action on behalf of software inside the execution environment.

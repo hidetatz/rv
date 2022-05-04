@@ -94,7 +94,7 @@ func (cpu *CPU) Fetch(size Size) uint64 {
 
 func (cpu *CPU) Run() Trap {
 	if cpu.Wfi {
-		return TrapNone
+		return TrapRequested
 	}
 
 	// TODO: eventually physical <-> virtual memory translation must take place here.
@@ -133,7 +133,7 @@ func (cpu *CPU) Run() Trap {
 		return cpu.HandleException(cur, excp)
 	}
 
-	return TrapNone
+	return TrapRequested
 }
 
 func (cpu *CPU) Exec(code InstructionCode, raw, cur uint64) *Exception {
