@@ -22,7 +22,7 @@ func TestE2E(t *testing.T) {
 		"rv64ui-p-auipc",
 		"rv64ui-p-beq",
 		"rv64ui-p-bge",
-		//"rv64ui-p-bgeu",
+		"rv64ui-p-bgeu",
 		"rv64ui-p-blt",
 		//"rv64ui-p-bltu",
 		"rv64ui-p-bne",
