@@ -94,6 +94,10 @@ func TestE2E(t *testing.T) {
 
 		})
 
+		// Each test runs rv emulator which internally contains 4GiB space for DRAM emulation.
+		// Because GitHub Actions single hosted runner only has 7GB memory,
+		// sometimes the test is killed by OOM without this manual GC.
+		// TODO: optimize somehow
 		runtime.GC()
 	}
 }
