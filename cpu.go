@@ -4,37 +4,6 @@ import (
 	"fmt"
 )
 
-type Bus struct {
-	Memory *Memory
-}
-
-func NewBus() *Bus {
-	return &Bus{
-		Memory: NewMemory(),
-	}
-}
-
-func (bus *Bus) Read(addr uint64, size Size) uint64 {
-	return bus.Memory.Read(addr, size)
-}
-
-func (bus *Bus) Write(addr, val uint64, size Size) {
-	bus.Memory.Write(addr, val, size)
-}
-
-// Mode is RISC-V machine status for privilege architecture.
-type Mode uint8
-
-const (
-	// User is a mode for application which runs on operating system.
-	User Mode = iota + 1
-	// Supervisor is a mode for operating system.
-	Supervisor
-	// Machine is a mode for RISC-V hart internal operation.
-	// This sometimes is called kernal-mode or protect-mode in other architecture.
-	Machine
-)
-
 // XLen is an RISC-V addressing mode.
 type XLen uint8
 
@@ -55,6 +24,41 @@ const (
 	DoubleWord Size = 64
 )
 
+// Mode is RISC-V machine status for privilege architecture.
+type Mode uint8
+
+const (
+	// User is a mode for application which runs on operating system.
+	User Mode = iota + 1
+	// Supervisor is a mode for operating system.
+	Supervisor
+	// Machine is a mode for RISC-V hart internal operation.
+	// This sometimes is called kernal-mode or protect-mode in other architecture.
+	Machine
+)
+
+// Bus is a devices which is connected to the CPU,
+// such as memory and some memory-mapped IO devices.
+type Bus struct {
+	Memory *Memory
+}
+
+// NewBus returns an initialized bus.
+func NewBus() *Bus {
+	return &Bus{
+		Memory: NewMemory(),
+	}
+}
+
+func (bus *Bus) Read(addr uint64, size Size) uint64 {
+	return bus.Memory.Read(addr, size)
+}
+
+func (bus *Bus) Write(addr, val uint64, size Size) {
+	bus.Memory.Write(addr, val, size)
+}
+
+// CPU is an processor emulator in rv.
 type CPU struct {
 	// program counter
 	PC uint64
@@ -76,6 +80,9 @@ type CPU struct {
 	Wfi bool
 }
 
+// NewCPU returns an empty CPU.
+// As of the CPU initialized, the memory does not contain any program,
+// so it must be loaded before the execution.
 func NewCPU() *CPU {
 	return &CPU{
 		PC:    0,
@@ -88,10 +95,8 @@ func NewCPU() *CPU {
 	}
 }
 
-func (cpu *CPU) Fetch(size Size) uint64 {
-	return cpu.Bus.Read(cpu.PC, size)
-}
-
+// Run executes one fetch-decode-exec.
+// If instruction execution raised an exception, it also handles it and do some other stuffs.
 func (cpu *CPU) Run() Trap {
 	if cpu.Wfi {
 		return TrapRequested
@@ -136,6 +141,12 @@ func (cpu *CPU) Run() Trap {
 	return TrapRequested
 }
 
+// Fetch reads the program-counter address of the memory then returns the read binary.
+func (cpu *CPU) Fetch(size Size) uint64 {
+	return cpu.Bus.Read(cpu.PC, size)
+}
+
+// Exec executes the decoded instruction.
 func (cpu *CPU) Exec(code InstructionCode, raw, cur uint64) *Exception {
 	execution, ok := Instructions[code]
 	if !ok {
@@ -152,6 +163,8 @@ func IsCompressed(inst uint64) bool {
 	return last2bit == 0b00 || last2bit == 0b01 || last2bit == 0b10
 }
 
+// HandleException catches the raised exception and manipulates CSR and program counter based on
+// the exception and CPU privilege mode.
 func (cpu *CPU) HandleException(pc uint64, excp *Exception) Trap {
 	curPC := pc
 	origMode := cpu.Mode
