@@ -4,6 +4,9 @@ import (
 	"math"
 )
 
+// InstructionCode is a psuedo-code which represents an instruction.
+// The code itself internally doesn't have any meanings, it is just used to identify
+// the instruction.
 type InstructionCode string
 
 const (
