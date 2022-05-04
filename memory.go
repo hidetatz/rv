@@ -7,13 +7,13 @@ const DramBase = 0x0
 
 // Memory is a DRAM emulator.
 type Memory struct {
-	// 4GiB
-	Mem [4 * 1024 * 1024 * 1024]uint8
+	// 3GiB
+	Mem [3 * 1024 * 1024 * 1024]uint8
 }
 
-// NewMemory returns 4GiB fixed size memory emulator.
+// NewMemory returns 3GiB fixed size memory emulator.
 func NewMemory() *Memory {
-	return &Memory{Mem: [4 * 1024 * 1024 * 1024]uint8{}}
+	return &Memory{Mem: [3 * 1024 * 1024 * 1024]uint8{}}
 }
 
 // Read reads the given size at mem[addr] as Little Endian.
