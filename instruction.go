@@ -560,8 +560,7 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		return ExcpNone()
 	},
 	SLLI: func(cpu *CPU, raw, _ uint64) *Exception {
-		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
-		shamt := imm & 0b1_1111
+		rd, rs1, shamt := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 25, 20)
 		cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)<<shamt)
 		return ExcpNone()
 	},
