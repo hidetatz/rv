@@ -197,6 +197,59 @@ func (cpu *CPU) Decode(inst uint64) InstructionCode {
 				return SRAIW
 			}
 		}
+	case 010_1111:
+		switch funct3 {
+		case 0b010:
+			switch bits(inst, 31, 27) {
+			case 0b0_0010:
+				return LR_W
+			case 0b0_0011:
+				return SC_W
+			case 0b0_0001:
+				return AMOSWAP_W
+			case 0b0_0000:
+				return AMOADD_W
+			case 0b0_0100:
+				return AMOXOR_W
+			case 0b0_1100:
+				return AMOAND_W
+			case 0b0_1000:
+				return AMOOR_W
+			case 0b1_0000:
+				return AMOMIN_W
+			case 0b1_0100:
+				return AMOMAX_W
+			case 0b1_1000:
+				return AMOMINU_W
+			case 0b1_1100:
+				return AMOMAXU_W
+			}
+		case 0b011:
+			switch bits(inst, 31, 27) {
+			case 0b0_0010:
+				return LR_D
+			case 0b0_0011:
+				return SC_D
+			case 0b0_0001:
+				return AMOSWAP_D
+			case 0b0_0000:
+				return AMOADD_D
+			case 0b0_0100:
+				return AMOXOR_D
+			case 0b0_1100:
+				return AMOAND_D
+			case 0b0_1000:
+				return AMOOR_D
+			case 0b1_0000:
+				return AMOMIN_D
+			case 0b1_0100:
+				return AMOMAX_D
+			case 0b1_1000:
+				return AMOMINU_D
+			case 0b1_1100:
+				return AMOMAXU_D
+			}
+		}
 	}
 
 	return _INVALID

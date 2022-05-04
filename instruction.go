@@ -173,6 +173,36 @@ const (
 	CSRRWI = InstructionCode("CSRRWI")
 	CSRRSI = InstructionCode("CSRRSI")
 	CSRRCI = InstructionCode("CSRRCI")
+
+	/*
+	 * RV32A
+	 */
+	LR_W      = InstructionCode("LR_W")
+	SC_W      = InstructionCode("SC_W")
+	AMOSWAP_W = InstructionCode("AMOSWAP_W")
+	AMOADD_W  = InstructionCode("AMOADD_W")
+	AMOXOR_W  = InstructionCode("AMOXOR_W")
+	AMOAND_W  = InstructionCode("AMOAND_W")
+	AMOOR_W   = InstructionCode("AMOOR_W")
+	AMOMIN_W  = InstructionCode("AMOMIN_W")
+	AMOMAX_W  = InstructionCode("AMOMAX_W")
+	AMOMINU_W = InstructionCode("AMOMINU_W")
+	AMOMAXU_W = InstructionCode("AMOMAXU_W")
+
+	/*
+	 * RV64A
+	 */
+	LR_D      = InstructionCode("LR_D")
+	SC_D      = InstructionCode("SC_D")
+	AMOSWAP_D = InstructionCode("AMOSWAP_D")
+	AMOADD_D  = InstructionCode("AMOADD_D")
+	AMOXOR_D  = InstructionCode("AMOXOR_D")
+	AMOAND_D  = InstructionCode("AMOAND_D")
+	AMOOR_D   = InstructionCode("AMOOR_D")
+	AMOMIN_D  = InstructionCode("AMOMIN_D")
+	AMOMAX_D  = InstructionCode("AMOMAX_D")
+	AMOMINU_D = InstructionCode("AMOMINU_D")
+	AMOMAXU_D = InstructionCode("AMOMAXU_D")
 )
 
 func (ic InstructionCode) String() string {
