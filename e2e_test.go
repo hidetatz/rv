@@ -4,6 +4,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -90,6 +91,9 @@ func TestE2E(t *testing.T) {
 			if err := emulator.Start(); err != nil {
 				t.Errorf("fail to run: %s, %s", tc, err)
 			}
+
 		})
+
+		runtime.GC()
 	}
 }
