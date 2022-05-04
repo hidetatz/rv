@@ -739,9 +739,6 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 	JAL: func(cpu *CPU, raw, pc uint64) *Exception {
 		rd, imm := bits(raw, 11, 7), ParseJImm(raw)
 		tmp := pc + 4
-		if rd == 0b0 {
-			rd = 1 // x1 if rd is omitted
-		}
 		cpu.XRegs.Write(rd, tmp)
 		cpu.PC = pc + imm
 		return ExcpNone()
