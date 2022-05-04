@@ -747,7 +747,7 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
 		tmp := pc + 4
 		target := (cpu.XRegs.Read(rs1) + imm) & ^uint64(1)
-		cpu.PC = target - 4 // sub in advance as the PC is incremented later
+		cpu.PC = target
 		cpu.XRegs.Write(rd, tmp)
 		return ExcpNone()
 	},
