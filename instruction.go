@@ -1093,3 +1093,39 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		return ExcpNone()
 	},
 }
+
+// signExtend extends the sign of the given unsigned value.
+// size must be the length of the value.
+// copied from: https://gist.github.com/Code-Hex/b113083b9631f63de9b9ddc72e8c703e
+func signExtend(v uint64, size int) uint64 {
+	tmp := 64 - size
+	return uint64((int64(v) << tmp) >> tmp)
+}
+
+// ParseIImm parses the immediate value in the given instruction as the I format.
+// In I format, inst[31:20] -> immediate[11:0].
+// Note that the immediate is sign-extended as per the format convention.
+func ParseIImm(inst uint64) uint64 {
+	return signExtend(bits(inst, 31, 20), 12)
+}
+
+// ParseSImm parses the immediate value in the given instruction as the S format.
+// In S format, inst[31:25] -> immediate[11:5], inst[11:7] -> immediate[4:0].
+// Note that the immediate is sign-extended as per the format convention.
+func ParseSImm(inst uint64) uint64 {
+	return signExtend((bits(inst, 11, 7) | bits(inst, 31, 25)<<5), 12)
+}
+
+// ParseBImm parses the immediate value in the given instruction as the B format.
+// In B format, inst[31:25] -> immediate[12|10:5], inst[11:7] -> immediate[4:1|11].
+// Note that the immediate is sign-extended as per the format convention.
+func ParseBImm(inst uint64) uint64 {
+	return signExtend((bit(inst, 31)<<12)|(bits(inst, 30, 25)<<5)|(bits(inst, 11, 8)<<1)|(bit(inst, 7)<<11), 13)
+}
+
+// ParseJImm parses the immediate value in the given instruction as the J format.
+// In J format, inst[31:12] -> immediate[20|10:1|11|19:12].
+// Note that the immediate is sign-extended as per the format convention.
+func ParseJImm(inst uint64) uint64 {
+	return signExtend((bit(inst, 31)<<20)|(bits(inst, 30, 21)<<1)|(bit(inst, 20)<<11)|(bits(inst, 19, 12)<<12), 21)
+}
