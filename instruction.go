@@ -831,10 +831,11 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 	 * RV64I
 	 */
 
-	// Shirt
+	// Shift
 	SLLW: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		cpu.XRegs.Write(rd, uint64(int64(int32(cpu.XRegs.Read(rs1)<<rs2))))
+		shamt := cpu.XRegs.Read(rs2) & 0b1_1111
+		cpu.XRegs.Write(rd, uint64(int64(int32(cpu.XRegs.Read(rs1)<<shamt))))
 		return ExcpNone()
 	},
 	SLLIW: func(cpu *CPU, raw, _ uint64) *Exception {
