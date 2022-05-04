@@ -10,12 +10,12 @@ func bits(val uint64, hi, lo int) uint64 {
 	return (val >> lo) & ((1 << (hi - lo + 1)) - 1)
 }
 
-// setBit sets 1 to val[pos]
+// setBit sets 1 to val[pos] and return it.
 func setBit(val uint64, pos int) uint64 {
 	return val | (1 << pos)
 }
 
-// clearBit sets 0 to val[pos]
+// clearBit sets 0 to val[pos] and return it.
 func clearBit(val uint64, pos int) uint64 {
 	return val & ^(1 << pos)
 }
