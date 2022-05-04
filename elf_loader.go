@@ -2,6 +2,7 @@ package main
 
 import "fmt"
 
+// ELFFile is an ELF representation.
 type ELFFile struct {
 	Header   *ELFHeader
 	Sections []*Section
@@ -36,10 +37,6 @@ type ELFHeader struct {
 	ShStrNdx   uint16
 }
 
-func (e *ELFHeader) String() string {
-	return fmt.Sprintf("%#v", e)
-}
-
 type Section struct {
 	Name      uint32
 	Type      uint32
@@ -53,10 +50,6 @@ type Section struct {
 	EntSize   uint64
 }
 
-func (s *Section) String() string {
-	return fmt.Sprintf("%#v", s)
-}
-
 type Program struct {
 	Type   uint32
 	Flags  uint32
@@ -68,10 +61,9 @@ type Program struct {
 	Align  uint64
 }
 
-func (p *Program) String() string {
-	return fmt.Sprintf("%#v", p)
-}
-
+// LoadELF loads the given ELF data.
+// It currently just loads the program in the ELF, do not load any other useful info such as symbols.
+// Additionally, it tries to find .tohost address which is a part of RISC-V specification if defined.
 func LoadELF(data []uint8) (*ELFFile, error) {
 	if len(data) < 4 {
 		return nil, fmt.Errorf("too short, the file seems not to be a valid ELF")

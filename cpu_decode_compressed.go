@@ -1,6 +1,8 @@
 package main
 
-// Decompress extracts the given 16-bit instruction to 32-bit one.
+// DecodeCompressed decodes the given binary and
+// return which instruction the binary represents.
+// It assumes that the given binary is "compressed" (RV32/64C) instruction.
 func (cpu *CPU) DecodeCompressed(compressed uint64) InstructionCode {
 	bs := func(hi, lo int) uint64 {
 		return bits(compressed, hi, lo)

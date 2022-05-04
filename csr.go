@@ -1,5 +1,7 @@
 package main
 
+// CSR is Control Status Register representation in
+// RISC-V privileged architecture.
 type CSR struct {
 	Regs [CSRRegsCount]uint64
 }
@@ -122,6 +124,7 @@ const (
 	CsrSieMask = CsrSieUSIE | CsrSieSSIE | CsrSieUTIE | CsrSieSTIE | CsrSieUEIE | CsrSieSEIE
 )
 
+// NewCSR returns the initialized CSR.
 func NewCSR() *CSR {
 	return &CSR{Regs: [CSRRegsCount]uint64{}}
 }

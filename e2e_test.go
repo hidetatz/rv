@@ -7,6 +7,9 @@ import (
 	"testing"
 )
 
+// TestE2E runs riscv-tests (https://github.com/riscv-software-src/riscv-tests) and make sure
+// every test suite passes.
+// Before running this test, test binary must locate in "./tests/" directory.
 func TestE2E(t *testing.T) {
 	tests := []string{
 		"rv64ui-p-add",

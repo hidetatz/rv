@@ -1,6 +1,9 @@
 package main
 
-// Decode returns the instruction to be executed.
+// Decode decodes the given binary and returns which instruction
+// the binary represents.
+// It cannot decode the compressed instruction. For that purpose,
+// DecodeCompressed must be used.
 func (cpu *CPU) Decode(inst uint64) InstructionCode {
 	opcode := bits(inst, 6, 0)
 	funct7 := bits(inst, 31, 25)

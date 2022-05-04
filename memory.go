@@ -11,14 +11,12 @@ type Memory struct {
 	Mem [4 * 1024 * 1024 * 1024]uint8
 }
 
+// NewMemory returns 4GiB fixed size memory emulator.
 func NewMemory() *Memory {
 	return &Memory{Mem: [4 * 1024 * 1024 * 1024]uint8{}}
 }
 
-func (mem *Memory) Set(data []uint8) {
-	copy(mem.Mem[:], data)
-}
-
+// Read reads the given size at mem[addr] as Little Endian.
 func (mem *Memory) Read(addr uint64, size Size) uint64 {
 	index := addr - DramBase
 	switch size {
@@ -51,6 +49,7 @@ func (mem *Memory) Read(addr uint64, size Size) uint64 {
 	return 0
 }
 
+// Write writes the given value to mem[addr] at given size as Little Endian.
 func (mem *Memory) Write(addr, val uint64, size Size) {
 	index := addr - DramBase
 	switch size {

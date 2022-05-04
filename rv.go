@@ -2,6 +2,7 @@ package main
 
 import "fmt"
 
+// RV is a central RISC-V emulator.
 type RV struct {
 	cpu *CPU
 	// tohost is an special address which shows a message from program to the host.
@@ -10,6 +11,8 @@ type RV struct {
 	tohost uint64
 }
 
+// New initializes and returns the RISC-V emulator rv.
+// The argument program must be the ELF binary which is built for RISC-V architecture.
 func New(prog []byte) (*RV, error) {
 	cpu := NewCPU()
 
@@ -59,6 +62,10 @@ func New(prog []byte) (*RV, error) {
 	return rv, nil
 }
 
+// Start starts the emulator fetch-decode-exec cycle.
+// It runs a loop until a Fatal level trap occurs.
+// It optionally can stop running if the given binary contains .tohost address,
+// which is a part of RISC-V specification.
 func (r *RV) Start() error {
 	for {
 		trap := r.cpu.Run()
