@@ -1124,6 +1124,147 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 
 		return ExcpNone()
 	},
+
+	/*
+	 * RV32A
+	 * Note that currently AMO is not implemented atomically because
+	 * rv just runs on single goroutine and no out-of-order execution happens.
+	 */
+	LR_W: func(cpu *CPU, raw, _ uint64) *Exception {
+		rd, rs1 := bits(raw, 11, 7), bits(raw, 19, 15)
+		addr := cpu.XRegs.Read(rs1)
+		t := cpu.Read(addr, Word)
+		cpu.XRegs.Write(rd, uint64(int64(int32(t))))
+		cpu.Reservation.Reserve(addr)
+
+		return ExcpNone()
+	},
+	SC_W: func(cpu *CPU, raw, _ uint64) *Exception {
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		addr := cpu.XRegs.Read(rs1)
+
+		if cpu.Reservation.IsReserved(addr) {
+			// SC succeeds.
+			cpu.Write(addr, cpu.XRegs.Read(rs2), Word)
+			cpu.XRegs.Write(rd, 0)
+		} else {
+			// SC fails.
+			cpu.XRegs.Write(rd, 1)
+		}
+
+		cpu.Reservation.Cancel(addr)
+
+		return ExcpNone()
+	},
+	AMOSWAP_W: func(cpu *CPU, raw, _ uint64) *Exception {
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		addr := cpu.XRegs.Read(rs1)
+		t := cpu.Read(addr, Word)
+		cpu.Write(addr, cpu.XRegs.Read(rs2), Word)
+		cpu.XRegs.Write(rd, uint64(int64(int32(t))))
+
+		return ExcpNone()
+	},
+	AMOADD_W: func(cpu *CPU, raw, _ uint64) *Exception {
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		addr := cpu.XRegs.Read(rs1)
+		t := cpu.Read(addr, Word)
+		cpu.Write(addr, t+cpu.XRegs.Read(rs2), Word)
+		cpu.XRegs.Write(rd, uint64(int64(int32(t))))
+
+		return ExcpNone()
+	},
+	AMOXOR_W: func(cpu *CPU, raw, _ uint64) *Exception {
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		addr := cpu.XRegs.Read(rs1)
+		t := cpu.Read(addr, Word)
+		cpu.Write(addr, uint64(int64(int32(t)^int32(cpu.XRegs.Read(rs2)))), Word)
+		cpu.XRegs.Write(rd, uint64(int64(int32(t))))
+
+		return ExcpNone()
+	},
+	AMOAND_W: func(cpu *CPU, raw, _ uint64) *Exception {
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		addr := cpu.XRegs.Read(rs1)
+		t := cpu.Read(addr, Word)
+		cpu.Write(addr, uint64(int64(int32(t)&int32(cpu.XRegs.Read(rs2)))), Word)
+		cpu.XRegs.Write(rd, uint64(int64(int32(t))))
+
+		return ExcpNone()
+	},
+	AMOOR_W: func(cpu *CPU, raw, _ uint64) *Exception {
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		addr := cpu.XRegs.Read(rs1)
+		t := cpu.Read(addr, Word)
+		cpu.Write(addr, uint64(int64(int32(t)|int32(cpu.XRegs.Read(rs2)))), Word)
+		cpu.XRegs.Write(rd, uint64(int64(int32(t))))
+
+		return ExcpNone()
+	},
+	AMOMIN_W: func(cpu *CPU, raw, _ uint64) *Exception {
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		addr := cpu.XRegs.Read(rs1)
+		t := cpu.Read(addr, Word)
+		t2 := cpu.XRegs.Read(rs2)
+
+		if int32(t) < int32(t2) {
+			cpu.Write(addr, uint64(int64(int32(t))), Word)
+		} else {
+			cpu.Write(addr, uint64(int64(int32(t2))), Word)
+		}
+
+		cpu.XRegs.Write(rd, uint64(int64(int32(t))))
+
+		return ExcpNone()
+	},
+	AMOMAX_W: func(cpu *CPU, raw, _ uint64) *Exception {
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		addr := cpu.XRegs.Read(rs1)
+		t := cpu.Read(addr, Word)
+		t2 := cpu.XRegs.Read(rs2)
+
+		if int32(t) < int32(t2) {
+			cpu.Write(addr, uint64(int64(int32(t2))), Word)
+		} else {
+			cpu.Write(addr, uint64(int64(int32(t))), Word)
+		}
+
+		cpu.XRegs.Write(rd, uint64(int64(int32(t))))
+
+		return ExcpNone()
+	},
+	AMOMINU_W: func(cpu *CPU, raw, _ uint64) *Exception {
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		addr := cpu.XRegs.Read(rs1)
+		t := cpu.Read(addr, Word)
+		t2 := cpu.XRegs.Read(rs2)
+
+		if uint32(t) < uint32(t2) {
+			cpu.Write(addr, uint64(uint32(t)), Word)
+		} else {
+			cpu.Write(addr, uint64(uint32(t2)), Word)
+		}
+
+		cpu.XRegs.Write(rd, uint64(int64(int32(t))))
+
+		return ExcpNone()
+	},
+	AMOMAXU_W: func(cpu *CPU, raw, _ uint64) *Exception {
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		addr := cpu.XRegs.Read(rs1)
+		t := cpu.Read(addr, Word)
+		t2 := cpu.XRegs.Read(rs2)
+
+		if uint32(t) < uint32(t2) {
+			cpu.Write(addr, uint64(uint32(t2)), Word)
+		} else {
+			cpu.Write(addr, uint64(uint32(t)), Word)
+		}
+
+		cpu.XRegs.Write(rd, uint64(int64(int32(t))))
+
+		return ExcpNone()
+	},
 }
 
 // signExtend extends the sign of the given unsigned value.
