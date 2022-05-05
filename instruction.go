@@ -1265,6 +1265,145 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 
 		return ExcpNone()
 	},
+
+	/*
+	 * RV64A
+	 */
+	LR_D: func(cpu *CPU, raw, _ uint64) *Exception {
+		rd, rs1 := bits(raw, 11, 7), bits(raw, 19, 15)
+		addr := cpu.XRegs.Read(rs1)
+		t := cpu.Read(addr, DoubleWord)
+		cpu.XRegs.Write(rd, uint64(int64(int32(t))))
+		cpu.Reservation.Reserve(addr)
+
+		return ExcpNone()
+	},
+	SC_D: func(cpu *CPU, raw, _ uint64) *Exception {
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		addr := cpu.XRegs.Read(rs1)
+
+		if cpu.Reservation.IsReserved(addr) {
+			// SC succeeds.
+			cpu.Write(addr, cpu.XRegs.Read(rs2), DoubleWord)
+			cpu.XRegs.Write(rd, 0)
+		} else {
+			// SC fails.
+			cpu.XRegs.Write(rd, 1)
+		}
+
+		cpu.Reservation.Cancel(addr)
+
+		return ExcpNone()
+	},
+	AMOSWAP_D: func(cpu *CPU, raw, _ uint64) *Exception {
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		addr := cpu.XRegs.Read(rs1)
+		t := cpu.Read(addr, DoubleWord)
+		cpu.Write(addr, cpu.XRegs.Read(rs2), DoubleWord)
+		cpu.XRegs.Write(rd, t)
+
+		return ExcpNone()
+	},
+	AMOADD_D: func(cpu *CPU, raw, _ uint64) *Exception {
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		addr := cpu.XRegs.Read(rs1)
+		t := cpu.Read(addr, DoubleWord)
+		cpu.Write(addr, t+cpu.XRegs.Read(rs2), DoubleWord)
+		cpu.XRegs.Write(rd, t)
+
+		return ExcpNone()
+	},
+	AMOXOR_D: func(cpu *CPU, raw, _ uint64) *Exception {
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		addr := cpu.XRegs.Read(rs1)
+		t := cpu.Read(addr, DoubleWord)
+		cpu.Write(addr, t^cpu.XRegs.Read(rs2), DoubleWord)
+		cpu.XRegs.Write(rd, t)
+
+		return ExcpNone()
+	},
+	AMOAND_D: func(cpu *CPU, raw, _ uint64) *Exception {
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		addr := cpu.XRegs.Read(rs1)
+		t := cpu.Read(addr, DoubleWord)
+		cpu.Write(addr, t&cpu.XRegs.Read(rs2), DoubleWord)
+		cpu.XRegs.Write(rd, t)
+
+		return ExcpNone()
+	},
+	AMOOR_D: func(cpu *CPU, raw, _ uint64) *Exception {
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		addr := cpu.XRegs.Read(rs1)
+		t := cpu.Read(addr, DoubleWord)
+		cpu.Write(addr, t|cpu.XRegs.Read(rs2), DoubleWord)
+		cpu.XRegs.Write(rd, t)
+
+		return ExcpNone()
+	},
+	AMOMIN_D: func(cpu *CPU, raw, _ uint64) *Exception {
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		addr := cpu.XRegs.Read(rs1)
+		t := cpu.Read(addr, DoubleWord)
+		t2 := cpu.XRegs.Read(rs2)
+
+		if int64(t) < int64(t2) {
+			cpu.Write(addr, uint64(int64(t)), DoubleWord)
+		} else {
+			cpu.Write(addr, uint64(int64(t2)), DoubleWord)
+		}
+
+		cpu.XRegs.Write(rd, uint64(int64(t)))
+
+		return ExcpNone()
+	},
+	AMOMAX_D: func(cpu *CPU, raw, _ uint64) *Exception {
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		addr := cpu.XRegs.Read(rs1)
+		t := cpu.Read(addr, DoubleWord)
+		t2 := cpu.XRegs.Read(rs2)
+
+		if int64(t) < int64(t2) {
+			cpu.Write(addr, uint64(int64(t2)), DoubleWord)
+		} else {
+			cpu.Write(addr, uint64(int64(t)), DoubleWord)
+		}
+
+		cpu.XRegs.Write(rd, uint64(int64(t)))
+
+		return ExcpNone()
+	},
+	AMOMINU_D: func(cpu *CPU, raw, _ uint64) *Exception {
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		addr := cpu.XRegs.Read(rs1)
+		t := cpu.Read(addr, DoubleWord)
+		t2 := cpu.XRegs.Read(rs2)
+
+		if t < t2 {
+			cpu.Write(addr, t, DoubleWord)
+		} else {
+			cpu.Write(addr, t2, DoubleWord)
+		}
+
+		cpu.XRegs.Write(rd, t)
+
+		return ExcpNone()
+	},
+	AMOMAXU_D: func(cpu *CPU, raw, _ uint64) *Exception {
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		addr := cpu.XRegs.Read(rs1)
+		t := cpu.Read(addr, DoubleWord)
+		t2 := cpu.XRegs.Read(rs2)
+
+		if t < t2 {
+			cpu.Write(addr, t2, DoubleWord)
+		} else {
+			cpu.Write(addr, t, DoubleWord)
+		}
+
+		cpu.XRegs.Write(rd, t)
+
+		return ExcpNone()
+	},
 }
 
 func ParseIImm(inst uint64) uint64 {
