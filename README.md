@@ -23,7 +23,7 @@ Debug log will be enabled if `-d` option is passed (note that this dumps all the
 
 - [ ] RV64G ISA
   - [x] RV64I
-  - [ ] RV64M
+  - [x] RV64M
   - [x] RV64A
   - [ ] RV64F
   - [ ] RV64D
