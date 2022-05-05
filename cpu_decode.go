@@ -197,7 +197,7 @@ func (cpu *CPU) Decode(inst uint64) InstructionCode {
 				return SRAIW
 			}
 		}
-	case 010_1111:
+	case 0b010_1111:
 		switch funct3 {
 		case 0b010:
 			switch bits(inst, 31, 27) {
