@@ -227,14 +227,14 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 			(bit(raw, 5) << 6) // raw[5] -> offset[6]
 
 		addr := cpu.XRegs.Read(rs1) + offset
-		v := cpu.Bus.Read(addr, Word)
+		v := cpu.Read(addr, Word)
 		cpu.XRegs.Write(rd, uint64(int64(int32(v))))
 		return ExcpNone()
 	},
 	C_LWSP: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd := bits(raw, 11, 7)
 		uimm := (bit(raw, 12) << 5) | (bits(raw, 6, 4) << 2) | (bits(raw, 3, 2) << 6)
-		v := cpu.Bus.Read(cpu.XRegs.Read(2)+uimm, Word)
+		v := cpu.Read(cpu.XRegs.Read(2)+uimm, Word)
 		cpu.XRegs.Write(rd, uint64(int64(int32(v))))
 		return ExcpNone()
 	},
@@ -244,14 +244,14 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		offset := (bits(raw, 12, 10) << 3) | // raw[12:10] -> offset[5:3]
 			(bits(raw, 6, 5) << 6) // raw[6:5] -> offset[7:6]
 
-		v := cpu.Bus.Read(cpu.XRegs.Read(rs1)+uint64(offset), DoubleWord)
+		v := cpu.Read(cpu.XRegs.Read(rs1)+uint64(offset), DoubleWord)
 		cpu.FRegs.Write(rd, math.Float64frombits(v))
 		return ExcpNone()
 	},
 	C_FLDSP: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd := bits(raw, 11, 7)
 		uimm := (bit(raw, 12) << 5) | (bits(raw, 6, 5) << 3) | (bits(raw, 4, 2) << 6)
-		v := math.Float64frombits(cpu.Bus.Read(cpu.XRegs.Read(2)+uimm, DoubleWord))
+		v := math.Float64frombits(cpu.Read(cpu.XRegs.Read(2)+uimm, DoubleWord))
 		cpu.FRegs.Write(rd, v)
 		return ExcpNone()
 	},
@@ -264,14 +264,14 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 			(bit(raw, 6) << 2) | // raw[6] -> offset[2]
 			(bit(raw, 5) << 6) // raw[5] -> offset[6]
 		addr := cpu.XRegs.Read(rs1) + offset
-		cpu.Bus.Write(addr, cpu.XRegs.Read(rs2), Word)
+		cpu.Write(addr, cpu.XRegs.Read(rs2), Word)
 		return ExcpNone()
 	},
 	C_SWSP: func(cpu *CPU, raw, _ uint64) *Exception {
 		rs2 := bits(raw, 4, 2)
 		uimm := bits(raw, 12, 9)<<2 | bits(raw, 8, 7)<<6
 		addr := cpu.XRegs.Read(2) + uimm
-		cpu.Bus.Write(addr, cpu.XRegs.Read(rs2), Word)
+		cpu.Write(addr, cpu.XRegs.Read(rs2), Word)
 		return ExcpNone()
 	},
 	C_FSD: func(cpu *CPU, raw, _ uint64) *Exception {
@@ -281,7 +281,7 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 			(bit(raw, 6) << 7) | // raw[6] -> offset[7]
 			(bit(raw, 5) << 6) // raw[5] -> offset[6]
 		addr := cpu.XRegs.Read(rs1) + offset
-		cpu.Bus.Write(addr, math.Float64bits(cpu.FRegs.Read(rd)), DoubleWord)
+		cpu.Write(addr, math.Float64bits(cpu.FRegs.Read(rd)), DoubleWord)
 		return ExcpNone()
 	},
 	C_FSDSP: func(cpu *CPU, raw, _ uint64) *Exception {
@@ -289,7 +289,7 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		uimm := bits(raw, 12, 10)<<3 | bits(raw, 9, 7)<<6
 		addr := cpu.XRegs.Read(2) + uimm
 		v := cpu.FRegs.Read(rs2)
-		cpu.Bus.Write(addr, math.Float64bits(v), DoubleWord)
+		cpu.Write(addr, math.Float64bits(v), DoubleWord)
 		return ExcpNone()
 	},
 	// Arithmetic
@@ -525,13 +525,13 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		rs1 := bits(raw, 9, 7) + 8
 		rd := bits(raw, 4, 2) + 8
 		uimm := (bits(raw, 12, 10) << 3) | (bits(raw, 6, 5) << 6)
-		cpu.XRegs.Write(rd, cpu.Bus.Read(cpu.XRegs.Read(rs1)+uimm, DoubleWord))
+		cpu.XRegs.Write(rd, cpu.Read(cpu.XRegs.Read(rs1)+uimm, DoubleWord))
 		return ExcpNone()
 	},
 	C_LDSP: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd := bits(raw, 11, 7)
 		uimm := (bit(raw, 12) << 5) | (bits(raw, 6, 5) << 3) | (bits(raw, 4, 2) << 6)
-		cpu.XRegs.Write(rd, cpu.Bus.Read(cpu.XRegs.Read(2)+uimm, DoubleWord))
+		cpu.XRegs.Write(rd, cpu.Read(cpu.XRegs.Read(2)+uimm, DoubleWord))
 		return ExcpNone()
 	},
 
@@ -541,14 +541,14 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		rs2 := bits(raw, 4, 2) + 8
 		uimm := (bits(raw, 12, 10) << 3) | (bits(raw, 6, 5) << 6)
 		addr := cpu.XRegs.Read(rs1) + uimm
-		cpu.Bus.Write(addr, cpu.XRegs.Read(rs2), DoubleWord)
+		cpu.Write(addr, cpu.XRegs.Read(rs2), DoubleWord)
 		return ExcpNone()
 	},
 	C_SDSP: func(cpu *CPU, raw, _ uint64) *Exception {
 		rs2 := bits(raw, 4, 2)
 		uimm := (bits(raw, 12, 10) << 3) | (bits(raw, 9, 7) << 6)
 		addr := cpu.XRegs.Read(2) + uimm
-		cpu.Bus.Write(addr, cpu.XRegs.Read(rs2), DoubleWord)
+		cpu.Write(addr, cpu.XRegs.Read(rs2), DoubleWord)
 		return ExcpNone()
 	},
 
@@ -808,31 +808,31 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 	// Load
 	LB: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
-		v := cpu.Bus.Read(cpu.XRegs.Read(rs1)+imm, 8)
+		v := cpu.Read(cpu.XRegs.Read(rs1)+imm, 8)
 		cpu.XRegs.Write(rd, uint64(int64(int8(v))))
 		return ExcpNone()
 	},
 	LH: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
-		v := cpu.Bus.Read(cpu.XRegs.Read(rs1)+imm, 16)
+		v := cpu.Read(cpu.XRegs.Read(rs1)+imm, 16)
 		cpu.XRegs.Write(rd, uint64(int64(int16(v))))
 		return ExcpNone()
 	},
 	LBU: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
-		v := cpu.Bus.Read(cpu.XRegs.Read(rs1)+imm, 8)
+		v := cpu.Read(cpu.XRegs.Read(rs1)+imm, 8)
 		cpu.XRegs.Write(rd, v)
 		return ExcpNone()
 	},
 	LHU: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
-		v := cpu.Bus.Read(cpu.XRegs.Read(rs1)+imm, 16)
+		v := cpu.Read(cpu.XRegs.Read(rs1)+imm, 16)
 		cpu.XRegs.Write(rd, v)
 		return ExcpNone()
 	},
 	LW: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
-		v := cpu.Bus.Read(cpu.XRegs.Read(rs1)+imm, 32)
+		v := cpu.Read(cpu.XRegs.Read(rs1)+imm, 32)
 		cpu.XRegs.Write(rd, uint64(int64(int32(v))))
 		return ExcpNone()
 	},
@@ -841,19 +841,19 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 	SB: func(cpu *CPU, raw, _ uint64) *Exception {
 		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), ParseSImm(raw)
 		addr := cpu.XRegs.Read(rs1) + imm
-		cpu.Bus.Write(addr, cpu.XRegs.Read(rs2), Byte)
+		cpu.Write(addr, cpu.XRegs.Read(rs2), Byte)
 		return ExcpNone()
 	},
 	SH: func(cpu *CPU, raw, _ uint64) *Exception {
 		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), ParseSImm(raw)
 		addr := cpu.XRegs.Read(rs1) + imm
-		cpu.Bus.Write(addr, cpu.XRegs.Read(rs2), HalfWord)
+		cpu.Write(addr, cpu.XRegs.Read(rs2), HalfWord)
 		return ExcpNone()
 	},
 	SW: func(cpu *CPU, raw, _ uint64) *Exception {
 		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), ParseSImm(raw)
 		addr := cpu.XRegs.Read(rs1) + imm
-		cpu.Bus.Write(addr, cpu.XRegs.Read(rs2), Word)
+		cpu.Write(addr, cpu.XRegs.Read(rs2), Word)
 		return ExcpNone()
 	},
 
@@ -920,13 +920,13 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 	LWU: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
 		addr := cpu.XRegs.Read(rs1) + imm
-		cpu.XRegs.Write(rd, cpu.Bus.Read(addr, Word))
+		cpu.XRegs.Write(rd, cpu.Read(addr, Word))
 		return ExcpNone()
 	},
 	LD: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
 		addr := cpu.XRegs.Read(rs1) + imm
-		cpu.XRegs.Write(rd, cpu.Bus.Read(addr, DoubleWord))
+		cpu.XRegs.Write(rd, cpu.Read(addr, DoubleWord))
 		return ExcpNone()
 	},
 
@@ -934,7 +934,7 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 	SD: func(cpu *CPU, raw, _ uint64) *Exception {
 		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), ParseSImm(raw)
 		addr := cpu.XRegs.Read(rs1) + imm
-		cpu.Bus.Write(addr, cpu.XRegs.Read(rs2), DoubleWord)
+		cpu.Write(addr, cpu.XRegs.Read(rs2), DoubleWord)
 		return ExcpNone()
 	},
 

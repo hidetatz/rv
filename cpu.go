@@ -58,6 +58,36 @@ func (bus *Bus) Write(addr, val uint64, size Size) {
 	bus.Memory.Write(addr, val, size)
 }
 
+// Reservation is a reserved memory emulation module by LR/SC instructions.
+// The internal map contains reserved mem address.
+// Before implementing multi-core emulation, probably the map value must be changed to
+// hart ID, and the map itself must be changed to sync.Map. However, this is
+// efficient for now.
+type Reservation struct {
+	m map[uint64]struct{}
+}
+
+// NewReservation returns an initialized reservation.
+func NewReservation() *Reservation {
+	return &Reservation{m: map[uint64]struct{}{}}
+}
+
+// Reserve reserves the given address.
+func (r *Reservation) Reserve(addr uint64) {
+	r.m[addr] = struct{}{}
+}
+
+// IsReserved returns if the given address is reserved.
+func (r *Reservation) IsReserved(addr uint64) bool {
+	_, ok := r.m[addr]
+	return ok
+}
+
+// Cancel cancels the reserve.
+func (r *Reservation) Cancel(addr uint64) {
+	delete(r.m, addr)
+}
+
 // CPU is an processor emulator in rv.
 type CPU struct {
 	// program counter
@@ -75,6 +105,9 @@ type CPU struct {
 	XRegs *Registers
 	FRegs *FRegisters
 
+	// Reservation for LR/SC
+	Reservation *Reservation
+
 	// Wfi represents "wait for interrupt". When this is true, CPU does not run until
 	// an interrupt occurs.
 	Wfi bool
@@ -85,14 +118,29 @@ type CPU struct {
 // so it must be loaded before the execution.
 func NewCPU() *CPU {
 	return &CPU{
-		PC:    0,
-		Bus:   NewBus(),
-		Mode:  Machine,
-		CSR:   NewCSR(),
-		XLen:  XLen64,
-		XRegs: NewRegisters(),
-		FRegs: NewFRegisters(),
+		PC:          0,
+		Bus:         NewBus(),
+		Mode:        Machine,
+		CSR:         NewCSR(),
+		XLen:        XLen64,
+		XRegs:       NewRegisters(),
+		FRegs:       NewFRegisters(),
+		Reservation: NewReservation(),
 	}
+}
+
+func (cpu *CPU) Read(addr uint64, size Size) uint64 {
+	return cpu.Bus.Read(addr, size)
+}
+
+func (cpu *CPU) Write(addr, val uint64, size Size) {
+	// Cancel reserved memory to make SC fail when an write is called
+	// between LR and SC.
+	if cpu.Reservation.IsReserved(addr) {
+		cpu.Reservation.Cancel(addr)
+	}
+
+	cpu.Bus.Write(addr, val, size)
 }
 
 // Run executes one fetch-decode-exec.
@@ -143,7 +191,7 @@ func (cpu *CPU) Run() Trap {
 
 // Fetch reads the program-counter address of the memory then returns the read binary.
 func (cpu *CPU) Fetch(size Size) uint64 {
-	return cpu.Bus.Read(cpu.PC, size)
+	return cpu.Read(cpu.PC, size)
 }
 
 // Exec executes the decoded instruction.
