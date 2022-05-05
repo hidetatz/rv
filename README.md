@@ -9,6 +9,8 @@ It only supports running ELF binary.
 * Multi-core emulation isn't supported.
 * release/acquire bits are not handled in AMO instructions.
   - rv currently emulates only one hart, so this is not really a problem.
+* fence instructions do nothing.
+  - rv currently does not apply any optimizations and no out-of-order execution occurs, so it should be fine.
 
 ## Installation
 
