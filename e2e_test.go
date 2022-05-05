@@ -85,6 +85,15 @@ func TestE2E(t *testing.T) {
 		"rv64ua-p-amoor_d",
 		"rv64ua-p-amoswap_d",
 		"rv64ua-p-amoxor_d",
+
+		"rv64um-p-mul",
+		"rv64um-p-mulh",
+		"rv64um-p-mulhsu",
+		"rv64um-p-mulhu",
+		"rv64um-p-div",
+		"rv64um-p-divu",
+		"rv64um-p-rem",
+		"rv64um-p-remu",
 	}
 
 	for _, tc := range tests {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"math"
+	"math/big"
 )
 
 // InstructionCode is a psuedo-code which represents an instruction.
@@ -1422,6 +1423,116 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		}
 
 		cpu.XRegs.Write(rd, t)
+
+		return ExcpNone()
+	},
+
+	/*
+	 * RV32M
+	 */
+	MUL: func(cpu *CPU, raw, _ uint64) *Exception {
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		cpu.XRegs.Write(rd, uint64(int64(cpu.XRegs.Read(rs1))*int64(cpu.XRegs.Read(rs2))))
+		return ExcpNone()
+	},
+	MULH: func(cpu *CPU, raw, _ uint64) *Exception {
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		v1 := cpu.XRegs.Read(rs1)
+		v2 := cpu.XRegs.Read(rs2)
+		// multiply as signed * signed
+		bv1 := big.NewInt(int64(v1))
+		bv2 := big.NewInt(int64(v2))
+		bv1.Mul(bv1, bv2) // bv1 = bv1 * bv2
+		bv1.Rsh(bv1, 64)  // bv1 = bv1 >> 64
+		cpu.XRegs.Write(rd, bv1.Uint64())
+		return ExcpNone()
+	},
+	MULHSU: func(cpu *CPU, raw, _ uint64) *Exception {
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		v1 := cpu.XRegs.Read(rs1)
+		v2 := cpu.XRegs.Read(rs2)
+		// multiply as signed * unsigned
+		var bv1, bv2 big.Int
+		bv1.SetInt64(int64(v1))
+		bv2.SetUint64(v2)
+		bv1.Mul(&bv1, &bv2) // bv1 = bv1 * bv2
+		bv1.Rsh(&bv1, 64)   // bv1 = bv1 >> 64
+		cpu.XRegs.Write(rd, uint64(bv1.Int64()))
+		return ExcpNone()
+	},
+	MULHU: func(cpu *CPU, raw, _ uint64) *Exception {
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		v1 := cpu.XRegs.Read(rs1)
+		v2 := cpu.XRegs.Read(rs2)
+		// multiply as unsigned * unsigned
+		var bv1, bv2 big.Int
+		bv1.SetUint64(v1)
+		bv2.SetUint64(v2)
+		bv1.Mul(&bv1, &bv2) // bv1 = bv1 * bv2
+		bv1.Rsh(&bv1, 64)   // bv1 = bv1 >> 64
+		cpu.XRegs.Write(rd, bv1.Uint64())
+		return ExcpNone()
+	},
+	DIV: func(cpu *CPU, raw, _ uint64) *Exception {
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		dividend := int64(cpu.XRegs.Read(rs1))
+		divisor := int64(cpu.XRegs.Read(rs2))
+		if divisor == 0 {
+			// Division by 0. Set a special flag
+			v := cpu.CSR.Read(CsrFCSR)
+			v = setBit(v, 3) // DZ (Divided by Zero flag)
+			cpu.CSR.Write(CsrFCSR, v)
+			cpu.XRegs.Write(rd, 0xffff_ffff_ffff_ffff)
+		} else if dividend == math.MinInt64 && divisor == -1 {
+			cpu.XRegs.Write(rd, uint64(dividend))
+		} else {
+			cpu.XRegs.Write(rd, uint64(dividend/divisor))
+		}
+
+		return ExcpNone()
+	},
+	DIVU: func(cpu *CPU, raw, _ uint64) *Exception {
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		dividend := cpu.XRegs.Read(rs1)
+		divisor := cpu.XRegs.Read(rs2)
+		if divisor == 0 {
+			// Division by 0. Set a special flag
+			v := cpu.CSR.Read(CsrFCSR)
+			v = setBit(v, 3) // DZ (Divided by Zero flag)
+			cpu.CSR.Write(CsrFCSR, v)
+			cpu.XRegs.Write(rd, 0xffff_ffff_ffff_ffff)
+		} else {
+			cpu.XRegs.Write(rd, dividend/divisor)
+		}
+
+		return ExcpNone()
+	},
+	REM: func(cpu *CPU, raw, _ uint64) *Exception {
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		dividend := int64(cpu.XRegs.Read(rs1))
+		divisor := int64(cpu.XRegs.Read(rs2))
+		if divisor == 0 {
+			// Division by 0.
+			cpu.XRegs.Write(rd, uint64(dividend))
+		} else if dividend == math.MinInt64 && divisor == -1 {
+			// overflow. reminder is 0
+			cpu.XRegs.Write(rd, 0)
+		} else {
+			cpu.XRegs.Write(rd, uint64(dividend%divisor))
+		}
+
+		return ExcpNone()
+	},
+	REMU: func(cpu *CPU, raw, _ uint64) *Exception {
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		dividend := cpu.XRegs.Read(rs1)
+		divisor := cpu.XRegs.Read(rs2)
+		if divisor == 0 {
+			// Division by 0.
+			cpu.XRegs.Write(rd, dividend)
+		} else {
+			cpu.XRegs.Write(rd, dividend%divisor)
+		}
 
 		return ExcpNone()
 	},
