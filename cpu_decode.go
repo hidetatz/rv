@@ -16,28 +16,62 @@ func (cpu *CPU) Decode(inst uint64) InstructionCode {
 			switch funct7 {
 			case 0b000_0000:
 				return ADD
+			case 0b000_0001:
+				return MUL
 			case 0b010_0000:
 				return SUB
 			}
 		case 0b001:
-			return SLL
+			switch funct7 {
+			case 0b000_0001:
+				return MULH
+			default:
+				return SLL
+			}
 		case 0b010:
-			return SLT
+			switch funct7 {
+			case 0b000_0001:
+				return MULHSU
+			default:
+				return SLT
+			}
 		case 0b011:
-			return SLTU
+			switch funct7 {
+			case 0b000_0001:
+				return MULHU
+			default:
+				return SLTU
+			}
 		case 0b100:
-			return XOR
+			switch funct7 {
+			case 0b000_0001:
+				return DIV
+			default:
+				return XOR
+			}
 		case 0b101:
 			switch funct7 {
 			case 0b000_0000:
 				return SRL
+			case 0b000_0001:
+				return DIVU
 			case 0b010_0000:
 				return SRA
 			}
 		case 0b110:
-			return OR
+			switch funct7 {
+			case 0b000_0001:
+				return REM
+			default:
+				return OR
+			}
 		case 0b111:
-			return AND
+			switch funct7 {
+			case 0b000_0001:
+				return REMU
+			default:
+				return AND
+			}
 		}
 	case 0b110_0111:
 		return JALR
@@ -171,6 +205,19 @@ func (cpu *CPU) Decode(inst uint64) InstructionCode {
 				return SLLW
 			case 0b101:
 				return SRLW
+			}
+		case 0b000_0001:
+			switch funct3 {
+			case 0b000:
+				return MULW
+			case 0b100:
+				return DIVW
+			case 0b101:
+				return DIVUW
+			case 0b110:
+				return REMW
+			case 0b111:
+				return REMUW
 			}
 		case 0b010_0000:
 			switch funct3 {

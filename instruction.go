@@ -203,6 +203,27 @@ const (
 	AMOMAX_D  = InstructionCode("AMOMAX_D")
 	AMOMINU_D = InstructionCode("AMOMINU_D")
 	AMOMAXU_D = InstructionCode("AMOMAXU_D")
+
+	/*
+	 * RV32M
+	 */
+	MUL    = InstructionCode("MUL")
+	MULH   = InstructionCode("MULH")
+	MULHSU = InstructionCode("MULHSU")
+	MULHU  = InstructionCode("MULHU")
+	DIV    = InstructionCode("DIV")
+	DIVU   = InstructionCode("DIVU")
+	REM    = InstructionCode("REM")
+	REMU   = InstructionCode("REMU")
+
+	/*
+	 * RV64M
+	 */
+	MULW  = InstructionCode("MULW")
+	DIVW  = InstructionCode("DIVW")
+	DIVUW = InstructionCode("DIVUW")
+	REMW  = InstructionCode("REMW")
+	REMUW = InstructionCode("REMUW")
 )
 
 func (ic InstructionCode) String() string {
