@@ -3,9 +3,16 @@
 rv is a 64-bit RISC-V emulator written in Go.
 It only supports running ELF binary.
 
+## Limitation
+
+* 32-bit, 128-bit aren't supported.
+* Multi-core emulation isn't supported.
+* release/acquire bits are not handled in AMO instructions.
+  - rv currently emulates only one hart, so this is not really a problem.
+
 ## Installation
 
-```
+```shell
 go install github.com/hidetatz/rv@latest
 ```
 
@@ -13,11 +20,20 @@ go install github.com/hidetatz/rv@latest
 
 Pass an ELF program to run to `rv`.
 
-```
+```shell
 rv -p ./hello
 ```
 
 Debug log will be enabled if `-d` option is passed (note that this dumps all the executed instructions and some other information).
+
+## Test
+
+rv uses [riscv-tests](https://github.com/riscv-software-src/riscv-tests) as its E2E test.
+You can run that by following command:
+
+```shell
+go test -v ./...
+```
 
 ## Supported instructions
 
@@ -37,9 +53,16 @@ For the full list of the implemented instructions, see [instruction.go](./instru
 ## Supported features
 
 - [x] ELF binary load
-- [ ] Sv39 (Virtual memory)
+- [ ] Sv39 (Virtual memory translation)
 - [x] CSR
+- [ ] Trap
+  - [x] Exception
+  - [ ] Interrupt
 - [ ] Devices
+  - [ ] UART
+  - [ ] PLIC
+  - [ ] CLINT
+  - [ ] VirtIO
 
 ## LICENSE
 
