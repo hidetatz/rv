@@ -1151,6 +1151,7 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 	 * RV32A
 	 * Note that currently AMO is not implemented atomically because
 	 * rv just runs on single goroutine and no out-of-order execution happens.
+	 * Also, rl/aq are not handled.
 	 */
 	LR_W: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1 := bits(raw, 11, 7), bits(raw, 19, 15)
