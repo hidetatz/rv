@@ -1537,6 +1537,78 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 
 		return ExcpNone()
 	},
+
+	/*
+	 * RV64M
+	 */
+	MULW: func(cpu *CPU, raw, _ uint64) *Exception {
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		cpu.XRegs.Write(rd, uint64(int64(int32(cpu.XRegs.Read(rs1))*int32(cpu.XRegs.Read(rs2)))))
+		return ExcpNone()
+	},
+	DIVW: func(cpu *CPU, raw, _ uint64) *Exception {
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		dividend := int32(cpu.XRegs.Read(rs1))
+		divisor := int32(cpu.XRegs.Read(rs2))
+		if divisor == 0 {
+			// Division by 0. Set a special flag
+			v := cpu.CSR.Read(CsrFCSR)
+			v = setBit(v, 3) // DZ (Divided by Zero flag)
+			cpu.CSR.Write(CsrFCSR, v)
+			cpu.XRegs.Write(rd, 0xffff_ffff_ffff_ffff)
+		} else if dividend == math.MinInt32 && divisor == -1 {
+			cpu.XRegs.Write(rd, uint64(int64(dividend)))
+		} else {
+			cpu.XRegs.Write(rd, uint64(int64(dividend/divisor)))
+		}
+
+		return ExcpNone()
+	},
+	DIVUW: func(cpu *CPU, raw, _ uint64) *Exception {
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		dividend := uint32(cpu.XRegs.Read(rs1))
+		divisor := uint32(cpu.XRegs.Read(rs2))
+		if divisor == 0 {
+			// Division by 0. Set a special flag
+			v := cpu.CSR.Read(CsrFCSR)
+			v = setBit(v, 3) // DZ (Divided by Zero flag)
+			cpu.CSR.Write(CsrFCSR, v)
+			cpu.XRegs.Write(rd, 0xffff_ffff_ffff_ffff)
+		} else {
+			cpu.XRegs.Write(rd, uint64(int64(int32(dividend/divisor))))
+		}
+
+		return ExcpNone()
+	},
+	REMW: func(cpu *CPU, raw, _ uint64) *Exception {
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		dividend := int32(cpu.XRegs.Read(rs1))
+		divisor := int32(cpu.XRegs.Read(rs2))
+		if divisor == 0 {
+			// Division by 0.
+			cpu.XRegs.Write(rd, uint64(int64(dividend)))
+		} else if dividend == math.MinInt32 && divisor == -1 {
+			// overflow. reminder is 0
+			cpu.XRegs.Write(rd, 0)
+		} else {
+			cpu.XRegs.Write(rd, uint64(int64(dividend%divisor)))
+		}
+
+		return ExcpNone()
+	},
+	REMUW: func(cpu *CPU, raw, _ uint64) *Exception {
+		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
+		dividend := uint32(cpu.XRegs.Read(rs1))
+		divisor := uint32(cpu.XRegs.Read(rs2))
+		if divisor == 0 {
+			// Division by 0.
+			cpu.XRegs.Write(rd, uint64(int64(int32(dividend))))
+		} else {
+			cpu.XRegs.Write(rd, uint64(int64(int32(dividend%divisor))))
+		}
+
+		return ExcpNone()
+	},
 }
 
 func ParseIImm(inst uint64) uint64 {
