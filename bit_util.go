@@ -19,3 +19,11 @@ func setBit(val uint64, pos int) uint64 {
 func clearBit(val uint64, pos int) uint64 {
 	return val & ^(1 << pos)
 }
+
+// signExtend extends the sign of the given unsigned value.
+// size must be the length of the value.
+// copied from: https://gist.github.com/Code-Hex/b113083b9631f63de9b9ddc72e8c703e
+func signExtend(v uint64, size int) uint64 {
+	tmp := 64 - size
+	return uint64((int64(v) << tmp) >> tmp)
+}

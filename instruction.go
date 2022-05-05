@@ -1267,14 +1267,6 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 	},
 }
 
-// signExtend extends the sign of the given unsigned value.
-// size must be the length of the value.
-// copied from: https://gist.github.com/Code-Hex/b113083b9631f63de9b9ddc72e8c703e
-func signExtend(v uint64, size int) uint64 {
-	tmp := 64 - size
-	return uint64((int64(v) << tmp) >> tmp)
-}
-
 // ParseIImm parses the immediate value in the given instruction as the I format.
 // In I format, inst[31:20] -> immediate[11:0].
 // Note that the immediate is sign-extended as per the format convention.
