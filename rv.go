@@ -79,7 +79,7 @@ func (r *RV) Start() error {
 			continue
 		}
 
-		if code := r.cpu.Read(r.tohost, Word); code != 0 {
+		if code, _ := r.cpu.Read(r.tohost, Word); code != 0 {
 			if code == 1 {
 				return nil
 			}

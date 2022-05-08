@@ -3,9 +3,9 @@ package main
 type MemoryAccessType int
 
 const (
-	Instruction MemoryAccessType = iota + 1
-	Load
-	Store
+	MemoryAccessTypeInstruction MemoryAccessType = iota + 1
+	MemoryAccessTypeLoad
+	MemoryAccessTypeStore
 )
 
 const (
@@ -21,11 +21,11 @@ const (
 func (cpu *CPU) TranslateMem(virtualAddr uint64, at MemoryAccessType) (uint64, *Exception) {
 	fault := func() *Exception {
 		switch at {
-		case Instruction:
+		case MemoryAccessTypeInstruction:
 			return ExcpInstructionPageFault(virtualAddr)
-		case Load:
+		case MemoryAccessTypeLoad:
 			return ExcpLoadPageFault(virtualAddr)
-		case Store:
+		case MemoryAccessTypeStore:
 			return ExcpStoreAMOPageFault(virtualAddr)
 		}
 
@@ -34,6 +34,10 @@ func (cpu *CPU) TranslateMem(virtualAddr uint64, at MemoryAccessType) (uint64, *
 
 	// SATP register must be active which means the privilege mode must be S or U.
 	if cpu.Mode == Machine {
+		return virtualAddr, ExcpNone()
+	}
+
+	if !cpu.PagingEnabled {
 		return virtualAddr, ExcpNone()
 	}
 
@@ -52,7 +56,7 @@ func (cpu *CPU) TranslateMem(virtualAddr uint64, at MemoryAccessType) (uint64, *
 
 	for {
 		// pte = the value of the PTE at address a + vpn[i] * PTESize.
-		pte = cpu.Read(a+vpn[i]*PTESize, DoubleWord)
+		pte = cpu.Bus.Read(a+vpn[i]*PTESize, DoubleWord)
 
 		// PMA/PMP check is skipped.
 		// TODO: Do PMA/PMP check.
@@ -104,13 +108,13 @@ func (cpu *CPU) TranslateMem(virtualAddr uint64, at MemoryAccessType) (uint64, *
 
 	pteA := bit(pte, 6)
 	pteD := bit(pte, 7)
-	if pteA == 0 || (at == Store && pteD == 0) {
+	if pteA == 0 || (at == MemoryAccessTypeStore && pteD == 0) {
 		// PMA/PMP check is skipped.
 		// TODO: Do the check.
 
 		// set a and d in pte
 		pte = setBit(pte, 6)
-		if at == Store {
+		if at == MemoryAccessTypeStore {
 			pte = setBit(pte, 7)
 		}
 	}

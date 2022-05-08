@@ -111,6 +111,9 @@ type CPU struct {
 	// Wfi represents "wait for interrupt". When this is true, CPU does not run until
 	// an interrupt occurs.
 	Wfi bool
+
+	// If true, virtual->physical address translation is made.
+	PagingEnabled bool
 }
 
 // NewCPU returns an empty CPU.
@@ -118,29 +121,84 @@ type CPU struct {
 // so it must be loaded before the execution.
 func NewCPU() *CPU {
 	return &CPU{
-		PC:          0,
-		Bus:         NewBus(),
-		Mode:        Machine,
-		CSR:         NewCSR(),
-		XLen:        XLen64,
-		XRegs:       NewRegisters(),
-		FRegs:       NewFRegisters(),
-		Reservation: NewReservation(),
+		PC:            0,
+		Bus:           NewBus(),
+		Mode:          Machine,
+		CSR:           NewCSR(),
+		XLen:          XLen64,
+		XRegs:         NewRegisters(),
+		FRegs:         NewFRegisters(),
+		Reservation:   NewReservation(),
+		PagingEnabled: false,
 	}
 }
 
-func (cpu *CPU) Read(addr uint64, size Size) uint64 {
-	return cpu.Bus.Read(addr, size)
+func (cpu *CPU) Read(addr uint64, size Size) (uint64, *Exception) {
+	origMode := cpu.Mode
+
+	mstatus := cpu.CSR.Read(CsrMSTATUS)
+	if bit(mstatus, CsrStatusMPRV) == 1 {
+		switch bits(mstatus, CsrStatusMPPHi, CsrStatusMPPLo) {
+		case 0b00:
+			cpu.Mode = User
+		case 0b01:
+			cpu.Mode = Supervisor
+		case 0b11:
+			cpu.Mode = Machine
+		}
+	}
+
+	pAddr, excp := cpu.TranslateMem(addr, MemoryAccessTypeLoad)
+	if excp.Code != ExcpCodeNone {
+		return 0, excp
+	}
+
+	r := cpu.Bus.Read(pAddr, size)
+
+	mstatus = cpu.CSR.Read(CsrMSTATUS)
+	if bit(mstatus, CsrStatusMPRV) == 1 {
+		cpu.Mode = origMode
+	}
+
+	return r, ExcpNone()
+
 }
 
-func (cpu *CPU) Write(addr, val uint64, size Size) {
+func (cpu *CPU) Write(addr, val uint64, size Size) *Exception {
+	origMode := cpu.Mode
+
+	mstatus := cpu.CSR.Read(CsrMSTATUS)
+	if bit(mstatus, CsrStatusMPRV) == 1 {
+		switch bits(mstatus, CsrStatusMPPHi, CsrStatusMPPLo) {
+		case 0b00:
+			cpu.Mode = User
+		case 0b01:
+			cpu.Mode = Supervisor
+		case 0b11:
+			cpu.Mode = Machine
+		}
+	}
+
 	// Cancel reserved memory to make SC fail when an write is called
 	// between LR and SC.
 	if cpu.Reservation.IsReserved(addr) {
 		cpu.Reservation.Cancel(addr)
 	}
 
-	cpu.Bus.Write(addr, val, size)
+	pAddr, excp := cpu.TranslateMem(addr, MemoryAccessTypeStore)
+	if excp.Code != ExcpCodeNone {
+		return excp
+	}
+
+	cpu.Bus.Write(pAddr, val, size)
+
+	mstatus = cpu.CSR.Read(CsrMSTATUS)
+	if bit(mstatus, CsrStatusMPRV) == 1 {
+		cpu.Mode = origMode
+	}
+
+	return ExcpNone()
+
 }
 
 // Run executes one fetch-decode-exec.
@@ -157,14 +215,21 @@ func (cpu *CPU) Run() Trap {
 
 	var code InstructionCode
 
-	// As of here, we are not sure if the next instruction is compressed. First we have to figure that out.
-	raw := cpu.Fetch(HalfWord)
+	raw, excp := cpu.Fetch(HalfWord)
+	if excp.Code != ExcpCodeNone {
+		return cpu.HandleException(cur, excp)
+	}
 
+	// As of here, we are not sure if the next instruction is compressed. First we have to figure that out.
 	if IsCompressed(raw) {
 		code = cpu.DecodeCompressed(raw)
 		cpu.PC += 2
 	} else {
-		raw = cpu.Fetch(Word)
+		raw, excp = cpu.Fetch(Word)
+		if excp.Code != ExcpCodeNone {
+			return cpu.HandleException(cur, excp)
+		}
+
 		code = cpu.Decode(raw)
 		cpu.PC += 4
 	}
@@ -174,7 +239,7 @@ func (cpu *CPU) Run() Trap {
 		return cpu.HandleException(cur, ExcpIllegalInstruction(raw))
 	}
 
-	excp := cpu.Exec(code, raw, cur)
+	excp = cpu.Exec(code, raw, cur)
 
 	Debug("------")
 	Debug(fmt.Sprintf("PC:0x%x	inst:%032b	code:%s	next:0x%x", cur, raw, code, cpu.PC))
@@ -190,8 +255,13 @@ func (cpu *CPU) Run() Trap {
 }
 
 // Fetch reads the program-counter address of the memory then returns the read binary.
-func (cpu *CPU) Fetch(size Size) uint64 {
-	return cpu.Read(cpu.PC, size)
+func (cpu *CPU) Fetch(size Size) (uint64, *Exception) {
+	pAddr, excp := cpu.TranslateMem(cpu.PC, MemoryAccessTypeInstruction)
+	if excp.Code != ExcpCodeNone {
+		return 0, excp
+	}
+
+	return cpu.Bus.Read(pAddr, size), ExcpNone()
 }
 
 // Exec executes the decoded instruction.
@@ -209,6 +279,15 @@ func IsCompressed(inst uint64) bool {
 	last2bit := inst & 0b11
 	// if the last 2-bit is one of 00/01/10, it is 16-bit instruction.
 	return last2bit == 0b00 || last2bit == 0b01 || last2bit == 0b10
+}
+
+func (cpu *CPU) UpdatePagingEnabled() {
+	satp := cpu.CSR.Read(CsrSATP)
+	if bits(satp, 63, 60) == 0b1000 { // 0b1000 is SV39
+		cpu.PagingEnabled = true
+	} else {
+		cpu.PagingEnabled = false
+	}
 }
 
 // HandleException catches the raised exception and manipulates CSR and program counter based on
