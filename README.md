@@ -6,6 +6,7 @@ It only supports running ELF binary.
 ## Limitation
 
 * 32-bit, 128-bit aren't supported.
+  - Only RV39 is supported as memory translation.
 * Multi-core emulation isn't supported.
 * release/acquire bits are not handled in AMO instructions.
   - rv currently emulates only one hart, so this is not really a problem.
@@ -55,7 +56,7 @@ For the full list of the implemented instructions, see [instruction.go](./instru
 ## Supported features
 
 - [x] ELF binary load
-- [ ] Sv39 (Virtual memory translation)
+- [x] Virtual -> Physical memory translation (Sv39)
 - [x] CSR
 - [ ] Trap
   - [x] Exception
