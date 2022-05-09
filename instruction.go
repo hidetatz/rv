@@ -1042,6 +1042,13 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 			cpu.Mode = User
 		case 0b1:
 			cpu.Mode = Supervisor
+
+			// MPRV must be set 0 if the mode is not Machine.
+			if cpu.Mode == Supervisor {
+				mstatus := cpu.CSR.Read(CsrMSTATUS)
+				mstatus = clearBit(mstatus, CsrStatusMPRV)
+				cpu.CSR.Write(CsrMSTATUS, mstatus)
+			}
 		default:
 			// should not happen
 			panic("invalid CSR SPP")
@@ -1064,13 +1071,6 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 
 		// update SSTATUS
 		cpu.CSR.Write(CsrSSTATUS, sstatus)
-
-		// MPRV must be set 0 if the mode is not Machine.
-		if cpu.Mode == Supervisor {
-			mstatus := cpu.CSR.Read(CsrMSTATUS)
-			mstatus = clearBit(mstatus, CsrStatusMPRV)
-			cpu.CSR.Write(CsrMSTATUS, mstatus)
-		}
 
 		return ExcpNone()
 	},

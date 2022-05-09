@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 type MemoryAccessType int
 
 const (
@@ -62,9 +64,11 @@ func (cpu *CPU) TranslateMem(virtualAddr uint64, at MemoryAccessType) (uint64, *
 		// TODO: Do PMA/PMP check.
 
 		// Validate PTE
-		pteV := bit(pte, 1)
-		pteR := bit(pte, 2)
-		pteW := bit(pte, 3)
+		pteV := bit(pte, 0)
+		pteR := bit(pte, 1)
+		pteW := bit(pte, 2)
+
+		fmt.Printf("%b\n", pte)
 		if pteV == 0 || (pteR == 0 && pteW == 1) {
 			// "Any bits or encodings that are reserved for future standard use are set within pte" check is skipped.
 			// TODO: Do the check.
@@ -75,7 +79,7 @@ func (cpu *CPU) TranslateMem(virtualAddr uint64, at MemoryAccessType) (uint64, *
 
 		// PTE must be valid.
 
-		pteX := bit(pte, 4)
+		pteX := bit(pte, 3)
 		if pteR == 1 || pteX == 1 {
 			// if pte.r = 1 or pte.w = 1, the PTE is the last entry. Go to next step.
 			break
