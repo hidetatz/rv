@@ -222,7 +222,7 @@ func (cpu *CPU) Run() Trap {
 
 	// As of here, we are not sure if the next instruction is compressed. First we have to figure that out.
 	if IsCompressed(raw) {
-		code = cpu.DecodeCompressed(raw)
+		code = DecodeCompressed(raw)
 		cpu.PC += 2
 	} else {
 		raw, excp = cpu.Fetch(Word)
@@ -230,7 +230,7 @@ func (cpu *CPU) Run() Trap {
 			return cpu.HandleException(cur, excp)
 		}
 
-		code = cpu.Decode(raw)
+		code = Decode(raw)
 		cpu.PC += 4
 	}
 
