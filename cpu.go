@@ -8,10 +8,12 @@ import (
 type XLen uint8
 
 const (
+	// XLen32 indicates the 32-bit adressing mode.
+	XLen32 XLen = iota + 1
 	// XLen64 indicates the 64-bit adressing mode.
-	XLen64 = iota + 1
+	XLen64
 
-	// 32, 128 are not supported in rv.
+	// 128-bit is not supported in rv.
 )
 
 // Size is the length of memory.
