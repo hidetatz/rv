@@ -26,19 +26,6 @@ const (
 	DoubleWord Size = 64
 )
 
-// Mode is RISC-V machine status for privilege architecture.
-type Mode uint8
-
-const (
-	// User is a mode for application which runs on operating system.
-	User Mode = iota + 1
-	// Supervisor is a mode for operating system.
-	Supervisor
-	// Machine is a mode for RISC-V hart internal operation.
-	// This sometimes is called kernal-mode or protect-mode in other architecture.
-	Machine
-)
-
 // Bus is a devices which is connected to the CPU,
 // such as memory and some memory-mapped IO devices.
 type Bus struct {
