@@ -190,13 +190,35 @@ func IsCompressed(inst uint64) bool {
 	return last2bit == 0b00 || last2bit == 0b01 || last2bit == 0b10
 }
 
-func (cpu *CPU) UpdatePagingEnabled() {
-	satp := cpu.CSR.Read(CsrSATP)
-	if bits(satp, 63, 60) == 0b1000 { // 0b1000 is SV39
-		cpu.PagingEnabled = true
-	} else {
-		cpu.PagingEnabled = false
+func (cpu *CPU) UpdateAddressingMode(v uint64) {
+	var am AddressingMode
+	switch cpu.XLen {
+	case XLen32:
+		if v&0x8000_0000 == 0 {
+			am = AddressingModeNone
+		} else {
+			am = AddressingModeSV32
+		}
+	case XLen64:
+		if v>>60 == 0 {
+			am = AddressingModeNone
+		} else if v>>60 == 8 {
+			am = AddressingModeSV39
+		} else {
+			panic("unsupported addressing mode!")
+		}
 	}
+
+	var ppn uint64
+	switch cpu.XLen {
+	case XLen32:
+		ppn = v & 0x3fffff
+	case XLen64:
+		ppn = v & 0xfffffffffff
+	}
+
+	cpu.MMU.AddressingMode = am
+	cpu.MMU.PPN = ppn
 }
 
 // HandleException catches the raised exception and manipulates CSR and program counter based on

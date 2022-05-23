@@ -1146,9 +1146,13 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
 		imm = imm & 0b111111111111
 		t := cpu.CSR.Read(imm)
-		cpu.CSR.Write(imm, cpu.XRegs.Read(rs1))
+		v := cpu.XRegs.Read(rs1)
+		cpu.CSR.Write(imm, v)
 		cpu.XRegs.Write(rd, t)
-		cpu.UpdatePagingEnabled()
+
+		if imm == CsrSATP {
+			cpu.UpdateAddressingMode(v)
+		}
 
 		return ExcpNone()
 	},
@@ -1156,9 +1160,13 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
 		imm = imm & 0b111111111111
 		t := cpu.CSR.Read(imm)
-		cpu.CSR.Write(imm, (t | cpu.XRegs.Read(rs1)))
+		v := t | cpu.XRegs.Read(rs1)
+		cpu.CSR.Write(imm, v)
 		cpu.XRegs.Write(rd, t)
-		cpu.UpdatePagingEnabled()
+
+		if imm == CsrSATP {
+			cpu.UpdateAddressingMode(v)
+		}
 
 		return ExcpNone()
 	},
@@ -1166,9 +1174,13 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
 		imm = imm & 0b111111111111
 		t := cpu.CSR.Read(imm)
-		cpu.CSR.Write(imm, (t & ^(cpu.XRegs.Read(rs1))))
+		v := t & ^(cpu.XRegs.Read(rs1))
+		cpu.CSR.Write(imm, v)
 		cpu.XRegs.Write(rd, t)
-		cpu.UpdatePagingEnabled()
+
+		if imm == CsrSATP {
+			cpu.UpdateAddressingMode(v)
+		}
 
 		return ExcpNone()
 	},
@@ -1177,7 +1189,10 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		csr = csr & 0b111111111111
 		cpu.XRegs.Write(rd, cpu.CSR.Read(csr))
 		cpu.CSR.Write(csr, imm)
-		cpu.UpdatePagingEnabled()
+
+		if csr == CsrSATP {
+			cpu.UpdateAddressingMode(imm)
+		}
 
 		return ExcpNone()
 	},
@@ -1185,9 +1200,13 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
 		imm = imm & 0b111111111111
 		t := cpu.CSR.Read(imm)
-		cpu.CSR.Write(imm, (t | rs1)) // RS1 is zimm
+		v := t | rs1
+		cpu.CSR.Write(imm, v) // RS1 is zimm
 		cpu.XRegs.Write(rd, t)
-		cpu.UpdatePagingEnabled()
+
+		if imm == CsrSATP {
+			cpu.UpdateAddressingMode(v)
+		}
 
 		return ExcpNone()
 	},
@@ -1195,9 +1214,13 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
 		imm = imm & 0b111111111111
 		t := cpu.CSR.Read(imm)
-		cpu.CSR.Write(imm, (t & ^(rs1)))
+		v := t & ^(rs1)
+		cpu.CSR.Write(imm, v)
 		cpu.XRegs.Write(rd, t)
-		cpu.UpdatePagingEnabled()
+
+		if imm == CsrSATP {
+			cpu.UpdateAddressingMode(v)
+		}
 
 		return ExcpNone()
 	},
