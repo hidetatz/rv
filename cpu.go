@@ -122,8 +122,6 @@ func (cpu *CPU) Run() Trap {
 		return TrapRequested
 	}
 
-	// TODO: eventually physical <-> virtual memory translation must take place here.
-
 	// save current PC
 	cur := cpu.PC
 
@@ -149,7 +147,6 @@ func (cpu *CPU) Run() Trap {
 	}
 
 	if code == _INVALID {
-		// TODO: fix
 		return cpu.HandleException(cur, ExcpIllegalInstruction(raw))
 	}
 
