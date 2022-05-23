@@ -26,27 +26,6 @@ const (
 	DoubleWord Size = 64
 )
 
-// Bus is a devices which is connected to the CPU,
-// such as memory and some memory-mapped IO devices.
-type Bus struct {
-	Memory *Memory
-}
-
-// NewBus returns an initialized bus.
-func NewBus() *Bus {
-	return &Bus{
-		Memory: NewMemory(),
-	}
-}
-
-func (bus *Bus) Read(addr uint64, size Size) uint64 {
-	return bus.Memory.Read(addr, size)
-}
-
-func (bus *Bus) Write(addr, val uint64, size Size) {
-	bus.Memory.Write(addr, val, size)
-}
-
 // Reservation is a reserved memory emulation module by LR/SC instructions.
 // The internal map contains reserved mem address.
 // Before implementing multi-core emulation, probably the map value must be changed to
