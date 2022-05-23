@@ -60,8 +60,8 @@ func (r *Reservation) Cancel(addr uint64) {
 type CPU struct {
 	// program counter
 	PC uint64
-	// System Bus
-	Bus *Bus
+	// Memory management unit
+	MMU *MMU
 	// CPU mode
 	Mode Mode
 	XLen XLen
@@ -87,13 +87,13 @@ type CPU struct {
 // NewCPU returns an empty CPU.
 // As of the CPU initialized, the memory does not contain any program,
 // so it must be loaded before the execution.
-func NewCPU() *CPU {
+func NewCPU(xlen XLen) *CPU {
 	return &CPU{
 		PC:            0,
-		Bus:           NewBus(),
+		MMU:           NewMMU(xlen),
 		Mode:          Machine,
 		CSR:           NewCSR(),
-		XLen:          XLen64,
+		XLen:          xlen,
 		XRegs:         NewRegisters(),
 		FRegs:         NewFRegisters(),
 		Reservation:   NewReservation(),

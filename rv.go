@@ -14,15 +14,10 @@ type RV struct {
 // New initializes and returns the RISC-V emulator rv.
 // The argument program must be the ELF binary which is built for RISC-V architecture.
 func New(prog []byte) (*RV, error) {
-	cpu := NewCPU()
 
 	elf, err := LoadELF(prog)
 	if err != nil {
 		return nil, fmt.Errorf("Load ELF file: %w", err)
-	}
-
-	if elf.Header.Class != 2 { // 64-bit
-		return nil, fmt.Errorf("ELF class is not 64-bit but %d. Cannot execute", elf.Header.Class)
 	}
 
 	if elf.Header.Data != 1 { // Little endian
@@ -40,6 +35,13 @@ func New(prog []byte) (*RV, error) {
 	if elf.Header.PhNum == 0 { // assert just in case
 		return nil, fmt.Errorf("ELF contains no program headers. Cannot execute")
 	}
+
+	xlen := XLen32
+	if elf.Header.Class == 2 {
+		xlen = XLen64
+	}
+
+	cpu := NewCPU(xlen)
 
 	for _, p := range elf.Programs {
 		if p.Type != 1 { // PT_LOAD
