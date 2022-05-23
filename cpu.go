@@ -287,6 +287,7 @@ func (cpu *CPU) HandleException(pc uint64, excp *Exception) Trap {
 		}
 
 		cpu.CSR.Write(CsrMSTATUS, status)
+		cpu.MMU.Mstatus = cpu.CSR.Read(CsrMSTATUS)
 	case Supervisor:
 		// SEPC is written with the virtual address of the instruction that was
 		// interrupted or that encountered the exception.
@@ -327,6 +328,7 @@ func (cpu *CPU) HandleException(pc uint64, excp *Exception) Trap {
 		}
 
 		cpu.CSR.Write(CsrSSTATUS, status)
+		cpu.MMU.Mstatus = cpu.CSR.Read(CsrMSTATUS)
 	case User:
 		// UEPC is written with the virtual address of the instruction that was
 		// interrupted or that encountered the exception.
