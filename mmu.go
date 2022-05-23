@@ -40,7 +40,7 @@ func (mmu *MMU) Fetch(vAddr uint64, size Size, curMode Mode) (uint64, *Exception
 		return 0, excp
 	}
 
-	return mmu.Bus.Memory.Read(pAddr, size), ExcpNone()
+	return mmu.Bus.Read(pAddr, size), ExcpNone()
 }
 
 func (mmu *MMU) Read(vAddr uint64, size Size, curMode Mode) (uint64, *Exception) {
@@ -49,7 +49,7 @@ func (mmu *MMU) Read(vAddr uint64, size Size, curMode Mode) (uint64, *Exception)
 		return 0, excp
 	}
 
-	return mmu.Bus.Memory.Read(pAddr, size), ExcpNone()
+	return mmu.Bus.Read(pAddr, size), ExcpNone()
 }
 
 func (mmu *MMU) Write(vAddr, val uint64, size Size, curMode Mode) *Exception {
@@ -58,7 +58,7 @@ func (mmu *MMU) Write(vAddr, val uint64, size Size, curMode Mode) *Exception {
 		return excp
 	}
 
-	mmu.Bus.Memory.Write(pAddr, val, size)
+	mmu.Bus.Write(pAddr, val, size)
 	return ExcpNone()
 }
 
