@@ -102,71 +102,17 @@ func NewCPU(xlen XLen) *CPU {
 }
 
 func (cpu *CPU) Read(addr uint64, size Size) (uint64, *Exception) {
-	origMode := cpu.Mode
-
-	mstatus := cpu.CSR.Read(CsrMSTATUS)
-	if bit(mstatus, CsrStatusMPRV) == 1 {
-		switch bits(mstatus, CsrStatusMPPHi, CsrStatusMPPLo) {
-		case 0b00:
-			cpu.Mode = User
-		case 0b01:
-			cpu.Mode = Supervisor
-		case 0b11:
-			cpu.Mode = Machine
-		}
-	}
-
-	pAddr, excp := cpu.TranslateMem(addr, MemoryAccessTypeLoad)
-	if excp.Code != ExcpCodeNone {
-		return 0, excp
-	}
-
-	r := cpu.Bus.Read(pAddr, size)
-
-	mstatus = cpu.CSR.Read(CsrMSTATUS)
-	if bit(mstatus, CsrStatusMPRV) == 1 {
-		cpu.Mode = origMode
-	}
-
-	return r, ExcpNone()
-
+	return cpu.MMU.Read(addr, size, cpu.Mode)
 }
 
 func (cpu *CPU) Write(addr, val uint64, size Size) *Exception {
-	origMode := cpu.Mode
-
-	mstatus := cpu.CSR.Read(CsrMSTATUS)
-	if bit(mstatus, CsrStatusMPRV) == 1 {
-		switch bits(mstatus, CsrStatusMPPHi, CsrStatusMPPLo) {
-		case 0b00:
-			cpu.Mode = User
-		case 0b01:
-			cpu.Mode = Supervisor
-		case 0b11:
-			cpu.Mode = Machine
-		}
-	}
-
 	// Cancel reserved memory to make SC fail when an write is called
 	// between LR and SC.
 	if cpu.Reservation.IsReserved(addr) {
 		cpu.Reservation.Cancel(addr)
 	}
 
-	pAddr, excp := cpu.TranslateMem(addr, MemoryAccessTypeStore)
-	if excp.Code != ExcpCodeNone {
-		return excp
-	}
-
-	cpu.Bus.Write(pAddr, val, size)
-
-	mstatus = cpu.CSR.Read(CsrMSTATUS)
-	if bit(mstatus, CsrStatusMPRV) == 1 {
-		cpu.Mode = origMode
-	}
-
-	return ExcpNone()
-
+	return cpu.MMU.Write(addr, val, size, cpu.Mode)
 }
 
 // Run executes one fetch-decode-exec.
@@ -224,12 +170,7 @@ func (cpu *CPU) Run() Trap {
 
 // Fetch reads the program-counter address of the memory then returns the read binary.
 func (cpu *CPU) Fetch(size Size) (uint64, *Exception) {
-	pAddr, excp := cpu.TranslateMem(cpu.PC, MemoryAccessTypeInstruction)
-	if excp.Code != ExcpCodeNone {
-		return 0, excp
-	}
-
-	return cpu.Bus.Read(pAddr, size), ExcpNone()
+	return cpu.MMU.Fetch(cpu.PC, size, cpu.Mode)
 }
 
 // Exec executes the decoded instruction.
