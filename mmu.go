@@ -85,12 +85,14 @@ func (mmu *MMU) Translate(vAddr uint64, at MemoryAccessType, curMode Mode) (uint
 			default:
 				return mmu.Translate(vAddr, at, CodeToMode(int(newPrivMode)))
 			}
-		default:
+		case User, Supervisor:
 			vpns := []uint64{
 				(vAddr >> 12) & 0x3ff,
 				(vAddr >> 22) & 0x3ff,
 			}
 			return mmu.TraversePage(vAddr, 2-1, mmu.PPN, vpns, at)
+		default:
+			return vAddr, ExcpNone()
 		}
 	case AddressingModeSV39:
 		switch curMode {
@@ -110,13 +112,15 @@ func (mmu *MMU) Translate(vAddr uint64, at MemoryAccessType, curMode Mode) (uint
 			default:
 				return mmu.Translate(vAddr, at, CodeToMode(int(newPrivMode)))
 			}
-		default:
+		case User, Supervisor:
 			vpns := []uint64{
 				(vAddr >> 12) & 0x1ff,
 				(vAddr >> 21) & 0x1ff,
 				(vAddr >> 30) & 0x1ff,
 			}
 			return mmu.TraversePage(vAddr, 3-1, mmu.PPN, vpns, at)
+		default:
+			return vAddr, ExcpNone()
 		}
 	default:
 		panic("should not come here")
@@ -156,19 +160,21 @@ func (mmu *MMU) TraversePage(vAddr uint64, level int, parentPPN uint64, vpns []u
 	var ppn uint64
 	var ppns []uint64
 	if mmu.AddressingMode == AddressingModeSV32 {
-		ppn = (pte >> 10) & 0x3fffff
+		ppn = (pte >> 10) & 0x3f_ffff
 		ppns = []uint64{
 			(pte >> 10) & 0x3ff,
 			(pte >> 20) & 0xfff,
 			0,
 		}
-	} else {
+	} else if mmu.AddressingMode == AddressingModeSV39 {
 		ppn = (pte >> 10) & 0xfffffffffff
 		ppns = []uint64{
 			(pte >> 10) & 0x1ff,
 			(pte >> 19) & 0x1ff,
-			(pte >> 28) & 0x3ffffff,
+			(pte >> 28) & 0x3ff_ffff,
 		}
+	} else {
+		panic("unexpected addressing mode!")
 	}
 
 	d := (pte >> 7) & 1
@@ -201,6 +207,8 @@ func (mmu *MMU) TraversePage(vAddr uint64, level int, parentPPN uint64, vpns []u
 		newPTE := pte | (1 << 6)
 		if at == MemoryAccessTypeStore {
 			newPTE |= (1 << 7)
+		} else {
+			newPTE |= 0
 		}
 
 		if mmu.AddressingMode == AddressingModeSV32 {
