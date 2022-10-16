@@ -18,7 +18,7 @@ const (
 
 // MMU emulates memory management unit in a processor.
 type MMU struct {
-	RAM            *Memory
+	ram            *Memory
 	xlen           int
 	AddressingMode AddressingMode
 	Mstatus        uint64
@@ -28,7 +28,7 @@ type MMU struct {
 func NewMMU(xlen int) *MMU {
 	return &MMU{
 		//Bus:            NewBus(),
-		RAM:            NewMemory(),
+		ram:            NewMemory(),
 		xlen:           xlen,
 		AddressingMode: AddressingModeNone,
 		PPN:            0,
@@ -41,7 +41,7 @@ func (mmu *MMU) Fetch(vAddr uint64, size int, curMode int) (uint64, *Exception) 
 		return 0, excp
 	}
 
-	return mmu.RAM.Read(pAddr, size), ExcpNone()
+	return mmu.ram.Read(pAddr, size), ExcpNone()
 }
 
 func (mmu *MMU) Read(vAddr uint64, size int, curMode int) (uint64, *Exception) {
@@ -50,7 +50,7 @@ func (mmu *MMU) Read(vAddr uint64, size int, curMode int) (uint64, *Exception) {
 		return 0, excp
 	}
 
-	return mmu.RAM.Read(pAddr, size), ExcpNone()
+	return mmu.ram.Read(pAddr, size), ExcpNone()
 }
 
 func (mmu *MMU) Write(vAddr, val uint64, size int, curMode int) *Exception {
@@ -59,7 +59,7 @@ func (mmu *MMU) Write(vAddr, val uint64, size int, curMode int) *Exception {
 		return excp
 	}
 
-	mmu.RAM.Write(pAddr, val, size)
+	mmu.ram.Write(pAddr, val, size)
 	return ExcpNone()
 }
 
@@ -153,9 +153,9 @@ func (mmu *MMU) TraversePage(vAddr uint64, level int, parentPPN uint64, vpns []u
 
 	var pte uint64
 	if mmu.AddressingMode == AddressingModeSV32 {
-		pte = mmu.RAM.Read(pteAddr, word)
+		pte = mmu.ram.Read(pteAddr, word)
 	} else {
-		pte = mmu.RAM.Read(pteAddr, doubleword)
+		pte = mmu.ram.Read(pteAddr, doubleword)
 	}
 
 	var ppn uint64
@@ -213,9 +213,9 @@ func (mmu *MMU) TraversePage(vAddr uint64, level int, parentPPN uint64, vpns []u
 		}
 
 		if mmu.AddressingMode == AddressingModeSV32 {
-			mmu.RAM.Write(pteAddr, newPTE, word)
+			mmu.ram.Write(pteAddr, newPTE, word)
 		} else {
-			mmu.RAM.Write(pteAddr, newPTE, doubleword)
+			mmu.ram.Write(pteAddr, newPTE, doubleword)
 		}
 	}
 
