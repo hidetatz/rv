@@ -1,7 +1,6 @@
 # rv
 
 rv is a 64-bit RISC-V emulator written in Go.
-It only supports running ELF binary.
 
 ## Limitation
 
@@ -52,20 +51,6 @@ go test -v ./...
 - [x] Privileged ISA
 
 For the full list of the implemented instructions, see [instruction.go](./instruction.go).
-
-## Supported features
-
-- [x] ELF binary load
-- [x] Virtual -> Physical memory translation (Sv39)
-- [x] CSR
-- [ ] Trap
-  - [x] Exception
-  - [ ] Interrupt
-- [ ] Devices
-  - [ ] UART
-  - [ ] PLIC
-  - [ ] CLINT
-  - [ ] VirtIO
 
 ## LICENSE
 
