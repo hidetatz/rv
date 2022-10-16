@@ -19,16 +19,16 @@ const (
 // MMU emulates memory management unit in a processor.
 type MMU struct {
 	Bus            *Bus
-	XLen           XLen
+	xlen           int
 	AddressingMode AddressingMode
 	Mstatus        uint64
 	PPN            uint64
 }
 
-func NewMMU(xlen XLen) *MMU {
+func NewMMU(xlen int) *MMU {
 	return &MMU{
 		Bus:            NewBus(),
-		XLen:           xlen,
+		xlen:           xlen,
 		AddressingMode: AddressingModeNone,
 		PPN:            0,
 	}
@@ -271,7 +271,7 @@ func (mmu *MMU) TraversePage(vAddr uint64, level int, parentPPN uint64, vpns []u
 }
 
 func (mmu *MMU) getEffectiveAddress(vAddr uint64) uint64 {
-	if mmu.XLen == XLen64 {
+	if mmu.xlen == xlen64 {
 		return vAddr
 	}
 

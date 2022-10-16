@@ -35,9 +35,9 @@ func New(prog []byte) (*RV, error) {
 		return nil, fmt.Errorf("ELF contains no program headers. Cannot execute")
 	}
 
-	xlen := XLen32
+	xlen := xlen32
 	if elf.Header.Class == 2 {
-		xlen = XLen64
+		xlen = xlen64
 	}
 
 	cpu := NewCPU(xlen)

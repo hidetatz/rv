@@ -4,18 +4,6 @@ import (
 	"fmt"
 )
 
-// XLen is an RISC-V addressing mode.
-type XLen uint8
-
-const (
-	// XLen32 indicates the 32-bit adressing mode.
-	XLen32 XLen = iota + 1
-	// XLen64 indicates the 64-bit adressing mode.
-	XLen64
-
-	// 128-bit is not supported in rv.
-)
-
 // Size is the length of memory.
 type Size uint8
 
@@ -61,6 +49,11 @@ const (
 	user       = 0
 	supervisor = 1
 	machine    = 3
+
+	// xlen
+	xlen32 = 1
+	xlen64 = 2
+	// 128-bit is not supported in rv.
 )
 
 // CPU is an processor emulator in rv.
@@ -71,7 +64,7 @@ type CPU struct {
 	MMU *MMU
 	// CPU mode
 	mode int
-	XLen XLen
+	xlen int
 
 	// Status registers
 	CSR *CSR
@@ -94,13 +87,13 @@ type CPU struct {
 // NewCPU returns an empty CPU.
 // As of the CPU initialized, the memory does not contain any program,
 // so it must be loaded before the execution.
-func NewCPU(xlen XLen) *CPU {
+func NewCPU(xlen int) *CPU {
 	return &CPU{
 		PC:            0,
 		MMU:           NewMMU(xlen),
 		mode:          machine,
 		CSR:           NewCSR(),
-		XLen:          xlen,
+		xlen:          xlen,
 		xregs:         [32]uint64{},
 		fregs:         [32]float64{},
 		Reservation:   NewReservation(),
@@ -218,14 +211,14 @@ func IsCompressed(inst uint64) bool {
 
 func (cpu *CPU) UpdateAddressingMode(v uint64) {
 	var am AddressingMode
-	switch cpu.XLen {
-	case XLen32:
+	switch cpu.xlen {
+	case xlen32:
 		if v&0x8000_0000 == 0 {
 			am = AddressingModeNone
 		} else {
 			am = AddressingModeSV32
 		}
-	case XLen64:
+	case xlen64:
 		if v>>60 == 0 {
 			am = AddressingModeNone
 		} else if v>>60 == 8 {
@@ -236,10 +229,10 @@ func (cpu *CPU) UpdateAddressingMode(v uint64) {
 	}
 
 	var ppn uint64
-	switch cpu.XLen {
-	case XLen32:
+	switch cpu.xlen {
+	case xlen32:
 		ppn = v & 0x3fffff
-	case XLen64:
+	case xlen64:
 		ppn = v & 0xfffffffffff
 	}
 
