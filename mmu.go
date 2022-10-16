@@ -34,7 +34,7 @@ func NewMMU(xlen int) *MMU {
 	}
 }
 
-func (mmu *MMU) Fetch(vAddr uint64, size Size, curMode int) (uint64, *Exception) {
+func (mmu *MMU) Fetch(vAddr uint64, size int, curMode int) (uint64, *Exception) {
 	pAddr, excp := mmu.Translate(vAddr, MemoryAccessTypeInstruction, curMode)
 	if excp.Code != ExcpCodeNone {
 		return 0, excp
@@ -43,7 +43,7 @@ func (mmu *MMU) Fetch(vAddr uint64, size Size, curMode int) (uint64, *Exception)
 	return mmu.Bus.Read(pAddr, size), ExcpNone()
 }
 
-func (mmu *MMU) Read(vAddr uint64, size Size, curMode int) (uint64, *Exception) {
+func (mmu *MMU) Read(vAddr uint64, size int, curMode int) (uint64, *Exception) {
 	pAddr, excp := mmu.Translate(vAddr, MemoryAccessTypeLoad, curMode)
 	if excp.Code != ExcpCodeNone {
 		return 0, excp
@@ -52,7 +52,7 @@ func (mmu *MMU) Read(vAddr uint64, size Size, curMode int) (uint64, *Exception) 
 	return mmu.Bus.Read(pAddr, size), ExcpNone()
 }
 
-func (mmu *MMU) Write(vAddr, val uint64, size Size, curMode int) *Exception {
+func (mmu *MMU) Write(vAddr, val uint64, size int, curMode int) *Exception {
 	pAddr, excp := mmu.Translate(vAddr, MemoryAccessTypeStore, curMode)
 	if excp.Code != ExcpCodeNone {
 		return excp
@@ -141,20 +141,20 @@ func (mmu *MMU) TraversePage(vAddr uint64, level int, parentPPN uint64, vpns []u
 		return ExcpNone() // should not come here
 	}
 
-	pageSize := 4096
+	pageint := 4096
 
-	pteSize := 8
+	pteint := 8
 	if mmu.AddressingMode == AddressingModeSV32 {
-		pteSize = 4
+		pteint = 4
 	}
 
-	pteAddr := parentPPN*uint64(pageSize) + vpns[level]*uint64(pteSize)
+	pteAddr := parentPPN*uint64(pageint) + vpns[level]*uint64(pteint)
 
 	var pte uint64
 	if mmu.AddressingMode == AddressingModeSV32 {
-		pte = mmu.Bus.Read(pteAddr, Word)
+		pte = mmu.Bus.Read(pteAddr, word)
 	} else {
-		pte = mmu.Bus.Read(pteAddr, DoubleWord)
+		pte = mmu.Bus.Read(pteAddr, doubleword)
 	}
 
 	var ppn uint64
@@ -212,9 +212,9 @@ func (mmu *MMU) TraversePage(vAddr uint64, level int, parentPPN uint64, vpns []u
 		}
 
 		if mmu.AddressingMode == AddressingModeSV32 {
-			mmu.Bus.Write(pteAddr, newPTE, Word)
+			mmu.Bus.Write(pteAddr, newPTE, word)
 		} else {
-			mmu.Bus.Write(pteAddr, newPTE, DoubleWord)
+			mmu.Bus.Write(pteAddr, newPTE, doubleword)
 		}
 	}
 

@@ -13,10 +13,10 @@ func NewBus() *Bus {
 	}
 }
 
-func (bus *Bus) Read(addr uint64, size Size) uint64 {
+func (bus *Bus) Read(addr uint64, size int) uint64 {
 	return bus.Memory.Read(addr, size)
 }
 
-func (bus *Bus) Write(addr, val uint64, size Size) {
+func (bus *Bus) Write(addr, val uint64, size int) {
 	bus.Memory.Write(addr, val, size)
 }

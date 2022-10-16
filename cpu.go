@@ -4,29 +4,6 @@ import (
 	"fmt"
 )
 
-// Size is the length of memory.
-type Size uint8
-
-const (
-	Byte       Size = 8
-	HalfWord   Size = 16
-	Word       Size = 32
-	DoubleWord Size = 64
-)
-
-func (cpu *CPU) reserve(addr uint64) {
-	cpu.lrsc[addr] = struct{}{}
-}
-
-func (cpu *CPU) reserved(addr uint64) bool {
-	_, ok := cpu.lrsc[addr]
-	return ok
-}
-
-func (cpu *CPU) cancel(addr uint64) {
-	delete(cpu.lrsc, addr)
-}
-
 const (
 	// mode
 	user       = 0
@@ -37,6 +14,12 @@ const (
 	xlen32 = 1
 	xlen64 = 2
 	// 128-bit is not supported in rv.
+
+	// memory size
+	byt        = 8
+	halfword   = 16
+	word       = 32
+	doubleword = 64
 )
 
 // CPU is an processor emulator in rv.
@@ -105,11 +88,24 @@ func (cpu *CPU) wfreg(i uint64, val float64) {
 	}
 }
 
-func (cpu *CPU) Read(addr uint64, size Size) (uint64, *Exception) {
+func (cpu *CPU) reserve(addr uint64) {
+	cpu.lrsc[addr] = struct{}{}
+}
+
+func (cpu *CPU) reserved(addr uint64) bool {
+	_, ok := cpu.lrsc[addr]
+	return ok
+}
+
+func (cpu *CPU) cancel(addr uint64) {
+	delete(cpu.lrsc, addr)
+}
+
+func (cpu *CPU) Read(addr uint64, size int) (uint64, *Exception) {
 	return cpu.MMU.Read(addr, size, cpu.mode)
 }
 
-func (cpu *CPU) Write(addr, val uint64, size Size) *Exception {
+func (cpu *CPU) Write(addr, val uint64, size int) *Exception {
 	// Cancel reserved memory to make SC fail when an write is called
 	// between LR and SC.
 	if cpu.reserved(addr) {
@@ -131,7 +127,7 @@ func (cpu *CPU) Run() Trap {
 
 	var code InstructionCode
 
-	raw, excp := cpu.Fetch(HalfWord)
+	raw, excp := cpu.Fetch(halfword)
 	if excp.Code != ExcpCodeNone {
 		return cpu.HandleException(cur, excp)
 	}
@@ -141,7 +137,7 @@ func (cpu *CPU) Run() Trap {
 		code = DecodeCompressed(raw)
 		cpu.PC += 2
 	} else {
-		raw, excp = cpu.Fetch(Word)
+		raw, excp = cpu.Fetch(word)
 		if excp.Code != ExcpCodeNone {
 			return cpu.HandleException(cur, excp)
 		}
@@ -170,7 +166,7 @@ func (cpu *CPU) Run() Trap {
 }
 
 // Fetch reads the program-counter address of the memory then returns the read binary.
-func (cpu *CPU) Fetch(size Size) (uint64, *Exception) {
+func (cpu *CPU) Fetch(size int) (uint64, *Exception) {
 	return cpu.MMU.Fetch(cpu.PC, size, cpu.mode)
 }
 

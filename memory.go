@@ -17,23 +17,23 @@ func NewMemory() *Memory {
 }
 
 // Read reads the given size at mem[addr] as Little Endian.
-func (mem *Memory) Read(addr uint64, size Size) uint64 {
+func (mem *Memory) Read(addr uint64, size int) uint64 {
 	index := addr - DramBase
 	switch size {
-	case Byte:
+	case byt:
 		// Read and return 1 bit as uint64
 		return uint64(mem.Mem[index])
-	case HalfWord:
+	case halfword:
 		// Read and return 2 bits. Byte order is Little Endian.
 		// Read every byte and combine them into 1 uint64 by Or operator.
 		return uint64(mem.Mem[index]) | uint64(mem.Mem[index+1])<<8
-	case Word:
+	case word:
 		// Read and return 4 bits. The same as the case above.
 		return uint64(mem.Mem[index]) |
 			uint64(mem.Mem[index+1])<<8 |
 			uint64(mem.Mem[index+2])<<16 |
 			uint64(mem.Mem[index+3])<<24
-	case DoubleWord:
+	case doubleword:
 		// Read and return 8 bits. The same as the case above.
 		return uint64(mem.Mem[index]) |
 			uint64(mem.Mem[index+1])<<8 |
@@ -50,20 +50,20 @@ func (mem *Memory) Read(addr uint64, size Size) uint64 {
 }
 
 // Write writes the given value to mem[addr] at given size as Little Endian.
-func (mem *Memory) Write(addr, val uint64, size Size) {
+func (mem *Memory) Write(addr, val uint64, size int) {
 	index := addr - DramBase
 	switch size {
-	case Byte:
+	case byt:
 		mem.Mem[index] = uint8(val)
-	case HalfWord:
+	case halfword:
 		mem.Mem[index] = uint8(val & 0b1111_1111)
 		mem.Mem[index+1] = uint8((val >> 8) & 0b1111_1111)
-	case Word:
+	case word:
 		mem.Mem[index] = uint8(val & 0b1111_1111)
 		mem.Mem[index+1] = uint8((val >> 8) & 0b1111_1111)
 		mem.Mem[index+2] = uint8((val >> 16) & 0b1111_1111)
 		mem.Mem[index+3] = uint8((val >> 24) & 0b1111_1111)
-	case DoubleWord:
+	case doubleword:
 		mem.Mem[index] = uint8(val & 0b1111_1111)
 		mem.Mem[index+1] = uint8((val >> 8) & 0b1111_1111)
 		mem.Mem[index+2] = uint8((val >> 16) & 0b1111_1111)
