@@ -1266,7 +1266,7 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 			return excp
 		}
 		cpu.wxreg(rd, uint64(int64(int32(t))))
-		cpu.Reservation.Reserve(addr)
+		cpu.reserve(addr)
 
 		return ExcpNone()
 	},
@@ -1274,16 +1274,16 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
 		addr := cpu.rxreg(rs1)
 
-		if cpu.Reservation.IsReserved(addr) {
+		if cpu.reserved(addr) {
 			// SC succeeds.
+			cpu.cancel(addr)
 			cpu.Write(addr, cpu.rxreg(rs2), Word)
 			cpu.wxreg(rd, 0)
 		} else {
 			// SC fails.
+			cpu.cancel(addr)
 			cpu.wxreg(rd, 1)
 		}
-
-		cpu.Reservation.Cancel(addr)
 
 		return ExcpNone()
 	},
@@ -1435,7 +1435,7 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 			return excp
 		}
 		cpu.wxreg(rd, uint64(int64(int32(t))))
-		cpu.Reservation.Reserve(addr)
+		cpu.reserve(addr)
 
 		return ExcpNone()
 	},
@@ -1443,7 +1443,7 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
 		addr := cpu.rxreg(rs1)
 
-		if cpu.Reservation.IsReserved(addr) {
+		if cpu.reserved(addr) {
 			// SC succeeds.
 			cpu.Write(addr, cpu.rxreg(rs2), DoubleWord)
 			cpu.wxreg(rd, 0)
@@ -1452,7 +1452,7 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 			cpu.wxreg(rd, 1)
 		}
 
-		cpu.Reservation.Cancel(addr)
+		cpu.cancel(addr)
 
 		return ExcpNone()
 	},

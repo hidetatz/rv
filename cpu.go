@@ -14,34 +14,17 @@ const (
 	DoubleWord Size = 64
 )
 
-// Reservation is a reserved memory emulation module by LR/SC instructions.
-// The internal map contains reserved mem address.
-// Before implementing multi-core emulation, probably the map value must be changed to
-// hart ID, and the map itself must be changed to sync.Map. However, this is
-// efficient for now.
-type Reservation struct {
-	m map[uint64]struct{}
+func (cpu *CPU) reserve(addr uint64) {
+	cpu.lrsc[addr] = struct{}{}
 }
 
-// NewReservation returns an initialized reservation.
-func NewReservation() *Reservation {
-	return &Reservation{m: map[uint64]struct{}{}}
-}
-
-// Reserve reserves the given address.
-func (r *Reservation) Reserve(addr uint64) {
-	r.m[addr] = struct{}{}
-}
-
-// IsReserved returns if the given address is reserved.
-func (r *Reservation) IsReserved(addr uint64) bool {
-	_, ok := r.m[addr]
+func (cpu *CPU) reserved(addr uint64) bool {
+	_, ok := cpu.lrsc[addr]
 	return ok
 }
 
-// Cancel cancels the reserve.
-func (r *Reservation) Cancel(addr uint64) {
-	delete(r.m, addr)
+func (cpu *CPU) cancel(addr uint64) {
+	delete(cpu.lrsc, addr)
 }
 
 const (
@@ -73,8 +56,7 @@ type CPU struct {
 	xregs [32]uint64
 	fregs [32]float64
 
-	// Reservation for LR/SC
-	Reservation *Reservation
+	lrsc map[uint64]struct{}
 
 	// Wfi represents "wait for interrupt". When this is true, CPU does not run until
 	// an interrupt occurs.
@@ -96,7 +78,7 @@ func NewCPU(xlen int) *CPU {
 		xlen:          xlen,
 		xregs:         [32]uint64{},
 		fregs:         [32]float64{},
-		Reservation:   NewReservation(),
+		lrsc:          make(map[uint64]struct{}),
 		PagingEnabled: false,
 	}
 }
@@ -130,8 +112,8 @@ func (cpu *CPU) Read(addr uint64, size Size) (uint64, *Exception) {
 func (cpu *CPU) Write(addr, val uint64, size Size) *Exception {
 	// Cancel reserved memory to make SC fail when an write is called
 	// between LR and SC.
-	if cpu.Reservation.IsReserved(addr) {
-		cpu.Reservation.Cancel(addr)
+	if cpu.reserved(addr) {
+		cpu.cancel(addr)
 	}
 
 	return cpu.MMU.Write(addr, val, size, cpu.mode)
