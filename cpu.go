@@ -55,7 +55,8 @@ const (
 	maStore = 3
 
 	// addressing mode. sv32, sv48 aren't supported in rv
-	sv39 = 1
+	amnone = 0
+	sv39   = 1
 )
 
 type CPU struct {
@@ -245,7 +246,6 @@ func (cpu *CPU) Write(addr, val uint64, size int) *Exception {
 }
 
 func (cpu *CPU) translate(vAddr uint64, ma int, curMode int) (uint64, *Exception) {
-	vAddr = cpu.getEffectiveAddress(vAddr)
 	switch cpu.AddressingMode {
 	case 0:
 		return vAddr, ExcpNone()
@@ -390,14 +390,6 @@ func (cpu *CPU) TraversePage(vAddr uint64, level int, parentPPN uint64, vpns []u
 	}
 }
 
-func (cpu *CPU) getEffectiveAddress(vAddr uint64) uint64 {
-	if cpu.xlen == xlen64 {
-		return vAddr
-	}
-
-	return vAddr & 0xffff_ffff
-}
-
 // Run executes one fetch-decode-exec.
 // If instruction execution raised an exception, it also handles it and do some other stuffs.
 func (cpu *CPU) Run() Trap {
@@ -470,7 +462,7 @@ func (cpu *CPU) UpdateAddressingMode(v uint64) {
 	switch cpu.xlen {
 	case xlen64:
 		if v>>60 == 0 {
-			am = 0
+			am = amnone
 		} else if v>>60 == 8 {
 			am = sv39
 		} else {
