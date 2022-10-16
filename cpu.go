@@ -44,6 +44,7 @@ const (
 	satp        uint64 = 0x180
 	mstatus     uint64 = 0x300
 	medeleg     uint64 = 0x302
+	mideleg     uint64 = 0x303
 	mie         uint64 = 0x304
 	mtvec       uint64 = 0x305
 	mepc        uint64 = 0x341
@@ -134,19 +135,19 @@ func (cpu *CPU) rcsr(addr uint64) uint64 {
 
 	if addr == frm {
 		// fcsr consists of frm (3-bit) + fflags (5-bit)
-		return (cpu.csr[fcsr] & 0xe0) >> 5
+		return (cpu.csr[fcsr] >> 5) & 0x7
 	}
 
 	if addr == sstatus {
-		return cpu.csr[mstatus] & sstatusmask
+		return cpu.csr[mstatus] & 0x80000003000de162
 	}
 
 	if addr == sip {
-		return cpu.csr[mip] & sipmask // sip is a subset of mip
+		return cpu.csr[mip] & 0x222 // sip is a subset of mip
 	}
 
 	if addr == sie {
-		return cpu.csr[mie] & siemask // sie is a subset of mie
+		return cpu.csr[mie] & 0x222 // sie is a subset of mie
 	}
 
 	return cpu.csr[addr]
@@ -157,30 +158,32 @@ func (cpu *CPU) wcsr(addr uint64, value uint64) {
 		// fcsr consists of frm (3-bit) + fflags (5-bit)
 		cpu.csr[fcsr] &= ^uint64(0x1f) // clear fcsr[4:0]
 		cpu.csr[fcsr] |= value & 0x1f  // write the value[4:0] to the fcsr[4:0]
-		return
 	}
 
 	if addr == frm {
 		// fcsr consists of frm (3-bit) + fflags (5-bit)
 		cpu.csr[fcsr] &= ^uint64(0xe0)       // clear fcsr[7:5]
 		cpu.csr[fcsr] |= (value << 5) & 0xe0 // write the value[2:0] to the fcsr[7:5]
-		return
 	}
 
 	if addr == sstatus {
 		// sstatus is a subset of mstatus
-		cpu.csr[mstatus] &= ^uint64(sstatusmask) // clear mask
-		cpu.csr[mstatus] |= value & sstatusmask  // write only mask
+		cpu.csr[mstatus] &= ^uint64(0x80000003000de162) // clear mask
+		cpu.csr[mstatus] |= value & 0x80000003000de162  // write only mask
 	}
 
 	if addr == sip {
-		cpu.csr[mip] &= ^uint64(sipmask)
-		cpu.csr[mip] |= value & sipmask
+		cpu.csr[mip] &= ^uint64(0x222)
+		cpu.csr[mip] |= value & 0x222
 	}
 
 	if addr == sie {
-		cpu.csr[mie] &= ^uint64(siemask)
-		cpu.csr[mie] |= value & siemask
+		cpu.csr[mie] &= ^uint64(0x222)
+		cpu.csr[mie] |= value & 0x222
+	}
+
+	if addr == mideleg {
+		cpu.csr[addr] = value & 0x666
 	}
 
 	if addr != 0 {
