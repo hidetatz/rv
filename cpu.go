@@ -246,43 +246,32 @@ func (cpu *CPU) Write(addr, val uint64, size int) *Exception {
 }
 
 func (cpu *CPU) translate(vAddr uint64, ma int, curMode int) (uint64, *Exception) {
-	switch cpu.AddressingMode {
-	case 0:
+	if cpu.AddressingMode == amnone {
 		return vAddr, ExcpNone()
-	case sv39:
-		switch curMode {
-		case machine:
-			if ma == maInst {
-				return vAddr, ExcpNone()
-			}
+	}
 
-			if ((cpu.rcsr(mstatus) >> 17) & 1) == 0 {
-				return vAddr, ExcpNone()
-			}
-
-			newPrivMode := (cpu.rcsr(mstatus) >> 9) & 3
-			switch newPrivMode {
-			case 3:
-				return vAddr, ExcpNone()
-			default:
-				return cpu.translate(vAddr, ma, int(newPrivMode))
-			}
-		case user, supervisor:
-			vpns := []uint64{
-				(vAddr >> 12) & 0x1ff,
-				(vAddr >> 21) & 0x1ff,
-				(vAddr >> 30) & 0x1ff,
-			}
-			return cpu.TraversePage(vAddr, 3-1, cpu.PPN, vpns, ma)
-		default:
+	if curMode == machine {
+		if ma == maInst {
 			return vAddr, ExcpNone()
 		}
-	default:
-		panic("should not come here")
+
+		if bit(cpu.rcsr(mstatus), 17) == 0 {
+			return vAddr, ExcpNone()
+		}
+
+		newPrivMode := bits(cpu.rcsr(mstatus), 10, 9)
+		if newPrivMode == machine {
+			return vAddr, ExcpNone()
+		}
+
+		return cpu.translate(vAddr, ma, int(newPrivMode))
 	}
+
+	vpns := []uint64{bits(vAddr, 20, 12), bits(vAddr, 29, 21), bits(vAddr, 38, 30)}
+	return cpu.traversePage(vAddr, 2, cpu.PPN, vpns, ma)
 }
 
-func (cpu *CPU) TraversePage(vAddr uint64, level int, parentPPN uint64, vpns []uint64, ma int) (uint64, *Exception) {
+func (cpu *CPU) traversePage(vAddr uint64, level int, parentPPN uint64, vpns []uint64, ma int) (uint64, *Exception) {
 	fault := func() *Exception {
 		switch ma {
 		case maInst:
@@ -296,33 +285,10 @@ func (cpu *CPU) TraversePage(vAddr uint64, level int, parentPPN uint64, vpns []u
 		return ExcpNone() // should not come here
 	}
 
-	pageint := 4096
-
-	pteint := 8
-
-	pteAddr := parentPPN*uint64(pageint) + vpns[level]*uint64(pteint)
-
+	pteAddr := parentPPN*4096 + vpns[level]*8
 	pte := cpu.bus.Read(pteAddr, doubleword)
-
-	var ppn uint64
-	var ppns []uint64
-	if cpu.AddressingMode == sv39 {
-		ppn = (pte >> 10) & 0xfffffffffff
-		ppns = []uint64{
-			(pte >> 10) & 0x1ff,
-			(pte >> 19) & 0x1ff,
-			(pte >> 28) & 0x3ff_ffff,
-		}
-	} else {
-		panic("unexpected addressing mode!")
-	}
-
-	d := (pte >> 7) & 1
-	a := (pte >> 6) & 1
-	x := (pte >> 3) & 1
-	w := (pte >> 2) & 1
-	r := (pte >> 1) & 1
-	v := pte & 1
+	ppn := (pte >> 10) & 0xfffffffffff
+	v, r, w, x, a, d := bit(pte, 0), bit(pte, 1), bit(pte, 2), bit(pte, 3), bit(pte, 6), bit(pte, 7)
 
 	if v == 0 || (r == 0 && w == 1) {
 		return 0, fault()
@@ -333,22 +299,15 @@ func (cpu *CPU) TraversePage(vAddr uint64, level int, parentPPN uint64, vpns []u
 			return 0, fault()
 		}
 
-		return cpu.TraversePage(vAddr, level-1, ppn, vpns, ma)
+		return cpu.traversePage(vAddr, level-1, ppn, vpns, ma)
 	}
 
 	// page found
 
-	b := false
-	if ma == maStore {
-		b = d == 0
-	}
-
-	if a == 0 || b {
+	if a == 0 || (ma == maStore && d == 0) {
 		newPTE := pte | (1 << 6)
 		if ma == maStore {
 			newPTE |= (1 << 7)
-		} else {
-			newPTE |= 0
 		}
 
 		cpu.bus.Write(pteAddr, newPTE, doubleword)
@@ -367,6 +326,12 @@ func (cpu *CPU) TraversePage(vAddr uint64, level int, parentPPN uint64, vpns []u
 		if w == 0 {
 			return 0, fault()
 		}
+	}
+
+	ppns := []uint64{
+		(pte >> 10) & 0x1ff,
+		(pte >> 19) & 0x1ff,
+		(pte >> 28) & 0x3ff_ffff,
 	}
 
 	offset := vAddr & 0xfff
@@ -434,11 +399,7 @@ func (cpu *CPU) Run() Trap {
 
 	excp = cpu.Exec(code, raw, cur)
 
-	Debug("------")
 	Debug(fmt.Sprintf("PC:0x%x	inst:%032b	code:%s	next:0x%x", cur, raw, code, cpu.PC))
-	Debug(fmt.Sprintf("x:%v", cpu.xregs))
-	Debug(fmt.Sprintf("f:%v", cpu.fregs))
-	Debug(fmt.Sprintf("excp:%v", excp.Code))
 
 	if excp.Code != ExcpCodeNone {
 		return cpu.HandleException(cur, excp)

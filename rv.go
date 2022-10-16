@@ -57,7 +57,7 @@ func New(prog []byte) (*RV, error) {
 
 	rv := &RV{cpu: cpu, tohost: elf.ToHost}
 
-	Debug("load ELF succeeded: PC: %x, ToHost: %x", cpu.PC, rv.tohost)
+	// Debug("load ELF succeeded: PC: %x, ToHost: %x", cpu.PC, rv.tohost)
 
 	return rv, nil
 }
