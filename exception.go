@@ -1,12 +1,8 @@
 package main
 
-// ExceptionCode is an internal value of exceptions.
-// This is not just iota but defined in RISC-V specification and is used in
-// some special CSRs.
 type ExceptionCode int
 
 const (
-	ExcpCodeNone                         ExceptionCode = -1
 	ExcpCodeInstructionAddressMisalighed ExceptionCode = 0
 	ExcpCodeInstructionAccessFault       ExceptionCode = 1
 	ExcpCodeIllegalInstruction           ExceptionCode = 2
@@ -23,18 +19,9 @@ const (
 	ExcpCodeStoreAMOPageFault            ExceptionCode = 15
 )
 
-// Exception represents an raised exception in instruction execution.
 type Exception struct {
-	Code ExceptionCode
-	// TrapValue is pre-defined value in some situation
-	// which is used to help software to know how the exception happened.
-	// While in some instructions they are just 0, they can be the program-counter at which
-	// an access fault occured, or the instruction binary which could not be decoded.
+	Code      ExceptionCode
 	TrapValue uint64
-}
-
-func ExcpNone() *Exception {
-	return &Exception{Code: ExcpCodeNone, TrapValue: 0}
 }
 
 func ExcpInstructionAddressMisalighed(pc uint64) *Exception {

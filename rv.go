@@ -53,7 +53,7 @@ func New(prog []byte) (*RV, error) {
 			cpu.Write(addr, val, byt)
 		}
 	}
-	cpu.PC = elf.Header.Entry
+	cpu.pc = elf.Header.Entry
 
 	rv := &RV{cpu: cpu, tohost: elf.ToHost}
 
@@ -68,12 +68,7 @@ func New(prog []byte) (*RV, error) {
 // which is a part of RISC-V specification.
 func (r *RV) Start() error {
 	for {
-		trap := r.cpu.Run()
-
-		// For now, only handle Fatal trap to terminate the program execution.
-		if trap == TrapFatal {
-			return fmt.Errorf("fatal trap is returned!")
-		}
+		r.cpu.tick()
 
 		if r.tohost == 0 {
 			continue
