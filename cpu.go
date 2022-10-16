@@ -10,10 +10,8 @@ const (
 	supervisor = 1
 	machine    = 3
 
-	// xlen
-	xlen32 = 1
-	xlen64 = 2
-	// 128-bit is not supported in rv.
+	// xlen. 32bit, 128bit aren't supported in rv.
+	xlen64 = 1
 
 	// memory size
 	byt        = 8
@@ -56,9 +54,8 @@ const (
 	maLoad  = 2
 	maStore = 3
 
-	// addressing mode
-	sv32 = 1
-	sv39 = 2
+	// addressing mode. sv32, sv48 aren't supported in rv
+	sv39 = 1
 )
 
 type CPU struct {
@@ -88,7 +85,7 @@ type CPU struct {
 	PagingEnabled bool
 }
 
-func NewCPU(xlen int) *CPU {
+func NewCPU() *CPU {
 	return &CPU{
 		PC: 0,
 		bus: &bus{
@@ -96,7 +93,7 @@ func NewCPU(xlen int) *CPU {
 		},
 		mode:           machine,
 		csr:            [4096]uint64{},
-		xlen:           xlen,
+		xlen:           xlen64,
 		xregs:          [32]uint64{},
 		fregs:          [32]float64{},
 		lrsc:           make(map[uint64]struct{}),
@@ -252,33 +249,6 @@ func (cpu *CPU) translate(vAddr uint64, ma int, curMode int) (uint64, *Exception
 	switch cpu.AddressingMode {
 	case 0:
 		return vAddr, ExcpNone()
-	case sv32:
-		switch cpu.mode {
-		case machine:
-			if ma == maInst {
-				return vAddr, ExcpNone()
-			}
-
-			if ((cpu.rcsr(mstatus) >> 17) & 1) == 0 {
-				return vAddr, ExcpNone()
-			}
-
-			newPrivMode := (cpu.rcsr(mstatus) >> 9) & 3
-			switch newPrivMode {
-			case 3: // Machine
-				return vAddr, ExcpNone()
-			default:
-				return cpu.translate(vAddr, ma, int(newPrivMode))
-			}
-		case user, supervisor:
-			vpns := []uint64{
-				(vAddr >> 12) & 0x3ff,
-				(vAddr >> 22) & 0x3ff,
-			}
-			return cpu.TraversePage(vAddr, 2-1, cpu.PPN, vpns, ma)
-		default:
-			return vAddr, ExcpNone()
-		}
 	case sv39:
 		switch curMode {
 		case machine:
@@ -329,29 +299,14 @@ func (cpu *CPU) TraversePage(vAddr uint64, level int, parentPPN uint64, vpns []u
 	pageint := 4096
 
 	pteint := 8
-	if cpu.AddressingMode == sv32 {
-		pteint = 4
-	}
 
 	pteAddr := parentPPN*uint64(pageint) + vpns[level]*uint64(pteint)
 
-	var pte uint64
-	if cpu.AddressingMode == sv32 {
-		pte = cpu.bus.Read(pteAddr, word)
-	} else {
-		pte = cpu.bus.Read(pteAddr, doubleword)
-	}
+	pte := cpu.bus.Read(pteAddr, doubleword)
 
 	var ppn uint64
 	var ppns []uint64
-	if cpu.AddressingMode == sv32 {
-		ppn = (pte >> 10) & 0x3f_ffff
-		ppns = []uint64{
-			(pte >> 10) & 0x3ff,
-			(pte >> 20) & 0xfff,
-			0,
-		}
-	} else if cpu.AddressingMode == sv39 {
+	if cpu.AddressingMode == sv39 {
 		ppn = (pte >> 10) & 0xfffffffffff
 		ppns = []uint64{
 			(pte >> 10) & 0x1ff,
@@ -396,11 +351,7 @@ func (cpu *CPU) TraversePage(vAddr uint64, level int, parentPPN uint64, vpns []u
 			newPTE |= 0
 		}
 
-		if cpu.AddressingMode == sv32 {
-			cpu.bus.Write(pteAddr, newPTE, word)
-		} else {
-			cpu.bus.Write(pteAddr, newPTE, doubleword)
-		}
+		cpu.bus.Write(pteAddr, newPTE, doubleword)
 	}
 
 	switch ma {
@@ -419,39 +370,23 @@ func (cpu *CPU) TraversePage(vAddr uint64, level int, parentPPN uint64, vpns []u
 	}
 
 	offset := vAddr & 0xfff
-	switch cpu.AddressingMode {
-	case sv32:
-		switch level {
-		case 1:
-			if ppns[0] != 0 {
-				return 0, fault()
-			}
-
-			return ppns[1]<<22 | vpns[0]<<12 | offset, ExcpNone()
-		case 0:
-			return (ppn << 12) | offset, ExcpNone()
-		default:
-			panic("invalid level") // should not come here
+	switch level {
+	case 2:
+		if ppns[1] != 0 || ppns[0] != 0 {
+			return 0, fault()
 		}
+
+		return (ppns[2] << 30) | (vpns[1] << 21) | (vpns[0] << 12) | offset, ExcpNone()
+	case 1:
+		if ppns[0] != 0 {
+			return 0, fault()
+		}
+
+		return (ppns[2] << 30) | (ppns[1] << 21) | (vpns[0] << 12) | offset, ExcpNone()
+	case 0:
+		return (ppn << 12) | offset, ExcpNone()
 	default:
-		switch level {
-		case 2:
-			if ppns[1] != 0 || ppns[0] != 0 {
-				return 0, fault()
-			}
-
-			return (ppns[2] << 30) | (vpns[1] << 21) | (vpns[0] << 12) | offset, ExcpNone()
-		case 1:
-			if ppns[0] != 0 {
-				return 0, fault()
-			}
-
-			return (ppns[2] << 30) | (ppns[1] << 21) | (vpns[0] << 12) | offset, ExcpNone()
-		case 0:
-			return (ppn << 12) | offset, ExcpNone()
-		default:
-			panic("invalid level") // should not come here
-		}
+		panic("invalid level") // should not come here
 	}
 }
 
@@ -533,12 +468,6 @@ func IsCompressed(inst uint64) bool {
 func (cpu *CPU) UpdateAddressingMode(v uint64) {
 	var am int
 	switch cpu.xlen {
-	case xlen32:
-		if v&0x8000_0000 == 0 {
-			am = 0
-		} else {
-			am = sv32
-		}
 	case xlen64:
 		if v>>60 == 0 {
 			am = 0
@@ -551,8 +480,6 @@ func (cpu *CPU) UpdateAddressingMode(v uint64) {
 
 	var ppn uint64
 	switch cpu.xlen {
-	case xlen32:
-		ppn = v & 0x3fffff
 	case xlen64:
 		ppn = v & 0xfffffffffff
 	}

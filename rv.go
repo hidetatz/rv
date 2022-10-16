@@ -16,31 +16,30 @@ type RV struct {
 func New(prog []byte) (*RV, error) {
 	elf, err := LoadELF(prog)
 	if err != nil {
-		return nil, fmt.Errorf("Load ELF file: %w", err)
+		return nil, fmt.Errorf("load ELF: %w", err)
 	}
 
 	if elf.Header.Data != 1 { // Little endian
-		return nil, fmt.Errorf("ELF data is not ET_EXEC little endian but %d. Cannot execute", elf.Header.Data)
+		return nil, fmt.Errorf("elf data is not ET_EXEC little endian but %d", elf.Header.Data)
 	}
 
 	if elf.Header.Type != 2 { // ET_EXEC
-		return nil, fmt.Errorf("ELF type is not ET_EXEC but %d. Cannot execute", elf.Header.Type)
+		return nil, fmt.Errorf("elf type is not ET_EXEC but %d", elf.Header.Type)
 	}
 
 	if elf.Header.Machine != 0xf3 { // RISC-V
-		return nil, fmt.Errorf("ELF machine is not RISC-V but %d. Cannot execute", elf.Header.Machine)
+		return nil, fmt.Errorf("elf machine is not RISC-V but %d", elf.Header.Machine)
 	}
 
 	if elf.Header.PhNum == 0 { // assert just in case
-		return nil, fmt.Errorf("ELF contains no program headers. Cannot execute")
+		return nil, fmt.Errorf("elf contains no program headers")
 	}
 
-	xlen := xlen32
-	if elf.Header.Class == 2 {
-		xlen = xlen64
+	if elf.Header.Class != 2 {
+		return nil, fmt.Errorf("only 64 bit is supported")
 	}
 
-	cpu := NewCPU(xlen)
+	cpu := NewCPU()
 
 	for _, p := range elf.Programs {
 		if p.Type != 1 { // PT_LOAD
@@ -58,7 +57,7 @@ func New(prog []byte) (*RV, error) {
 
 	rv := &RV{cpu: cpu, tohost: elf.ToHost}
 
-	Debug("Load ELF succeeded: PC: %x, ToHost: %x", cpu.PC, rv.tohost)
+	Debug("load ELF succeeded: PC: %x, ToHost: %x", cpu.PC, rv.tohost)
 
 	return rv, nil
 }
@@ -73,7 +72,7 @@ func (r *RV) Start() error {
 
 		// For now, only handle Fatal trap to terminate the program execution.
 		if trap == TrapFatal {
-			return fmt.Errorf("Fatal trap is returned!")
+			return fmt.Errorf("fatal trap is returned!")
 		}
 
 		if r.tohost == 0 {
