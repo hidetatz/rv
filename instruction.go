@@ -1010,34 +1010,34 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 
 	// Trap
 	URET: func(cpu *CPU, raw, _ uint64) *Exception {
-		ustatus := cpu.rcsr(CsrUSTATUS)
-		upie := bit(ustatus, CsrStatusUPIE)
+		ust := cpu.rcsr(ustatus)
+		upie := bit(ust, 4)
 
 		// set UPIE to UIE
 		if upie == 0 {
-			ustatus = clearBit(ustatus, CsrStatusUIE)
+			ust = clearBit(ust, 0)
 		} else {
-			ustatus = setBit(ustatus, CsrStatusUIE)
+			ust = setBit(ust, 0)
 		}
 
 		// set 1 to SPIE
-		ustatus = setBit(ustatus, CsrStatusUPIE)
+		ust = setBit(ust, 4)
 
 		// update USTATUS
-		cpu.wcsr(CsrUSTATUS, ustatus)
+		cpu.wcsr(ustatus, ust)
 
 		return ExcpNone()
 	},
 	SRET: func(cpu *CPU, raw, _ uint64) *Exception {
 		// First, set CSRs[SEPC] to program counter.
-		cpu.PC = cpu.rcsr(CsrSEPC)
+		cpu.PC = cpu.rcsr(sepc)
 
 		// Then, Modify SSTATUS.
 
-		sstatus := cpu.rcsr(CsrSSTATUS)
+		sst := cpu.rcsr(sstatus)
 
 		// Set CPU mode according to SPP
-		switch bit(sstatus, CsrStatusSPP) {
+		switch bit(sst, 8) {
 		case 0b0:
 			cpu.mode = user
 		case 0b1:
@@ -1045,53 +1045,53 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 
 			// MPRV must be set 0 if the mode is not Machine.
 			if cpu.mode == supervisor {
-				mstatus := cpu.rcsr(CsrMSTATUS)
-				mstatus = clearBit(mstatus, CsrStatusMPRV)
-				cpu.wcsr(CsrMSTATUS, mstatus)
-				cpu.MMU.Mstatus = cpu.rcsr(CsrMSTATUS)
+				mst := cpu.rcsr(mstatus)
+				mst = clearBit(mst, 17)
+				cpu.wcsr(mstatus, mst)
+				cpu.MMU.Mstatus = cpu.rcsr(mstatus)
 			}
 		default:
 			// should not happen
 			panic("invalid CSR SPP")
 		}
 
-		spie := bit(sstatus, CsrStatusSPIE)
+		spie := bit(sstatus, 5)
 
 		// set SPIE to SIE
 		if spie == 0 {
-			sstatus = clearBit(sstatus, CsrStatusSIE)
+			sst = clearBit(sstatus, 1)
 		} else {
-			sstatus = setBit(sstatus, CsrStatusSIE)
+			sst = setBit(sstatus, 1)
 		}
 
 		// set 1 to SPIE
-		sstatus = setBit(sstatus, CsrStatusSPIE)
+		sst = setBit(sst, 5)
 
 		// set 0 to SPP
-		sstatus = clearBit(sstatus, CsrStatusSPP)
+		sst = clearBit(sst, 8)
 
 		// update SSTATUS
-		cpu.wcsr(CsrSSTATUS, sstatus)
-		cpu.MMU.Mstatus = cpu.rcsr(CsrMSTATUS)
+		cpu.wcsr(sstatus, sst)
+		cpu.MMU.Mstatus = cpu.rcsr(mstatus)
 
 		return ExcpNone()
 	},
 	MRET: func(cpu *CPU, raw, _ uint64) *Exception {
 		// First, set CSRs[MEPC] to program counter.
-		cpu.PC = cpu.rcsr(CsrMEPC)
+		cpu.PC = cpu.rcsr(mepc)
 
 		// Then, Modify MSTATUS.
 
-		mstatus := cpu.rcsr(CsrMSTATUS)
+		mst := cpu.rcsr(mstatus)
 
 		// Set CPU mode according to MPP
-		switch bits(mstatus, CsrStatusMPPHi, CsrStatusMPPLo) {
+		switch bits(mst, 12, 11) {
 		case 0b00:
 			cpu.mode = user
-			mstatus = clearBit(mstatus, CsrStatusMPRV)
+			mst = clearBit(mst, 17)
 		case 0b01:
 			cpu.mode = supervisor
-			mstatus = clearBit(mstatus, CsrStatusMPRV)
+			mst = clearBit(mst, 17)
 		case 0b11:
 			cpu.mode = machine
 		default:
@@ -1099,25 +1099,25 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 			panic("invalid CSR MPP")
 		}
 
-		mpie := bit(mstatus, CsrStatusMPIE)
+		mpie := bit(mst, 7)
 
 		// set MPIE to MIE
 		if mpie == 0 {
-			mstatus = clearBit(mstatus, CsrStatusMIE)
+			mst = clearBit(mst, 3)
 		} else {
-			mstatus = setBit(mstatus, CsrStatusMIE)
+			mst = setBit(mst, 3)
 		}
 
 		// set 1 to MPIE
-		mstatus = setBit(mstatus, CsrStatusMPIE)
+		mst = setBit(mst, 7)
 
 		// set 0 to MPP
-		mstatus = clearBit(mstatus, CsrStatusMPPHi)
-		mstatus = clearBit(mstatus, CsrStatusMPPLo)
+		mst = clearBit(mst, 12)
+		mst = clearBit(mst, 11)
 
 		// update MSTATUS
-		cpu.wcsr(CsrMSTATUS, mstatus)
-		cpu.MMU.Mstatus = cpu.rcsr(CsrMSTATUS)
+		cpu.wcsr(mstatus, mst)
+		cpu.MMU.Mstatus = cpu.rcsr(mstatus)
 
 		return ExcpNone()
 	},
@@ -1153,12 +1153,12 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		cpu.wcsr(imm, v)
 		cpu.wxreg(rd, t)
 
-		if imm == CsrSATP {
+		if imm == satp {
 			cpu.UpdateAddressingMode(v)
 		}
 
-		if imm == CsrMSTATUS || imm == CsrSSTATUS {
-			cpu.MMU.Mstatus = cpu.rcsr(CsrMSTATUS)
+		if imm == mstatus || imm == sstatus {
+			cpu.MMU.Mstatus = cpu.rcsr(mstatus)
 		}
 
 		return ExcpNone()
@@ -1171,12 +1171,12 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		cpu.wcsr(imm, v)
 		cpu.wxreg(rd, t)
 
-		if imm == CsrSATP {
+		if imm == satp {
 			cpu.UpdateAddressingMode(v)
 		}
 
-		if imm == CsrMSTATUS || imm == CsrSSTATUS {
-			cpu.MMU.Mstatus = cpu.rcsr(CsrMSTATUS)
+		if imm == mstatus || imm == sstatus {
+			cpu.MMU.Mstatus = cpu.rcsr(mstatus)
 		}
 
 		return ExcpNone()
@@ -1189,12 +1189,12 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		cpu.wcsr(imm, v)
 		cpu.wxreg(rd, t)
 
-		if imm == CsrSATP {
+		if imm == satp {
 			cpu.UpdateAddressingMode(v)
 		}
 
-		if imm == CsrMSTATUS || imm == CsrSSTATUS {
-			cpu.MMU.Mstatus = cpu.rcsr(CsrMSTATUS)
+		if imm == mstatus || imm == sstatus {
+			cpu.MMU.Mstatus = cpu.rcsr(mstatus)
 		}
 
 		return ExcpNone()
@@ -1205,12 +1205,12 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		cpu.wxreg(rd, cpu.rcsr(csr))
 		cpu.wcsr(csr, imm)
 
-		if csr == CsrSATP {
+		if csr == satp {
 			cpu.UpdateAddressingMode(imm)
 		}
 
-		if csr == CsrMSTATUS || csr == CsrSSTATUS {
-			cpu.MMU.Mstatus = cpu.rcsr(CsrMSTATUS)
+		if csr == mstatus || csr == sstatus {
+			cpu.MMU.Mstatus = cpu.rcsr(mstatus)
 		}
 
 		return ExcpNone()
@@ -1223,12 +1223,12 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		cpu.wcsr(imm, v) // RS1 is zimm
 		cpu.wxreg(rd, t)
 
-		if imm == CsrSATP {
+		if imm == satp {
 			cpu.UpdateAddressingMode(v)
 		}
 
-		if imm == CsrMSTATUS || imm == CsrSSTATUS {
-			cpu.MMU.Mstatus = cpu.rcsr(CsrMSTATUS)
+		if imm == mstatus || imm == sstatus {
+			cpu.MMU.Mstatus = cpu.rcsr(mstatus)
 		}
 
 		return ExcpNone()
@@ -1241,12 +1241,12 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		cpu.wcsr(imm, v)
 		cpu.wxreg(rd, t)
 
-		if imm == CsrSATP {
+		if imm == satp {
 			cpu.UpdateAddressingMode(v)
 		}
 
-		if imm == CsrMSTATUS || imm == CsrSSTATUS {
-			cpu.MMU.Mstatus = cpu.rcsr(CsrMSTATUS)
+		if imm == mstatus || imm == sstatus {
+			cpu.MMU.Mstatus = cpu.rcsr(mstatus)
 		}
 
 		return ExcpNone()
@@ -1645,9 +1645,9 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		divisor := int64(cpu.rxreg(rs2))
 		if divisor == 0 {
 			// Division by 0. Set a special flag
-			v := cpu.rcsr(CsrFCSR)
+			v := cpu.rcsr(fcsr)
 			v = setBit(v, 3) // DZ (Divided by Zero flag)
-			cpu.wcsr(CsrFCSR, v)
+			cpu.wcsr(fcsr, v)
 			cpu.wxreg(rd, 0xffff_ffff_ffff_ffff)
 		} else if dividend == math.MinInt64 && divisor == -1 {
 			cpu.wxreg(rd, uint64(dividend))
@@ -1663,9 +1663,9 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		divisor := cpu.rxreg(rs2)
 		if divisor == 0 {
 			// Division by 0. Set a special flag
-			v := cpu.rcsr(CsrFCSR)
+			v := cpu.rcsr(fcsr)
 			v = setBit(v, 3) // DZ (Divided by Zero flag)
-			cpu.wcsr(CsrFCSR, v)
+			cpu.wcsr(fcsr, v)
 			cpu.wxreg(rd, 0xffff_ffff_ffff_ffff)
 		} else {
 			cpu.wxreg(rd, dividend/divisor)
@@ -1717,9 +1717,9 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		divisor := int32(cpu.rxreg(rs2))
 		if divisor == 0 {
 			// Division by 0. Set a special flag
-			v := cpu.rcsr(CsrFCSR)
+			v := cpu.rcsr(fcsr)
 			v = setBit(v, 3) // DZ (Divided by Zero flag)
-			cpu.wcsr(CsrFCSR, v)
+			cpu.wcsr(fcsr, v)
 			cpu.wxreg(rd, 0xffff_ffff_ffff_ffff)
 		} else if dividend == math.MinInt32 && divisor == -1 {
 			cpu.wxreg(rd, uint64(int64(dividend)))
@@ -1735,9 +1735,9 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		divisor := uint32(cpu.rxreg(rs2))
 		if divisor == 0 {
 			// Division by 0. Set a special flag
-			v := cpu.rcsr(CsrFCSR)
+			v := cpu.rcsr(fcsr)
 			v = setBit(v, 3) // DZ (Divided by Zero flag)
-			cpu.wcsr(CsrFCSR, v)
+			cpu.wcsr(fcsr, v)
 			cpu.wxreg(rd, 0xffff_ffff_ffff_ffff)
 		} else {
 			cpu.wxreg(rd, uint64(int64(int32(dividend/divisor))))

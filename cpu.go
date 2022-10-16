@@ -20,6 +20,36 @@ const (
 	halfword   = 16
 	word       = 32
 	doubleword = 64
+
+	// csr stuff
+	sstatusmask        = 0b1000000000000000000000000000001100000000000011011110011101100010
+	siemask            = 0b1000100010
+	sipmask            = 0b1000100010
+	ustatus     uint64 = 0x000
+	utvec       uint64 = 0x005
+	uepc        uint64 = 0x041
+	ucause      uint64 = 0x042
+	utval       uint64 = 0x043
+	fflags      uint64 = 0x001
+	frm         uint64 = 0x002
+	fcsr        uint64 = 0x003
+	sstatus     uint64 = 0x100
+	sedeleg     uint64 = 0x102
+	sie         uint64 = 0x104
+	stvec       uint64 = 0x105
+	sepc        uint64 = 0x141
+	scause      uint64 = 0x142
+	stval       uint64 = 0x143
+	sip         uint64 = 0x144
+	satp        uint64 = 0x180
+	mstatus     uint64 = 0x300
+	medeleg     uint64 = 0x302
+	mie         uint64 = 0x304
+	mtvec       uint64 = 0x305
+	mepc        uint64 = 0x341
+	mcause      uint64 = 0x342
+	mtval       uint64 = 0x343
+	mip         uint64 = 0x344
 )
 
 type CPU struct {
@@ -89,64 +119,60 @@ func (cpu *CPU) wfreg(i uint64, val float64) {
  * csr
  */
 func (cpu *CPU) rcsr(addr uint64) uint64 {
-	if addr == CsrFFLAGS {
-		// FCSR consists of FRM (3-bit) + FFLAGS (5-bit)
-		return cpu.csr[CsrFCSR] & 0x1f
+	if addr == fflags {
+		// fcsr consists of frm (3-bit) + fflags (5-bit)
+		return cpu.csr[fcsr] & 0x1f
 	}
 
-	if addr == CsrFRM {
-		// FCSR consists of FRM (3-bit) + FFLAGS (5-bit)
-		return (cpu.csr[CsrFCSR] & 0xe0) >> 5
+	if addr == frm {
+		// fcsr consists of frm (3-bit) + fflags (5-bit)
+		return (cpu.csr[fcsr] & 0xe0) >> 5
 	}
 
-	// when any of SSTATUS, SIP, SIE is requested, masked MSTATUS, MIP, MIE should be returned because they are subsets.
-	// See RISC-V Privileged Architecture Spec 4.1
-	if addr == CsrSSTATUS {
-		return cpu.csr[CsrMSTATUS] & CsrSstatusMask
+	if addr == sstatus {
+		return cpu.csr[mstatus] & sstatusmask
 	}
 
-	if addr == CsrSIP {
-		return cpu.csr[CsrMIP] & CsrSipMask
+	if addr == sip {
+		return cpu.csr[mip] & sipmask // sip is a subset of mip
 	}
 
-	if addr == CsrSIE {
-		return cpu.csr[CsrMIE] & CsrSieMask
+	if addr == sie {
+		return cpu.csr[mie] & siemask // sie is a subset of mie
 	}
 
 	return cpu.csr[addr]
 }
 
 func (cpu *CPU) wcsr(addr uint64, value uint64) {
-	if addr == CsrFFLAGS {
-		// FCSR consists of FRM (3-bit) + FFLAGS (5-bit)
-		cpu.csr[CsrFCSR] &= ^uint64(0x1f) // clear fcsr[4:0]
-		cpu.csr[CsrFCSR] |= value & 0x1f  // write the value[4:0] to the fcsr[4:0]
+	if addr == fflags {
+		// fcsr consists of frm (3-bit) + fflags (5-bit)
+		cpu.csr[fcsr] &= ^uint64(0x1f) // clear fcsr[4:0]
+		cpu.csr[fcsr] |= value & 0x1f  // write the value[4:0] to the fcsr[4:0]
 		return
 	}
 
-	if addr == CsrFRM {
-		// FCSR consists of FRM (3-bit) + FFLAGS (5-bit)
-		cpu.csr[CsrFCSR] &= ^uint64(0xe0)       // clear fcsr[7:5]
-		cpu.csr[CsrFCSR] |= (value << 5) & 0xe0 // write the value[2:0] to the fcsr[7:5]
+	if addr == frm {
+		// fcsr consists of frm (3-bit) + fflags (5-bit)
+		cpu.csr[fcsr] &= ^uint64(0xe0)       // clear fcsr[7:5]
+		cpu.csr[fcsr] |= (value << 5) & 0xe0 // write the value[2:0] to the fcsr[7:5]
 		return
 	}
 
-	if addr == CsrSSTATUS {
-		// SSTATUS is a subset of MSTATUS
-		cpu.csr[CsrMSTATUS] &= ^uint64(CsrSstatusMask) // clear mask
-		cpu.csr[CsrMSTATUS] |= value & CsrSstatusMask  // write only mask
+	if addr == sstatus {
+		// sstatus is a subset of mstatus
+		cpu.csr[mstatus] &= ^uint64(sstatusmask) // clear mask
+		cpu.csr[mstatus] |= value & sstatusmask  // write only mask
 	}
 
-	if addr == CsrSIE {
-		// SIE is a subset of MIE
-		cpu.csr[CsrMIE] &= ^uint64(CsrSieMask)
-		cpu.csr[CsrMIE] |= value & CsrSieMask
+	if addr == sip {
+		cpu.csr[mip] &= ^uint64(sipmask)
+		cpu.csr[mip] |= value & sipmask
 	}
 
-	if addr == CsrSIP {
-		// SIE is a subset of MIE
-		cpu.csr[CsrMIP] &= ^uint64(CsrSieMask)
-		cpu.csr[CsrMIP] |= value & CsrSieMask
+	if addr == sie {
+		cpu.csr[mie] &= ^uint64(siemask)
+		cpu.csr[mie] |= value & siemask
 	}
 
 	cpu.csr[addr] = value
@@ -295,8 +321,8 @@ func (cpu *CPU) HandleException(pc uint64, excp *Exception) Trap {
 	origMode := cpu.mode
 	cause := excp.Code
 
-	mdeleg := cpu.rcsr(CsrMEDELEG)
-	sdeleg := cpu.rcsr(CsrSEDELEG)
+	mdeleg := cpu.rcsr(medeleg)
+	sdeleg := cpu.rcsr(sedeleg)
 
 	// First, determine the upcoming mode
 	if ((mdeleg >> cause) & 1) == 0 {
@@ -312,104 +338,104 @@ func (cpu *CPU) HandleException(pc uint64, excp *Exception) Trap {
 	case machine:
 		// MEPC is written with the virtual address of the instruction that was
 		// interrupted or that encountered the exception.
-		cpu.wcsr(CsrMEPC, curPC)
+		cpu.wcsr(mepc, curPC)
 
 		// MCAUSE is written with a code indicating the event that caused the trap.
-		cpu.wcsr(CsrMCAUSE, uint64(cause))
+		cpu.wcsr(mcause, uint64(cause))
 
 		// MTVAL is either set to zero or written with exception-specific information to
 		// assist software in handling the trap.
-		cpu.wcsr(CsrMTVAL, excp.TrapValue)
+		cpu.wcsr(mtval, excp.TrapValue)
 
 		// PC is updated with the trap-handler base address (MTVEC).
-		cpu.PC = cpu.rcsr(CsrMTVEC)
+		cpu.PC = cpu.rcsr(mtvec)
 		if (cpu.PC & 0b11) != 0 {
 			// Add 4 * cause if MTVEC has vector type address.
 			// copied from: https://github.com/takahirox/riscv-rust/blob/master/src/cpu.rs#L625
 			cpu.PC = (cpu.PC & ^uint64(0b11)) + uint64((4 * (cause * 0xffff)))
 		}
 
-		status := cpu.rcsr(CsrMSTATUS)
-		// update MPIE with MIE.
-		if bit(status, CsrStatusMIE) == 0 {
-			status = clearBit(status, CsrStatusMPIE)
+		status := cpu.rcsr(mstatus)
+		// update mpie with mie.
+		if bit(status, 3) == 0 {
+			status = clearBit(status, 7)
 		} else {
-			status = setBit(status, CsrStatusMPIE)
+			status = setBit(status, 7)
 		}
 
 		// Clear MIE.
-		status = clearBit(status, CsrStatusMIE)
+		status = clearBit(status, 3)
 
 		// Update MPP with the previous privilege mode.
 		switch origMode {
 		case machine:
-			status = setBit(status, CsrStatusMPPLo)
-			status = setBit(status, CsrStatusMPPHi)
+			status = setBit(status, 11)
+			status = setBit(status, 12)
 		case supervisor:
-			status = setBit(status, CsrStatusMPPLo)
-			status = clearBit(status, CsrStatusMPPHi)
+			status = setBit(status, 11)
+			status = clearBit(status, 12)
 		case user:
-			status = clearBit(status, CsrStatusMPPLo)
-			status = clearBit(status, CsrStatusMPPHi)
+			status = clearBit(status, 11)
+			status = clearBit(status, 12)
 		}
 
-		cpu.wcsr(CsrMSTATUS, status)
-		cpu.MMU.Mstatus = cpu.rcsr(CsrMSTATUS)
+		cpu.wcsr(mstatus, status)
+		cpu.MMU.Mstatus = cpu.rcsr(mstatus)
 	case supervisor:
-		// SEPC is written with the virtual address of the instruction that was
+		// sepc is written with the virtual address of the instruction that was
 		// interrupted or that encountered the exception.
-		cpu.wcsr(CsrSEPC, curPC)
+		cpu.wcsr(sepc, curPC)
 
-		// SCAUSE is written with a code indicating the event that caused the trap.
-		cpu.wcsr(CsrSCAUSE, uint64(cause))
+		// scause is written with a code indicating the event that caused the trap.
+		cpu.wcsr(scause, uint64(cause))
 
-		// STVAL is either set to zero or written with exception-specific information to
+		// stval is either set to zero or written with exception-specific information to
 		// assist software in handling the trap.
-		cpu.wcsr(CsrSTVAL, excp.TrapValue)
+		cpu.wcsr(stval, excp.TrapValue)
 
 		// PC is updated with the trap-handler base address (STVEC).
-		cpu.PC = cpu.rcsr(CsrSTVEC)
+		cpu.PC = cpu.rcsr(stvec)
 		if (cpu.PC & 0b11) != 0 {
 			// Add 4 * cause if STVEC has vector type address.
 			// copied from: https://github.com/takahirox/riscv-rust/blob/master/src/cpu.rs#L625
 			cpu.PC = (cpu.PC & ^uint64(0b11)) + uint64((4 * (cause * 0xffff)))
 		}
 
-		status := cpu.rcsr(CsrSSTATUS)
+		status := cpu.rcsr(sstatus)
 		// update SPIE with SIE.
-		if bit(status, CsrStatusSIE) == 0 {
-			status = clearBit(status, CsrStatusSPIE)
+		if bit(status, 1) == 0 {
+			status = clearBit(status, 5)
 		} else {
-			status = setBit(status, CsrStatusSPIE)
+			status = setBit(status, 5)
 		}
 
 		// Clear SIE.
-		status = clearBit(status, CsrStatusSIE)
+		status = clearBit(status, 1)
 
 		// Update SPP with the previous privilege mode.
 		switch origMode {
 		case supervisor:
-			status = setBit(status, CsrStatusSPP)
+			status = setBit(status, 8)
 		case user:
-			status = clearBit(status, CsrStatusSPP)
+			status = clearBit(status, 8)
 		}
 
-		cpu.wcsr(CsrSSTATUS, status)
-		cpu.MMU.Mstatus = cpu.rcsr(CsrMSTATUS)
+		cpu.wcsr(sstatus, status)
+		cpu.MMU.Mstatus = cpu.rcsr(mstatus)
 	case user:
-		// UEPC is written with the virtual address of the instruction that was
+		// uepc is written with the virtual address of the instruction that was
 		// interrupted or that encountered the exception.
-		cpu.wcsr(CsrUEPC, curPC)
+		cpu.wcsr(uepc, curPC)
 
-		// UCAUSE is written with a code indicating the event that caused the trap.
-		cpu.wcsr(CsrUCAUSE, uint64(cause))
+		// ucause is written with a code indicating the event that caused the trap.
+		cpu.wcsr(ucause, uint64(cause))
 
-		// UTVAL is either set to zero or written with exception-specific information to
+		// utval is either set to zero or written with exception-specific information to
 		// assist software in handling the trap.
-		cpu.wcsr(CsrUTVAL, excp.TrapValue)
+		cpu.wcsr(utval, excp.TrapValue)
 
 		// PC is updated with the trap-handler base address (UTVEC).
-		cpu.PC = cpu.rcsr(CsrUTVEC)
+		cpu.PC = cpu.rcsr(utvec)
 		if (cpu.PC & 0b11) != 0 {
 			// Add 4 * cause if UTVEC has vector type address.
 			// copied from: https://github.com/takahirox/riscv-rust/blob/master/src/cpu.rs#L625
