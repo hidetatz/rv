@@ -415,8 +415,15 @@ func (cpu *CPU) Run() Trap {
 		return cpu.HandleException(cur, excp)
 	}
 
+	// if the last 2-bit is one of 00/01/10, it is 16-bit instruction.
+	isCompressed := false
+	last2bit := raw & 0b11
+	if last2bit == 0b00 || last2bit == 0b01 || last2bit == 0b10 {
+		isCompressed = true
+	}
+
 	// As of here, we are not sure if the next instruction is compressed. First we have to figure that out.
-	if IsCompressed(raw) {
+	if isCompressed {
 		code = DecodeCompressed(raw)
 		cpu.PC += 2
 	} else {
@@ -456,13 +463,6 @@ func (cpu *CPU) Exec(code InstructionCode, raw, cur uint64) *Exception {
 	}
 
 	return execution(cpu, raw, cur)
-}
-
-// IsCompressed returns if the instruction is compressed 16-bit one.
-func IsCompressed(inst uint64) bool {
-	last2bit := inst & 0b11
-	// if the last 2-bit is one of 00/01/10, it is 16-bit instruction.
-	return last2bit == 0b00 || last2bit == 0b01 || last2bit == 0b10
 }
 
 func (cpu *CPU) UpdateAddressingMode(v uint64) {
