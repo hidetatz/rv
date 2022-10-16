@@ -250,7 +250,7 @@ func (cpu *CPU) fetch() (uint64, *Exception) {
 	vAddr := cpu.pc
 	if (vAddr & 0xfff) <= 0x1000-4 {
 		eAddr := cpu.getEffectiveAddr(vAddr)
-		pa, excp := cpu.translate(eAddr, maInst, cpu.mode)
+		pa, excp := cpu.translate(eAddr, maInst)
 		if excp != nil {
 			return 0, ExcpInstructionPageFault(vAddr)
 		}
@@ -263,7 +263,7 @@ func (cpu *CPU) fetch() (uint64, *Exception) {
 	data := uint64(0)
 	for i := uint64(0); i < 4; i++ {
 		eAddr := cpu.getEffectiveAddr(vAddr + 1)
-		pa, excp := cpu.translate(eAddr, maInst, cpu.mode)
+		pa, excp := cpu.translate(eAddr, maInst)
 		if excp != nil {
 			return 0, ExcpInstructionPageFault(vAddr)
 		}
@@ -278,7 +278,7 @@ func (cpu *CPU) fetch() (uint64, *Exception) {
 func (cpu *CPU) read(addr uint64, size int) (uint64, *Exception) {
 	if size == byt {
 		eAddr := cpu.getEffectiveAddr(addr)
-		pAddr, excp := cpu.translate(eAddr, maLoad, cpu.mode)
+		pAddr, excp := cpu.translate(eAddr, maLoad)
 		if excp != nil {
 			return 0, ExcpLoadPageFault(addr)
 		}
@@ -288,7 +288,7 @@ func (cpu *CPU) read(addr uint64, size int) (uint64, *Exception) {
 
 	if (addr & 0xfff) <= 0x1000-uint64(size/8) {
 		eAddr := cpu.getEffectiveAddr(addr)
-		pAddr, excp := cpu.translate(eAddr, maLoad, cpu.mode)
+		pAddr, excp := cpu.translate(eAddr, maLoad)
 		if excp != nil {
 			return 0, ExcpLoadPageFault(addr)
 		}
@@ -299,7 +299,7 @@ func (cpu *CPU) read(addr uint64, size int) (uint64, *Exception) {
 	data := uint64(0)
 	for i := uint64(0); i < uint64(size/8); i++ {
 		eAddr := cpu.getEffectiveAddr(addr + i)
-		pa, excp := cpu.translate(eAddr, maLoad, cpu.mode)
+		pa, excp := cpu.translate(eAddr, maLoad)
 		if excp != nil {
 			return 0, ExcpLoadPageFault(addr)
 		}
@@ -320,7 +320,7 @@ func (cpu *CPU) write(addr, val uint64, size int) *Exception {
 
 	if size == byt {
 		eAddr := cpu.getEffectiveAddr(addr)
-		pAddr, excp := cpu.translate(eAddr, maStore, cpu.mode)
+		pAddr, excp := cpu.translate(eAddr, maStore)
 		if excp != nil {
 			return ExcpStoreAMOPageFault(addr)
 		}
@@ -332,7 +332,7 @@ func (cpu *CPU) write(addr, val uint64, size int) *Exception {
 
 	if (addr & 0xfff) <= 0x1000-uint64(size/8) {
 		eAddr := cpu.getEffectiveAddr(addr)
-		pAddr, excp := cpu.translate(eAddr, maStore, cpu.mode)
+		pAddr, excp := cpu.translate(eAddr, maStore)
 		if excp != nil {
 			return ExcpStoreAMOPageFault(addr)
 		}
@@ -342,7 +342,7 @@ func (cpu *CPU) write(addr, val uint64, size int) *Exception {
 
 	for i := uint64(0); i < uint64(size/8); i++ {
 		eAddr := cpu.getEffectiveAddr(addr + i)
-		pa, excp := cpu.translate(eAddr, maStore, cpu.mode)
+		pa, excp := cpu.translate(eAddr, maStore)
 		if excp != nil {
 			return ExcpStoreAMOPageFault(addr)
 		}
@@ -353,30 +353,80 @@ func (cpu *CPU) write(addr, val uint64, size int) *Exception {
 	return nil
 }
 
-func (cpu *CPU) translate(vAddr uint64, ma int, curMode int) (uint64, *Exception) {
-	if cpu.addressingMode == svnone {
-		return vAddr, nil
+func (cpu *CPU) translate(vAddr uint64, ma int) (uint64, *Exception) {
+	eAddr := cpu.getEffectiveAddr(vAddr)
+
+	switch cpu.addressingMode {
+	case svnone:
+		return eAddr, nil
+
+	case sv32:
+		switch cpu.mode {
+		case machine:
+			switch ma {
+			case maInst:
+				return eAddr, nil
+			default:
+				mst := cpu.rcsr(mstatus)
+				if (mst>>17)&1 == 0 {
+					return eAddr, nil
+				}
+
+				newMode := (mst >> 9) & 3
+				if newMode == machine {
+					return eAddr, nil
+				}
+
+				curMode := cpu.mode
+				cpu.mode = int(newMode)
+				r, excp := cpu.translate(vAddr, ma)
+				if excp != nil {
+					return 0, excp
+				}
+				cpu.mode = curMode
+				return r, nil
+
+			}
+		case supervisor, user:
+			vpns := []uint64{(eAddr >> 12) & 0x1ff, (eAddr >> 22) & 0x3ff}
+			return cpu.traversePage(eAddr, 2-1, cpu.ppn, vpns, ma)
+		}
+	case sv39:
+		switch cpu.mode {
+		case machine:
+			switch ma {
+			case maInst:
+				return eAddr, nil
+			default:
+				mst := cpu.rcsr(mstatus)
+				if (mst>>17)&1 == 0 {
+					return eAddr, nil
+				}
+
+				newMode := (mst >> 9) & 3
+				if newMode == machine {
+					return eAddr, nil
+				}
+
+				curMode := cpu.mode
+				cpu.mode = int(newMode)
+				r, excp := cpu.translate(vAddr, ma)
+				if excp != nil {
+					return 0, excp
+				}
+				cpu.mode = curMode
+				return r, nil
+
+			}
+		case supervisor, user:
+			vpns := []uint64{(eAddr >> 12) & 0x1ff, (eAddr >> 21) & 0x1ff, (eAddr >> 30) & 0x1ff}
+			return cpu.traversePage(eAddr, 3-1, cpu.ppn, vpns, ma)
+		}
+	case sv48:
+		panic("sv48 is unsupported")
 	}
 
-	if curMode == machine {
-		if ma == maInst {
-			return vAddr, nil
-		}
-
-		if bit(cpu.rcsr(mstatus), 17) == 0 {
-			return vAddr, nil
-		}
-
-		newPrivMode := bits(cpu.rcsr(mstatus), 10, 9)
-		if newPrivMode == machine {
-			return vAddr, nil
-		}
-
-		return cpu.translate(vAddr, ma, int(newPrivMode))
-	}
-
-	vpns := []uint64{bits(vAddr, 20, 12), bits(vAddr, 29, 21), bits(vAddr, 38, 30)}
-	return cpu.traversePage(vAddr, 2, cpu.ppn, vpns, ma)
+	panic("unknown addressing mode")
 }
 
 func (cpu *CPU) traversePage(vAddr uint64, level int, parentPPN uint64, vpns []uint64, ma int) (uint64, *Exception) {
@@ -393,10 +443,40 @@ func (cpu *CPU) traversePage(vAddr uint64, level int, parentPPN uint64, vpns []u
 		return nil // should not come here
 	}
 
-	pteAddr := parentPPN*4096 + vpns[level]*8
-	pte := cpu.ram.Read(pteAddr, doubleword)
-	ppn := (pte >> 10) & 0xfffffffffff
-	v, r, w, x, a, d := bit(pte, 0), bit(pte, 1), bit(pte, 2), bit(pte, 3), bit(pte, 6), bit(pte, 7)
+	pageSize := uint64(4096)
+	pteSize := uint64(8)
+	if cpu.addressingMode == sv32 {
+		pteSize = uint64(4)
+	}
+
+	pteAddr := parentPPN*pageSize + vpns[level]*pteSize
+	var pte uint64
+	if cpu.addressingMode == sv32 {
+		pte = cpu.ram.Read(pteAddr, word)
+	} else {
+		pte = cpu.ram.Read(pteAddr, doubleword)
+	}
+
+	var ppn uint64
+	if cpu.addressingMode == sv32 {
+		ppn = (pte >> 10) & 0x3fffff
+	} else {
+		ppn = (pte >> 10) & 0xfffffffffff
+	}
+
+	var ppns []uint64
+	if cpu.addressingMode == sv32 {
+		ppns = []uint64{(pte >> 10) & 0x3ff, (pte >> 20) & 0xfff, 0}
+	} else {
+		ppns = []uint64{(pte >> 10) & 0x1ff, (pte >> 19) & 0x1ff, (pte >> 28) & 0x3ffffff}
+	}
+
+	d := (pte >> 7) & 1
+	a := (pte >> 6) & 1
+	x := (pte >> 3) & 1
+	w := (pte >> 2) & 1
+	r := (pte >> 1) & 1
+	v := pte & 1
 
 	if v == 0 || (r == 0 && w == 1) {
 		return 0, fault()
@@ -418,7 +498,11 @@ func (cpu *CPU) traversePage(vAddr uint64, level int, parentPPN uint64, vpns []u
 			newPTE |= (1 << 7)
 		}
 
-		cpu.ram.Write(pteAddr, newPTE, doubleword)
+		if cpu.addressingMode == sv32 {
+			cpu.ram.Write(pteAddr, newPTE, word)
+		} else {
+			cpu.ram.Write(pteAddr, newPTE, doubleword)
+		}
 	}
 
 	switch ma {
@@ -436,30 +520,40 @@ func (cpu *CPU) traversePage(vAddr uint64, level int, parentPPN uint64, vpns []u
 		}
 	}
 
-	ppns := []uint64{
-		(pte >> 10) & 0x1ff,
-		(pte >> 19) & 0x1ff,
-		(pte >> 28) & 0x3ff_ffff,
-	}
-
 	offset := vAddr & 0xfff
-	switch level {
-	case 2:
-		if ppns[1] != 0 || ppns[0] != 0 {
-			return 0, fault()
-		}
+	switch cpu.addressingMode {
+	case sv32:
+		switch level {
+		case 1:
+			if ppns[0] != 0 {
+				return 0, fault()
+			}
 
-		return (ppns[2] << 30) | (vpns[1] << 21) | (vpns[0] << 12) | offset, nil
-	case 1:
-		if ppns[0] != 0 {
-			return 0, fault()
+			return (ppns[1] << 22) | (vpns[0] << 12) | offset, nil
+		case 0:
+			return (ppn << 12) | offset, nil
+		default:
+			panic("invalid level") // should not come here
 		}
-
-		return (ppns[2] << 30) | (ppns[1] << 21) | (vpns[0] << 12) | offset, nil
-	case 0:
-		return (ppn << 12) | offset, nil
 	default:
-		panic("invalid level") // should not come here
+		switch level {
+		case 2:
+			if ppns[1] != 0 || ppns[0] != 0 {
+				return 0, fault()
+			}
+
+			return (ppns[2] << 30) | (vpns[1] << 21) | (vpns[0] << 12) | offset, nil
+		case 1:
+			if ppns[0] != 0 {
+				return 0, fault()
+			}
+
+			return (ppns[2] << 30) | (ppns[1] << 21) | (vpns[0] << 12) | offset, nil
+		case 0:
+			return (ppn << 12) | offset, nil
+		default:
+			panic("invalid level") // should not come here
+		}
 	}
 }
 
