@@ -69,30 +69,32 @@ type CPU struct {
 	mode           int
 	wfi            bool
 	pc             uint64
-	csr            [4096]uint64
-	xregs          [32]uint64
-	fregs          [32]float64
-	bus            *bus
-	lrsc           map[uint64]struct{}
 	addressingMode int
 	ppn            uint64
+
+	csr   [4096]uint64
+	xregs [32]uint64
+	fregs [32]float64
+	lrsc  map[uint64]struct{}
+
+	ram *Memory
 }
 
 func NewCPU() *CPU {
 	return &CPU{
-		clock: 0,
-		xlen:  xlen64,
-		mode:  machine,
-		pc:    0,
+		clock:          0,
+		xlen:           xlen64,
+		mode:           machine,
+		pc:             0,
+		addressingMode: svnone,
+		ppn:            0,
+
 		csr:   [4096]uint64{},
 		xregs: [32]uint64{},
 		fregs: [32]float64{},
-		bus: &bus{
-			ram: NewMemory(),
-		},
-		lrsc:           make(map[uint64]struct{}),
-		addressingMode: svnone,
-		ppn:            0,
+		lrsc:  make(map[uint64]struct{}),
+
+		ram: NewMemory(),
 	}
 }
 
@@ -181,7 +183,9 @@ func (cpu *CPU) wcsr(addr uint64, value uint64) {
 		cpu.csr[mie] |= value & siemask
 	}
 
-	cpu.csr[addr] = value
+	if addr != 0 {
+		cpu.csr[addr] = value
+	}
 
 	if addr == satp {
 		cpu.updateAddressingMode(value)
@@ -233,37 +237,119 @@ func (cpu *CPU) cancel(addr uint64) {
 /*
  * memory
  */
+
+func (cpu *CPU) getEffectiveAddr(addr uint64) uint64 {
+	if cpu.xlen == xlen32 {
+		return addr & 0xffffffff
+	}
+
+	return addr
+}
+
 func (cpu *CPU) fetch() (uint64, *Exception) {
-	pAddr, excp := cpu.translate(cpu.pc, maInst, cpu.mode)
-	if excp != nil {
-		return 0, excp
+	vAddr := cpu.pc
+	if (vAddr & 0xfff) <= 0x1000-4 {
+		eAddr := cpu.getEffectiveAddr(vAddr)
+		pa, excp := cpu.translate(eAddr, maInst, cpu.mode)
+		if excp != nil {
+			return 0, ExcpInstructionPageFault(vAddr)
+		}
+
+		v := cpu.ram.Read(pa, word)
+
+		return v, nil
 	}
 
-	return cpu.bus.Read(pAddr, word), nil
-}
+	data := uint64(0)
+	for i := uint64(0); i < 4; i++ {
+		eAddr := cpu.getEffectiveAddr(vAddr + 1)
+		pa, excp := cpu.translate(eAddr, maInst, cpu.mode)
+		if excp != nil {
+			return 0, ExcpInstructionPageFault(vAddr)
+		}
 
-func (cpu *CPU) Read(addr uint64, size int) (uint64, *Exception) {
-	pAddr, excp := cpu.translate(addr, maLoad, cpu.mode)
-	if excp != nil {
-		return 0, excp
+		v := cpu.ram.Read(pa, byt)
+		data |= v << (i * 8)
 	}
 
-	return cpu.bus.Read(pAddr, size), nil
+	return data, nil
 }
 
-func (cpu *CPU) Write(addr, val uint64, size int) *Exception {
+func (cpu *CPU) read(addr uint64, size int) (uint64, *Exception) {
+	if size == byt {
+		eAddr := cpu.getEffectiveAddr(addr)
+		pAddr, excp := cpu.translate(eAddr, maLoad, cpu.mode)
+		if excp != nil {
+			return 0, ExcpLoadPageFault(addr)
+		}
+
+		return cpu.ram.Read(pAddr, byt), nil
+	}
+
+	if (addr & 0xfff) <= 0x1000-uint64(size/8) {
+		eAddr := cpu.getEffectiveAddr(addr)
+		pAddr, excp := cpu.translate(eAddr, maLoad, cpu.mode)
+		if excp != nil {
+			return 0, ExcpLoadPageFault(addr)
+		}
+
+		return cpu.ram.Read(pAddr, size), nil
+	}
+
+	data := uint64(0)
+	for i := uint64(0); i < uint64(size/8); i++ {
+		eAddr := cpu.getEffectiveAddr(addr + i)
+		pa, excp := cpu.translate(eAddr, maLoad, cpu.mode)
+		if excp != nil {
+			return 0, ExcpLoadPageFault(addr)
+		}
+
+		v := cpu.ram.Read(pa, byt)
+		data |= v << (i * 8)
+	}
+
+	return data, nil
+}
+
+func (cpu *CPU) write(addr, val uint64, size int) *Exception {
 	// Cancel reserved memory to make SC fail when an write is called
 	// between LR and SC.
 	if cpu.reserved(addr) {
 		cpu.cancel(addr)
 	}
 
-	pAddr, excp := cpu.translate(addr, maStore, cpu.mode)
-	if excp != nil {
-		return excp
+	if size == byt {
+		eAddr := cpu.getEffectiveAddr(addr)
+		pAddr, excp := cpu.translate(eAddr, maStore, cpu.mode)
+		if excp != nil {
+			return ExcpStoreAMOPageFault(addr)
+		}
+
+		cpu.ram.Write(pAddr, val, byt)
 	}
 
-	cpu.bus.Write(pAddr, val, size)
+	// multiple bytes
+
+	if (addr & 0xfff) <= 0x1000-uint64(size/8) {
+		eAddr := cpu.getEffectiveAddr(addr)
+		pAddr, excp := cpu.translate(eAddr, maStore, cpu.mode)
+		if excp != nil {
+			return ExcpStoreAMOPageFault(addr)
+		}
+
+		cpu.ram.Write(pAddr, val, size)
+	}
+
+	for i := uint64(0); i < uint64(size/8); i++ {
+		eAddr := cpu.getEffectiveAddr(addr + i)
+		pa, excp := cpu.translate(eAddr, maStore, cpu.mode)
+		if excp != nil {
+			return ExcpStoreAMOPageFault(addr)
+		}
+
+		cpu.ram.Write(pa, (val>>(i*8))&0xff, byt)
+	}
+
 	return nil
 }
 
@@ -308,7 +394,7 @@ func (cpu *CPU) traversePage(vAddr uint64, level int, parentPPN uint64, vpns []u
 	}
 
 	pteAddr := parentPPN*4096 + vpns[level]*8
-	pte := cpu.bus.Read(pteAddr, doubleword)
+	pte := cpu.ram.Read(pteAddr, doubleword)
 	ppn := (pte >> 10) & 0xfffffffffff
 	v, r, w, x, a, d := bit(pte, 0), bit(pte, 1), bit(pte, 2), bit(pte, 3), bit(pte, 6), bit(pte, 7)
 
@@ -332,7 +418,7 @@ func (cpu *CPU) traversePage(vAddr uint64, level int, parentPPN uint64, vpns []u
 			newPTE |= (1 << 7)
 		}
 
-		cpu.bus.Write(pteAddr, newPTE, doubleword)
+		cpu.ram.Write(pteAddr, newPTE, doubleword)
 	}
 
 	switch ma {
@@ -477,7 +563,7 @@ func (cpu *CPU) tick() {
 		cpu.handleExcp(excp, pc)
 	}
 
-	//cpu.bus.tick()
+	//cpu.ram.tick()
 	//cpu.handleIntr(cpu.pc)
 	cpu.clock++
 	//cpu.wcsr(cycle, cpu.clock*8)
@@ -528,41 +614,41 @@ func (cpu *CPU) exec(raw, pc uint64) *Exception {
 	case raw&0xf800707f == 0x0000302f: //"amoadd.d"
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
 		addr := cpu.rxreg(rs1)
-		t, excp := cpu.Read(addr, doubleword)
+		t, excp := cpu.read(addr, doubleword)
 		if excp != nil {
 			return excp
 		}
-		cpu.Write(addr, t+cpu.rxreg(rs2), doubleword)
+		cpu.write(addr, t+cpu.rxreg(rs2), doubleword)
 		cpu.wxreg(rd, t)
 
 	case raw&0xf800707f == 0x0000202f: //"amoadd.w"
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
 		addr := cpu.rxreg(rs1)
-		t, excp := cpu.Read(addr, word)
+		t, excp := cpu.read(addr, word)
 		if excp != nil {
 			return excp
 		}
-		cpu.Write(addr, t+cpu.rxreg(rs2), word)
+		cpu.write(addr, t+cpu.rxreg(rs2), word)
 		cpu.wxreg(rd, uint64(int64(int32(t))))
 
 	case raw&0xf800707f == 0x6000302f: //"amoand.d"
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
 		addr := cpu.rxreg(rs1)
-		t, excp := cpu.Read(addr, doubleword)
+		t, excp := cpu.read(addr, doubleword)
 		if excp != nil {
 			return excp
 		}
-		cpu.Write(addr, t&cpu.rxreg(rs2), doubleword)
+		cpu.write(addr, t&cpu.rxreg(rs2), doubleword)
 		cpu.wxreg(rd, t)
 
 	case raw&0xf800707f == 0x6000202f: //"amoand.w"
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
 		addr := cpu.rxreg(rs1)
-		t, excp := cpu.Read(addr, word)
+		t, excp := cpu.read(addr, word)
 		if excp != nil {
 			return excp
 		}
-		cpu.Write(addr, uint64(int64(int32(t)&int32(cpu.rxreg(rs2)))), word)
+		cpu.write(addr, uint64(int64(int32(t)&int32(cpu.rxreg(rs2)))), word)
 		cpu.wxreg(rd, uint64(int64(int32(t))))
 
 		// 11111000000000000111000001111111
@@ -570,16 +656,16 @@ func (cpu *CPU) exec(raw, pc uint64) *Exception {
 	case raw&0xf800707f == 0xa000302f: // amomax.d
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
 		addr := cpu.rxreg(rs1)
-		t, excp := cpu.Read(addr, doubleword)
+		t, excp := cpu.read(addr, doubleword)
 		if excp != nil {
 			return excp
 		}
 		t2 := cpu.rxreg(rs2)
 
 		if int64(t) < int64(t2) {
-			cpu.Write(addr, uint64(int64(t2)), doubleword)
+			cpu.write(addr, uint64(int64(t2)), doubleword)
 		} else {
-			cpu.Write(addr, uint64(int64(t)), doubleword)
+			cpu.write(addr, uint64(int64(t)), doubleword)
 		}
 
 		cpu.wxreg(rd, uint64(int64(t)))
@@ -587,16 +673,16 @@ func (cpu *CPU) exec(raw, pc uint64) *Exception {
 	case raw&0xf800707f == 0xa000202f: // amomax.w
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
 		addr := cpu.rxreg(rs1)
-		t, excp := cpu.Read(addr, word)
+		t, excp := cpu.read(addr, word)
 		if excp != nil {
 			return excp
 		}
 		t2 := cpu.rxreg(rs2)
 
 		if int32(t) < int32(t2) {
-			cpu.Write(addr, uint64(int64(int32(t2))), word)
+			cpu.write(addr, uint64(int64(int32(t2))), word)
 		} else {
-			cpu.Write(addr, uint64(int64(int32(t))), word)
+			cpu.write(addr, uint64(int64(int32(t))), word)
 		}
 
 		cpu.wxreg(rd, uint64(int64(int32(t))))
@@ -604,32 +690,32 @@ func (cpu *CPU) exec(raw, pc uint64) *Exception {
 	case raw&0xf800707f == 0xe000302f: //"amomaxu.d"
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
 		addr := cpu.rxreg(rs1)
-		t, excp := cpu.Read(addr, doubleword)
+		t, excp := cpu.read(addr, doubleword)
 		if excp != nil {
 			return excp
 		}
 		t2 := cpu.rxreg(rs2)
 
 		if t < t2 {
-			cpu.Write(addr, t2, doubleword)
+			cpu.write(addr, t2, doubleword)
 		} else {
-			cpu.Write(addr, t, doubleword)
+			cpu.write(addr, t, doubleword)
 		}
 		cpu.wxreg(rd, t)
 
 	case raw&0xf800707f == 0xe000202f: //"amomaxu.w"
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
 		addr := cpu.rxreg(rs1)
-		t, excp := cpu.Read(addr, word)
+		t, excp := cpu.read(addr, word)
 		if excp != nil {
 			return excp
 		}
 		t2 := cpu.rxreg(rs2)
 
 		if uint32(t) < uint32(t2) {
-			cpu.Write(addr, uint64(uint32(t2)), word)
+			cpu.write(addr, uint64(uint32(t2)), word)
 		} else {
-			cpu.Write(addr, uint64(uint32(t)), word)
+			cpu.write(addr, uint64(uint32(t)), word)
 		}
 
 		cpu.wxreg(rd, uint64(int64(int32(t))))
@@ -637,16 +723,16 @@ func (cpu *CPU) exec(raw, pc uint64) *Exception {
 	case raw&0xf800707f == 0xc000302f: // amominu.d
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
 		addr := cpu.rxreg(rs1)
-		t, excp := cpu.Read(addr, doubleword)
+		t, excp := cpu.read(addr, doubleword)
 		if excp != nil {
 			return excp
 		}
 		t2 := cpu.rxreg(rs2)
 
 		if t < t2 {
-			cpu.Write(addr, t, doubleword)
+			cpu.write(addr, t, doubleword)
 		} else {
-			cpu.Write(addr, t2, doubleword)
+			cpu.write(addr, t2, doubleword)
 		}
 
 		cpu.wxreg(rd, t)
@@ -654,16 +740,16 @@ func (cpu *CPU) exec(raw, pc uint64) *Exception {
 	case raw&0xf800707f == 0xc000202f: // amominu.w
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
 		addr := cpu.rxreg(rs1)
-		t, excp := cpu.Read(addr, word)
+		t, excp := cpu.read(addr, word)
 		if excp != nil {
 			return excp
 		}
 		t2 := cpu.rxreg(rs2)
 
 		if uint32(t) < uint32(t2) {
-			cpu.Write(addr, uint64(uint32(t)), word)
+			cpu.write(addr, uint64(uint32(t)), word)
 		} else {
-			cpu.Write(addr, uint64(uint32(t2)), word)
+			cpu.write(addr, uint64(uint32(t2)), word)
 		}
 
 		cpu.wxreg(rd, uint64(int64(int32(t))))
@@ -671,16 +757,16 @@ func (cpu *CPU) exec(raw, pc uint64) *Exception {
 	case raw&0xf800707f == 0x8000302f: // amomin.d
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
 		addr := cpu.rxreg(rs1)
-		t, excp := cpu.Read(addr, doubleword)
+		t, excp := cpu.read(addr, doubleword)
 		if excp != nil {
 			return excp
 		}
 		t2 := cpu.rxreg(rs2)
 
 		if int64(t) < int64(t2) {
-			cpu.Write(addr, uint64(int64(t)), doubleword)
+			cpu.write(addr, uint64(int64(t)), doubleword)
 		} else {
-			cpu.Write(addr, uint64(int64(t2)), doubleword)
+			cpu.write(addr, uint64(int64(t2)), doubleword)
 		}
 
 		cpu.wxreg(rd, uint64(int64(t)))
@@ -688,16 +774,16 @@ func (cpu *CPU) exec(raw, pc uint64) *Exception {
 	case raw&0xf800707f == 0x8000202f: // amomin.w
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
 		addr := cpu.rxreg(rs1)
-		t, excp := cpu.Read(addr, word)
+		t, excp := cpu.read(addr, word)
 		if excp != nil {
 			return excp
 		}
 		t2 := cpu.rxreg(rs2)
 
 		if int32(t) < int32(t2) {
-			cpu.Write(addr, uint64(int64(int32(t))), word)
+			cpu.write(addr, uint64(int64(int32(t))), word)
 		} else {
-			cpu.Write(addr, uint64(int64(int32(t2))), word)
+			cpu.write(addr, uint64(int64(int32(t2))), word)
 		}
 
 		cpu.wxreg(rd, uint64(int64(int32(t))))
@@ -705,61 +791,61 @@ func (cpu *CPU) exec(raw, pc uint64) *Exception {
 	case raw&0xf800707f == 0x4000302f: //"amoor.d"
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
 		addr := cpu.rxreg(rs1)
-		t, excp := cpu.Read(addr, doubleword)
+		t, excp := cpu.read(addr, doubleword)
 		if excp != nil {
 			return excp
 		}
-		cpu.Write(addr, t|cpu.rxreg(rs2), doubleword)
+		cpu.write(addr, t|cpu.rxreg(rs2), doubleword)
 		cpu.wxreg(rd, t)
 
 	case raw&0xf800707f == 0x4000202f: //"amoor.w"
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
 		addr := cpu.rxreg(rs1)
-		t, excp := cpu.Read(addr, word)
+		t, excp := cpu.read(addr, word)
 		if excp != nil {
 			return excp
 		}
-		cpu.Write(addr, uint64(int64(int32(t)|int32(cpu.rxreg(rs2)))), word)
+		cpu.write(addr, uint64(int64(int32(t)|int32(cpu.rxreg(rs2)))), word)
 		cpu.wxreg(rd, uint64(int64(int32(t))))
 
 	case raw&0xf800707f == 0x0800302f: //"amoswap.d"
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
 		addr := cpu.rxreg(rs1)
-		t, excp := cpu.Read(addr, doubleword)
+		t, excp := cpu.read(addr, doubleword)
 		if excp != nil {
 			return excp
 		}
-		cpu.Write(addr, cpu.rxreg(rs2), doubleword)
+		cpu.write(addr, cpu.rxreg(rs2), doubleword)
 		cpu.wxreg(rd, t)
 
 	case raw&0xf800707f == 0x0800202f: //"amoswap.w"
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
 		addr := cpu.rxreg(rs1)
-		t, excp := cpu.Read(addr, word)
+		t, excp := cpu.read(addr, word)
 		if excp != nil {
 			return excp
 		}
-		cpu.Write(addr, cpu.rxreg(rs2), word)
+		cpu.write(addr, cpu.rxreg(rs2), word)
 		cpu.wxreg(rd, uint64(int64(int32(t))))
 
 	case raw&0xf800707f == 0x2000302f: // amoxor.d
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
 		addr := cpu.rxreg(rs1)
-		t, excp := cpu.Read(addr, doubleword)
+		t, excp := cpu.read(addr, doubleword)
 		if excp != nil {
 			return excp
 		}
-		cpu.Write(addr, t^cpu.rxreg(rs2), doubleword)
+		cpu.write(addr, t^cpu.rxreg(rs2), doubleword)
 		cpu.wxreg(rd, t)
 
 	case raw&0xf800707f == 0x2000202f: // amoxor.w
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
 		addr := cpu.rxreg(rs1)
-		t, excp := cpu.Read(addr, word)
+		t, excp := cpu.read(addr, word)
 		if excp != nil {
 			return excp
 		}
-		cpu.Write(addr, uint64(int64(int32(t)^int32(cpu.rxreg(rs2)))), word)
+		cpu.write(addr, uint64(int64(int32(t)^int32(cpu.rxreg(rs2)))), word)
 		cpu.wxreg(rd, uint64(int64(int32(t))))
 
 	case raw&0xfe00707f == 0x00007033: //"and"
@@ -1003,7 +1089,7 @@ func (cpu *CPU) exec(raw, pc uint64) *Exception {
 
 	case raw&0x0000707f == 0x00000003: //"lb"
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
-		v, excp := cpu.Read(cpu.rxreg(rs1)+imm, 8)
+		v, excp := cpu.read(cpu.rxreg(rs1)+imm, 8)
 		if excp != nil {
 			return excp
 		}
@@ -1011,7 +1097,7 @@ func (cpu *CPU) exec(raw, pc uint64) *Exception {
 
 	case raw&0x0000707f == 0x00004003: //"lbu"
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
-		v, excp := cpu.Read(cpu.rxreg(rs1)+imm, 8)
+		v, excp := cpu.read(cpu.rxreg(rs1)+imm, 8)
 		if excp != nil {
 			return excp
 		}
@@ -1020,7 +1106,7 @@ func (cpu *CPU) exec(raw, pc uint64) *Exception {
 	case raw&0x0000707f == 0x00003003: //"ld"
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
 		addr := cpu.rxreg(rs1) + imm
-		r, excp := cpu.Read(addr, doubleword)
+		r, excp := cpu.read(addr, doubleword)
 		if excp != nil {
 			return excp
 		}
@@ -1028,7 +1114,7 @@ func (cpu *CPU) exec(raw, pc uint64) *Exception {
 
 	case raw&0x0000707f == 0x00001003: //"lh"
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
-		v, excp := cpu.Read(cpu.rxreg(rs1)+imm, 16)
+		v, excp := cpu.read(cpu.rxreg(rs1)+imm, halfword)
 		if excp != nil {
 			return excp
 		}
@@ -1036,7 +1122,7 @@ func (cpu *CPU) exec(raw, pc uint64) *Exception {
 
 	case raw&0x0000707f == 0x00005003: //"lhu"
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
-		v, excp := cpu.Read(cpu.rxreg(rs1)+imm, 16)
+		v, excp := cpu.read(cpu.rxreg(rs1)+imm, halfword)
 		if excp != nil {
 			return excp
 		}
@@ -1045,7 +1131,7 @@ func (cpu *CPU) exec(raw, pc uint64) *Exception {
 	case raw&0xf9f0707f == 0x1000302f: //"lr.d"
 		rd, rs1 := bits(raw, 11, 7), bits(raw, 19, 15)
 		addr := cpu.rxreg(rs1)
-		t, excp := cpu.Read(addr, doubleword)
+		t, excp := cpu.read(addr, doubleword)
 		if excp != nil {
 			return excp
 		}
@@ -1055,7 +1141,7 @@ func (cpu *CPU) exec(raw, pc uint64) *Exception {
 	case raw&0xf9f0707f == 0x1000202f: //"lr.w"
 		rd, rs1 := bits(raw, 11, 7), bits(raw, 19, 15)
 		addr := cpu.rxreg(rs1)
-		t, excp := cpu.Read(addr, word)
+		t, excp := cpu.read(addr, word)
 		if excp != nil {
 			return excp
 		}
@@ -1070,7 +1156,7 @@ func (cpu *CPU) exec(raw, pc uint64) *Exception {
 
 	case raw&0x0000707f == 0x00002003: //"lw"
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
-		v, excp := cpu.Read(cpu.rxreg(rs1)+imm, 32)
+		v, excp := cpu.read(cpu.rxreg(rs1)+imm, 32)
 		if excp != nil {
 			return excp
 		}
@@ -1079,7 +1165,7 @@ func (cpu *CPU) exec(raw, pc uint64) *Exception {
 	case raw&0x0000707f == 0x00006003: //"lwu"
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
 		addr := cpu.rxreg(rs1) + imm
-		r, excp := cpu.Read(addr, word)
+		r, excp := cpu.read(addr, word)
 		if excp != nil {
 			return excp
 		}
@@ -1231,7 +1317,7 @@ func (cpu *CPU) exec(raw, pc uint64) *Exception {
 	case raw&0x0000707f == 0x00000023: //"sb"
 		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), ParseSImm(raw)
 		addr := cpu.rxreg(rs1) + imm
-		cpu.Write(addr, cpu.rxreg(rs2), byt)
+		cpu.write(addr, cpu.rxreg(rs2), byt)
 
 	case raw&0xf800707f == 0x1800302f: //"sc.d"
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
@@ -1239,7 +1325,7 @@ func (cpu *CPU) exec(raw, pc uint64) *Exception {
 
 		if cpu.reserved(addr) {
 			// SC succeeds.
-			cpu.Write(addr, cpu.rxreg(rs2), doubleword)
+			cpu.write(addr, cpu.rxreg(rs2), doubleword)
 			cpu.wxreg(rd, 0)
 		} else {
 			// SC fails.
@@ -1255,7 +1341,7 @@ func (cpu *CPU) exec(raw, pc uint64) *Exception {
 		if cpu.reserved(addr) {
 			// SC succeeds.
 			cpu.cancel(addr)
-			cpu.Write(addr, cpu.rxreg(rs2), word)
+			cpu.write(addr, cpu.rxreg(rs2), word)
 			cpu.wxreg(rd, 0)
 		} else {
 			// SC fails.
@@ -1266,7 +1352,7 @@ func (cpu *CPU) exec(raw, pc uint64) *Exception {
 	case raw&0x0000707f == 0x00003023: //"sd"
 		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), ParseSImm(raw)
 		addr := cpu.rxreg(rs1) + imm
-		cpu.Write(addr, cpu.rxreg(rs2), doubleword)
+		cpu.write(addr, cpu.rxreg(rs2), doubleword)
 
 	case raw&0xfe007fff == 0x12000073: //"sfence.vma"
 		// do nothing because rv currently does not apply any optimizations and no fence is needed.
@@ -1274,7 +1360,7 @@ func (cpu *CPU) exec(raw, pc uint64) *Exception {
 	case raw&0x0000707f == 0x00001023: //"sh"
 		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), ParseSImm(raw)
 		addr := cpu.rxreg(rs1) + imm
-		cpu.Write(addr, cpu.rxreg(rs2), halfword)
+		cpu.write(addr, cpu.rxreg(rs2), halfword)
 
 	case raw&0xfe00707f == 0x00001033: //"sll"
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
@@ -1423,7 +1509,7 @@ func (cpu *CPU) exec(raw, pc uint64) *Exception {
 	case raw&0x0000707f == 0x00002023: //"sw"
 		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), ParseSImm(raw)
 		addr := cpu.rxreg(rs1) + imm
-		cpu.Write(addr, cpu.rxreg(rs2), word)
+		cpu.write(addr, cpu.rxreg(rs2), word)
 
 	case raw&0xffffffff == 0x00200073: //"uret"
 		ust := cpu.rcsr(ustatus)

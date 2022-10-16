@@ -50,7 +50,7 @@ func New(prog []byte) (*RV, error) {
 		for i := 0; i < int(p.Filesz); i++ {
 			addr := p.VAddr + uint64(i)
 			val := uint64(prog[int(p.Offset)+i])
-			cpu.Write(addr, val, byt)
+			cpu.write(addr, val, byt)
 		}
 	}
 	cpu.pc = elf.Header.Entry
@@ -74,8 +74,9 @@ func (r *RV) Start() error {
 			continue
 		}
 
-		if code := r.cpu.bus.ram.Read(r.tohost, word); code != 0 {
+		if code := r.cpu.ram.Read(r.tohost, word); code != 0 {
 			if code == 1 {
+				fmt.Println("done")
 				return nil
 			}
 
