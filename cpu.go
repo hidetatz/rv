@@ -68,6 +68,9 @@ type CPU struct {
 
 	lrsc map[uint64]struct{}
 
+	AddressingMode AddressingMode
+	PPN            uint64
+
 	// Wfi represents "wait for interrupt". When this is true, CPU does not run until
 	// an interrupt occurs.
 	Wfi bool
@@ -78,15 +81,17 @@ type CPU struct {
 
 func NewCPU(xlen int) *CPU {
 	return &CPU{
-		PC:            0,
-		MMU:           NewMMU(xlen),
-		mode:          machine,
-		csr:           [4096]uint64{},
-		xlen:          xlen,
-		xregs:         [32]uint64{},
-		fregs:         [32]float64{},
-		lrsc:          make(map[uint64]struct{}),
-		PagingEnabled: false,
+		PC:             0,
+		MMU:            NewMMU(xlen),
+		mode:           machine,
+		csr:            [4096]uint64{},
+		xlen:           xlen,
+		xregs:          [32]uint64{},
+		fregs:          [32]float64{},
+		lrsc:           make(map[uint64]struct{}),
+		AddressingMode: AddressingModeNone,
+		PPN:            0,
+		PagingEnabled:  false,
 	}
 }
 
@@ -197,8 +202,22 @@ func (cpu *CPU) cancel(addr uint64) {
 /*
  * memory
  */
+func (cpu *CPU) Fetch(size int) (uint64, *Exception) {
+	pAddr, excp := cpu.translate(cpu.PC, MemoryAccessTypeInstruction, cpu.mode)
+	if excp.Code != ExcpCodeNone {
+		return 0, excp
+	}
+
+	return cpu.MMU.Read(pAddr, size), ExcpNone()
+}
+
 func (cpu *CPU) Read(addr uint64, size int) (uint64, *Exception) {
-	return cpu.MMU.Read(addr, size, cpu.mode)
+	pAddr, excp := cpu.translate(addr, MemoryAccessTypeLoad, cpu.mode)
+	if excp.Code != ExcpCodeNone {
+		return 0, excp
+	}
+
+	return cpu.MMU.Read(pAddr, size), ExcpNone()
 }
 
 func (cpu *CPU) Write(addr, val uint64, size int) *Exception {
@@ -208,7 +227,229 @@ func (cpu *CPU) Write(addr, val uint64, size int) *Exception {
 		cpu.cancel(addr)
 	}
 
-	return cpu.MMU.Write(addr, val, size, cpu.mode)
+	pAddr, excp := cpu.translate(addr, MemoryAccessTypeStore, cpu.mode)
+	if excp.Code != ExcpCodeNone {
+		return excp
+	}
+
+	cpu.MMU.Write(pAddr, val, size)
+	return ExcpNone()
+}
+
+func (cpu *CPU) translate(vAddr uint64, at MemoryAccessType, curMode int) (uint64, *Exception) {
+	vAddr = cpu.getEffectiveAddress(vAddr)
+	switch cpu.AddressingMode {
+	case AddressingModeNone:
+		return vAddr, ExcpNone()
+	case AddressingModeSV32:
+		switch cpu.mode {
+		case machine:
+			if at == MemoryAccessTypeInstruction {
+				return vAddr, ExcpNone()
+			}
+
+			if ((cpu.rcsr(mstatus) >> 17) & 1) == 0 {
+				return vAddr, ExcpNone()
+			}
+
+			newPrivMode := (cpu.rcsr(mstatus) >> 9) & 3
+			switch newPrivMode {
+			case 3: // Machine
+				return vAddr, ExcpNone()
+			default:
+				return cpu.translate(vAddr, at, int(newPrivMode))
+			}
+		case user, supervisor:
+			vpns := []uint64{
+				(vAddr >> 12) & 0x3ff,
+				(vAddr >> 22) & 0x3ff,
+			}
+			return cpu.TraversePage(vAddr, 2-1, cpu.PPN, vpns, at)
+		default:
+			return vAddr, ExcpNone()
+		}
+	case AddressingModeSV39:
+		switch curMode {
+		case machine:
+			if at == MemoryAccessTypeInstruction {
+				return vAddr, ExcpNone()
+			}
+
+			if ((cpu.rcsr(mstatus) >> 17) & 1) == 0 {
+				return vAddr, ExcpNone()
+			}
+
+			newPrivMode := (cpu.rcsr(mstatus) >> 9) & 3
+			switch newPrivMode {
+			case 3:
+				return vAddr, ExcpNone()
+			default:
+				return cpu.translate(vAddr, at, int(newPrivMode))
+			}
+		case user, supervisor:
+			vpns := []uint64{
+				(vAddr >> 12) & 0x1ff,
+				(vAddr >> 21) & 0x1ff,
+				(vAddr >> 30) & 0x1ff,
+			}
+			return cpu.TraversePage(vAddr, 3-1, cpu.PPN, vpns, at)
+		default:
+			return vAddr, ExcpNone()
+		}
+	default:
+		panic("should not come here")
+	}
+}
+
+func (cpu *CPU) TraversePage(vAddr uint64, level int, parentPPN uint64, vpns []uint64, at MemoryAccessType) (uint64, *Exception) {
+	fault := func() *Exception {
+		switch at {
+		case MemoryAccessTypeInstruction:
+			return ExcpInstructionPageFault(vAddr)
+		case MemoryAccessTypeLoad:
+			return ExcpLoadPageFault(vAddr)
+		case MemoryAccessTypeStore:
+			return ExcpStoreAMOPageFault(vAddr)
+		}
+
+		return ExcpNone() // should not come here
+	}
+
+	pageint := 4096
+
+	pteint := 8
+	if cpu.AddressingMode == AddressingModeSV32 {
+		pteint = 4
+	}
+
+	pteAddr := parentPPN*uint64(pageint) + vpns[level]*uint64(pteint)
+
+	var pte uint64
+	if cpu.AddressingMode == AddressingModeSV32 {
+		pte = cpu.MMU.Read(pteAddr, word)
+	} else {
+		pte = cpu.MMU.Read(pteAddr, doubleword)
+	}
+
+	var ppn uint64
+	var ppns []uint64
+	if cpu.AddressingMode == AddressingModeSV32 {
+		ppn = (pte >> 10) & 0x3f_ffff
+		ppns = []uint64{
+			(pte >> 10) & 0x3ff,
+			(pte >> 20) & 0xfff,
+			0,
+		}
+	} else if cpu.AddressingMode == AddressingModeSV39 {
+		ppn = (pte >> 10) & 0xfffffffffff
+		ppns = []uint64{
+			(pte >> 10) & 0x1ff,
+			(pte >> 19) & 0x1ff,
+			(pte >> 28) & 0x3ff_ffff,
+		}
+	} else {
+		panic("unexpected addressing mode!")
+	}
+
+	d := (pte >> 7) & 1
+	a := (pte >> 6) & 1
+	x := (pte >> 3) & 1
+	w := (pte >> 2) & 1
+	r := (pte >> 1) & 1
+	v := pte & 1
+
+	if v == 0 || (r == 0 && w == 1) {
+		return 0, fault()
+	}
+
+	if r == 0 && x == 0 {
+		if level == 0 {
+			return 0, fault()
+		}
+
+		return cpu.TraversePage(vAddr, level-1, ppn, vpns, at)
+	}
+
+	// page found
+
+	b := false
+	if at == MemoryAccessTypeStore {
+		b = d == 0
+	}
+
+	if a == 0 || b {
+		newPTE := pte | (1 << 6)
+		if at == MemoryAccessTypeStore {
+			newPTE |= (1 << 7)
+		} else {
+			newPTE |= 0
+		}
+
+		if cpu.AddressingMode == AddressingModeSV32 {
+			cpu.MMU.Write(pteAddr, newPTE, word)
+		} else {
+			cpu.MMU.Write(pteAddr, newPTE, doubleword)
+		}
+	}
+
+	switch at {
+	case MemoryAccessTypeInstruction:
+		if x == 0 {
+			return 0, fault()
+		}
+	case MemoryAccessTypeLoad:
+		if r == 0 {
+			return 0, fault()
+		}
+	case MemoryAccessTypeStore:
+		if w == 0 {
+			return 0, fault()
+		}
+	}
+
+	offset := vAddr & 0xfff
+	switch cpu.AddressingMode {
+	case AddressingModeSV32:
+		switch level {
+		case 1:
+			if ppns[0] != 0 {
+				return 0, fault()
+			}
+
+			return ppns[1]<<22 | vpns[0]<<12 | offset, ExcpNone()
+		case 0:
+			return (ppn << 12) | offset, ExcpNone()
+		default:
+			panic("invalid level") // should not come here
+		}
+	default:
+		switch level {
+		case 2:
+			if ppns[1] != 0 || ppns[0] != 0 {
+				return 0, fault()
+			}
+
+			return (ppns[2] << 30) | (vpns[1] << 21) | (vpns[0] << 12) | offset, ExcpNone()
+		case 1:
+			if ppns[0] != 0 {
+				return 0, fault()
+			}
+
+			return (ppns[2] << 30) | (ppns[1] << 21) | (vpns[0] << 12) | offset, ExcpNone()
+		case 0:
+			return (ppn << 12) | offset, ExcpNone()
+		default:
+			panic("invalid level") // should not come here
+		}
+	}
+}
+
+func (cpu *CPU) getEffectiveAddress(vAddr uint64) uint64 {
+	if cpu.xlen == xlen64 {
+		return vAddr
+	}
+
+	return vAddr & 0xffff_ffff
 }
 
 // Run executes one fetch-decode-exec.
@@ -261,11 +502,6 @@ func (cpu *CPU) Run() Trap {
 	return TrapRequested
 }
 
-// Fetch reads the program-counter address of the memory then returns the read binary.
-func (cpu *CPU) Fetch(size int) (uint64, *Exception) {
-	return cpu.MMU.Fetch(cpu.PC, size, cpu.mode)
-}
-
 // Exec executes the decoded instruction.
 func (cpu *CPU) Exec(code InstructionCode, raw, cur uint64) *Exception {
 	execution, ok := Instructions[code]
@@ -310,8 +546,8 @@ func (cpu *CPU) UpdateAddressingMode(v uint64) {
 		ppn = v & 0xfffffffffff
 	}
 
-	cpu.MMU.AddressingMode = am
-	cpu.MMU.PPN = ppn
+	cpu.AddressingMode = am
+	cpu.PPN = ppn
 }
 
 // HandleException catches the raised exception and manipulates CSR and program counter based on
@@ -380,7 +616,6 @@ func (cpu *CPU) HandleException(pc uint64, excp *Exception) Trap {
 		}
 
 		cpu.wcsr(mstatus, status)
-		cpu.MMU.Mstatus = cpu.rcsr(mstatus)
 	case supervisor:
 		// sepc is written with the virtual address of the instruction that was
 		// interrupted or that encountered the exception.
@@ -421,7 +656,6 @@ func (cpu *CPU) HandleException(pc uint64, excp *Exception) Trap {
 		}
 
 		cpu.wcsr(sstatus, status)
-		cpu.MMU.Mstatus = cpu.rcsr(mstatus)
 	case user:
 		// uepc is written with the virtual address of the instruction that was
 		// interrupted or that encountered the exception.

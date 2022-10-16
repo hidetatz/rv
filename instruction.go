@@ -1048,7 +1048,6 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 				mst := cpu.rcsr(mstatus)
 				mst = clearBit(mst, 17)
 				cpu.wcsr(mstatus, mst)
-				cpu.MMU.Mstatus = cpu.rcsr(mstatus)
 			}
 		default:
 			// should not happen
@@ -1072,7 +1071,6 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 
 		// update SSTATUS
 		cpu.wcsr(sstatus, sst)
-		cpu.MMU.Mstatus = cpu.rcsr(mstatus)
 
 		return ExcpNone()
 	},
@@ -1117,7 +1115,6 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 
 		// update MSTATUS
 		cpu.wcsr(mstatus, mst)
-		cpu.MMU.Mstatus = cpu.rcsr(mstatus)
 
 		return ExcpNone()
 	},
@@ -1157,10 +1154,6 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 			cpu.UpdateAddressingMode(v)
 		}
 
-		if imm == mstatus || imm == sstatus {
-			cpu.MMU.Mstatus = cpu.rcsr(mstatus)
-		}
-
 		return ExcpNone()
 	},
 	CSRRS: func(cpu *CPU, raw, _ uint64) *Exception {
@@ -1173,10 +1166,6 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 
 		if imm == satp {
 			cpu.UpdateAddressingMode(v)
-		}
-
-		if imm == mstatus || imm == sstatus {
-			cpu.MMU.Mstatus = cpu.rcsr(mstatus)
 		}
 
 		return ExcpNone()
@@ -1193,10 +1182,6 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 			cpu.UpdateAddressingMode(v)
 		}
 
-		if imm == mstatus || imm == sstatus {
-			cpu.MMU.Mstatus = cpu.rcsr(mstatus)
-		}
-
 		return ExcpNone()
 	},
 	CSRRWI: func(cpu *CPU, raw, _ uint64) *Exception {
@@ -1207,10 +1192,6 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 
 		if csr == satp {
 			cpu.UpdateAddressingMode(imm)
-		}
-
-		if csr == mstatus || csr == sstatus {
-			cpu.MMU.Mstatus = cpu.rcsr(mstatus)
 		}
 
 		return ExcpNone()
@@ -1227,10 +1208,6 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 			cpu.UpdateAddressingMode(v)
 		}
 
-		if imm == mstatus || imm == sstatus {
-			cpu.MMU.Mstatus = cpu.rcsr(mstatus)
-		}
-
 		return ExcpNone()
 	},
 	CSRRCI: func(cpu *CPU, raw, _ uint64) *Exception {
@@ -1243,10 +1220,6 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 
 		if imm == satp {
 			cpu.UpdateAddressingMode(v)
-		}
-
-		if imm == mstatus || imm == sstatus {
-			cpu.MMU.Mstatus = cpu.rcsr(mstatus)
 		}
 
 		return ExcpNone()
