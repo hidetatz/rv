@@ -80,7 +80,7 @@ func (r *RV) Start() error {
 			continue
 		}
 
-		if code := r.cpu.MMU.Bus.Read(r.tohost, word); code != 0 {
+		if code := r.cpu.MMU.RAM.Read(r.tohost, word); code != 0 {
 			if code == 1 {
 				return nil
 			}
