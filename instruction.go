@@ -833,12 +833,12 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 
 	// Environment
 	ECALL: func(cpu *CPU, raw, _ uint64) *Exception {
-		switch cpu.Mode {
-		case User:
+		switch cpu.mode {
+		case user:
 			return ExcpEnvironmentCallFromUmode()
-		case Supervisor:
+		case supervisor:
 			return ExcpEnvironmentCallFromSmode()
-		case Machine:
+		case machine:
 			return ExcpEnvironmentCallFromMmode()
 		default:
 			return ExcpIllegalInstruction(raw)
@@ -1039,12 +1039,12 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		// Set CPU mode according to SPP
 		switch bit(sstatus, CsrStatusSPP) {
 		case 0b0:
-			cpu.Mode = User
+			cpu.mode = user
 		case 0b1:
-			cpu.Mode = Supervisor
+			cpu.mode = supervisor
 
 			// MPRV must be set 0 if the mode is not Machine.
-			if cpu.Mode == Supervisor {
+			if cpu.mode == supervisor {
 				mstatus := cpu.CSR.Read(CsrMSTATUS)
 				mstatus = clearBit(mstatus, CsrStatusMPRV)
 				cpu.CSR.Write(CsrMSTATUS, mstatus)
@@ -1087,13 +1087,13 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		// Set CPU mode according to MPP
 		switch bits(mstatus, CsrStatusMPPHi, CsrStatusMPPLo) {
 		case 0b00:
-			cpu.Mode = User
+			cpu.mode = user
 			mstatus = clearBit(mstatus, CsrStatusMPRV)
 		case 0b01:
-			cpu.Mode = Supervisor
+			cpu.mode = supervisor
 			mstatus = clearBit(mstatus, CsrStatusMPRV)
 		case 0b11:
-			cpu.Mode = Machine
+			cpu.mode = machine
 		default:
 			// should not happen
 			panic("invalid CSR MPP")

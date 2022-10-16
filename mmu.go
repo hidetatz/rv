@@ -34,7 +34,7 @@ func NewMMU(xlen XLen) *MMU {
 	}
 }
 
-func (mmu *MMU) Fetch(vAddr uint64, size Size, curMode Mode) (uint64, *Exception) {
+func (mmu *MMU) Fetch(vAddr uint64, size Size, curMode int) (uint64, *Exception) {
 	pAddr, excp := mmu.Translate(vAddr, MemoryAccessTypeInstruction, curMode)
 	if excp.Code != ExcpCodeNone {
 		return 0, excp
@@ -43,7 +43,7 @@ func (mmu *MMU) Fetch(vAddr uint64, size Size, curMode Mode) (uint64, *Exception
 	return mmu.Bus.Read(pAddr, size), ExcpNone()
 }
 
-func (mmu *MMU) Read(vAddr uint64, size Size, curMode Mode) (uint64, *Exception) {
+func (mmu *MMU) Read(vAddr uint64, size Size, curMode int) (uint64, *Exception) {
 	pAddr, excp := mmu.Translate(vAddr, MemoryAccessTypeLoad, curMode)
 	if excp.Code != ExcpCodeNone {
 		return 0, excp
@@ -52,7 +52,7 @@ func (mmu *MMU) Read(vAddr uint64, size Size, curMode Mode) (uint64, *Exception)
 	return mmu.Bus.Read(pAddr, size), ExcpNone()
 }
 
-func (mmu *MMU) Write(vAddr, val uint64, size Size, curMode Mode) *Exception {
+func (mmu *MMU) Write(vAddr, val uint64, size Size, curMode int) *Exception {
 	pAddr, excp := mmu.Translate(vAddr, MemoryAccessTypeStore, curMode)
 	if excp.Code != ExcpCodeNone {
 		return excp
@@ -62,14 +62,14 @@ func (mmu *MMU) Write(vAddr, val uint64, size Size, curMode Mode) *Exception {
 	return ExcpNone()
 }
 
-func (mmu *MMU) Translate(vAddr uint64, at MemoryAccessType, curMode Mode) (uint64, *Exception) {
+func (mmu *MMU) Translate(vAddr uint64, at MemoryAccessType, curMode int) (uint64, *Exception) {
 	vAddr = mmu.getEffectiveAddress(vAddr)
 	switch mmu.AddressingMode {
 	case AddressingModeNone:
 		return vAddr, ExcpNone()
 	case AddressingModeSV32:
 		switch curMode {
-		case Machine:
+		case machine:
 			if at == MemoryAccessTypeInstruction {
 				return vAddr, ExcpNone()
 			}
@@ -83,9 +83,9 @@ func (mmu *MMU) Translate(vAddr uint64, at MemoryAccessType, curMode Mode) (uint
 			case 3: // Machine
 				return vAddr, ExcpNone()
 			default:
-				return mmu.Translate(vAddr, at, CodeToMode(int(newPrivMode)))
+				return mmu.Translate(vAddr, at, int(newPrivMode))
 			}
-		case User, Supervisor:
+		case user, supervisor:
 			vpns := []uint64{
 				(vAddr >> 12) & 0x3ff,
 				(vAddr >> 22) & 0x3ff,
@@ -96,7 +96,7 @@ func (mmu *MMU) Translate(vAddr uint64, at MemoryAccessType, curMode Mode) (uint
 		}
 	case AddressingModeSV39:
 		switch curMode {
-		case Machine:
+		case machine:
 			if at == MemoryAccessTypeInstruction {
 				return vAddr, ExcpNone()
 			}
@@ -110,9 +110,9 @@ func (mmu *MMU) Translate(vAddr uint64, at MemoryAccessType, curMode Mode) (uint
 			case 3:
 				return vAddr, ExcpNone()
 			default:
-				return mmu.Translate(vAddr, at, CodeToMode(int(newPrivMode)))
+				return mmu.Translate(vAddr, at, int(newPrivMode))
 			}
-		case User, Supervisor:
+		case user, supervisor:
 			vpns := []uint64{
 				(vAddr >> 12) & 0x1ff,
 				(vAddr >> 21) & 0x1ff,

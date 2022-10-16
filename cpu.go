@@ -56,6 +56,13 @@ func (r *Reservation) Cancel(addr uint64) {
 	delete(r.m, addr)
 }
 
+const (
+	// mode
+	user       = 0
+	supervisor = 1
+	machine    = 3
+)
+
 // CPU is an processor emulator in rv.
 type CPU struct {
 	// program counter
@@ -63,7 +70,7 @@ type CPU struct {
 	// Memory management unit
 	MMU *MMU
 	// CPU mode
-	Mode Mode
+	mode int
 	XLen XLen
 
 	// Status registers
@@ -91,7 +98,7 @@ func NewCPU(xlen XLen) *CPU {
 	return &CPU{
 		PC:            0,
 		MMU:           NewMMU(xlen),
-		Mode:          Machine,
+		mode:          machine,
 		CSR:           NewCSR(),
 		XLen:          xlen,
 		XRegs:         NewRegisters(),
@@ -102,7 +109,7 @@ func NewCPU(xlen XLen) *CPU {
 }
 
 func (cpu *CPU) Read(addr uint64, size Size) (uint64, *Exception) {
-	return cpu.MMU.Read(addr, size, cpu.Mode)
+	return cpu.MMU.Read(addr, size, cpu.mode)
 }
 
 func (cpu *CPU) Write(addr, val uint64, size Size) *Exception {
@@ -112,7 +119,7 @@ func (cpu *CPU) Write(addr, val uint64, size Size) *Exception {
 		cpu.Reservation.Cancel(addr)
 	}
 
-	return cpu.MMU.Write(addr, val, size, cpu.Mode)
+	return cpu.MMU.Write(addr, val, size, cpu.mode)
 }
 
 // Run executes one fetch-decode-exec.
@@ -167,7 +174,7 @@ func (cpu *CPU) Run() Trap {
 
 // Fetch reads the program-counter address of the memory then returns the read binary.
 func (cpu *CPU) Fetch(size Size) (uint64, *Exception) {
-	return cpu.MMU.Fetch(cpu.PC, size, cpu.Mode)
+	return cpu.MMU.Fetch(cpu.PC, size, cpu.mode)
 }
 
 // Exec executes the decoded instruction.
@@ -222,7 +229,7 @@ func (cpu *CPU) UpdateAddressingMode(v uint64) {
 // the exception and CPU privilege mode.
 func (cpu *CPU) HandleException(pc uint64, excp *Exception) Trap {
 	curPC := pc
-	origMode := cpu.Mode
+	origMode := cpu.mode
 	cause := excp.Code
 
 	mdeleg := cpu.CSR.Read(CsrMEDELEG)
@@ -230,16 +237,16 @@ func (cpu *CPU) HandleException(pc uint64, excp *Exception) Trap {
 
 	// First, determine the upcoming mode
 	if ((mdeleg >> cause) & 1) == 0 {
-		cpu.Mode = Machine
+		cpu.mode = machine
 	} else if ((sdeleg >> cause) & 1) == 0 {
-		cpu.Mode = Supervisor
+		cpu.mode = supervisor
 	} else {
-		cpu.Mode = User
+		cpu.mode = user
 	}
 
 	// Then, start handling exception in the mode
-	switch cpu.Mode {
-	case Machine:
+	switch cpu.mode {
+	case machine:
 		// MEPC is written with the virtual address of the instruction that was
 		// interrupted or that encountered the exception.
 		cpu.CSR.Write(CsrMEPC, curPC)
@@ -272,20 +279,20 @@ func (cpu *CPU) HandleException(pc uint64, excp *Exception) Trap {
 
 		// Update MPP with the previous privilege mode.
 		switch origMode {
-		case Machine:
+		case machine:
 			status = setBit(status, CsrStatusMPPLo)
 			status = setBit(status, CsrStatusMPPHi)
-		case Supervisor:
+		case supervisor:
 			status = setBit(status, CsrStatusMPPLo)
 			status = clearBit(status, CsrStatusMPPHi)
-		case User:
+		case user:
 			status = clearBit(status, CsrStatusMPPLo)
 			status = clearBit(status, CsrStatusMPPHi)
 		}
 
 		cpu.CSR.Write(CsrMSTATUS, status)
 		cpu.MMU.Mstatus = cpu.CSR.Read(CsrMSTATUS)
-	case Supervisor:
+	case supervisor:
 		// SEPC is written with the virtual address of the instruction that was
 		// interrupted or that encountered the exception.
 		cpu.CSR.Write(CsrSEPC, curPC)
@@ -318,15 +325,15 @@ func (cpu *CPU) HandleException(pc uint64, excp *Exception) Trap {
 
 		// Update SPP with the previous privilege mode.
 		switch origMode {
-		case Supervisor:
+		case supervisor:
 			status = setBit(status, CsrStatusSPP)
-		case User:
+		case user:
 			status = clearBit(status, CsrStatusSPP)
 		}
 
 		cpu.CSR.Write(CsrSSTATUS, status)
 		cpu.MMU.Mstatus = cpu.CSR.Read(CsrMSTATUS)
-	case User:
+	case user:
 		// UEPC is written with the virtual address of the instruction that was
 		// interrupted or that encountered the exception.
 		cpu.CSR.Write(CsrUEPC, curPC)

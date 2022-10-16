@@ -14,7 +14,6 @@ type RV struct {
 // New initializes and returns the RISC-V emulator rv.
 // The argument program must be the ELF binary which is built for RISC-V architecture.
 func New(prog []byte) (*RV, error) {
-
 	elf, err := LoadELF(prog)
 	if err != nil {
 		return nil, fmt.Errorf("Load ELF file: %w", err)
