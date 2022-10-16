@@ -1010,7 +1010,7 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 
 	// Trap
 	URET: func(cpu *CPU, raw, _ uint64) *Exception {
-		ustatus := cpu.CSR.Read(CsrUSTATUS)
+		ustatus := cpu.rcsr(CsrUSTATUS)
 		upie := bit(ustatus, CsrStatusUPIE)
 
 		// set UPIE to UIE
@@ -1024,17 +1024,17 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		ustatus = setBit(ustatus, CsrStatusUPIE)
 
 		// update USTATUS
-		cpu.CSR.Write(CsrUSTATUS, ustatus)
+		cpu.wcsr(CsrUSTATUS, ustatus)
 
 		return ExcpNone()
 	},
 	SRET: func(cpu *CPU, raw, _ uint64) *Exception {
 		// First, set CSRs[SEPC] to program counter.
-		cpu.PC = cpu.CSR.Read(CsrSEPC)
+		cpu.PC = cpu.rcsr(CsrSEPC)
 
 		// Then, Modify SSTATUS.
 
-		sstatus := cpu.CSR.Read(CsrSSTATUS)
+		sstatus := cpu.rcsr(CsrSSTATUS)
 
 		// Set CPU mode according to SPP
 		switch bit(sstatus, CsrStatusSPP) {
@@ -1045,10 +1045,10 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 
 			// MPRV must be set 0 if the mode is not Machine.
 			if cpu.mode == supervisor {
-				mstatus := cpu.CSR.Read(CsrMSTATUS)
+				mstatus := cpu.rcsr(CsrMSTATUS)
 				mstatus = clearBit(mstatus, CsrStatusMPRV)
-				cpu.CSR.Write(CsrMSTATUS, mstatus)
-				cpu.MMU.Mstatus = cpu.CSR.Read(CsrMSTATUS)
+				cpu.wcsr(CsrMSTATUS, mstatus)
+				cpu.MMU.Mstatus = cpu.rcsr(CsrMSTATUS)
 			}
 		default:
 			// should not happen
@@ -1071,18 +1071,18 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		sstatus = clearBit(sstatus, CsrStatusSPP)
 
 		// update SSTATUS
-		cpu.CSR.Write(CsrSSTATUS, sstatus)
-		cpu.MMU.Mstatus = cpu.CSR.Read(CsrMSTATUS)
+		cpu.wcsr(CsrSSTATUS, sstatus)
+		cpu.MMU.Mstatus = cpu.rcsr(CsrMSTATUS)
 
 		return ExcpNone()
 	},
 	MRET: func(cpu *CPU, raw, _ uint64) *Exception {
 		// First, set CSRs[MEPC] to program counter.
-		cpu.PC = cpu.CSR.Read(CsrMEPC)
+		cpu.PC = cpu.rcsr(CsrMEPC)
 
 		// Then, Modify MSTATUS.
 
-		mstatus := cpu.CSR.Read(CsrMSTATUS)
+		mstatus := cpu.rcsr(CsrMSTATUS)
 
 		// Set CPU mode according to MPP
 		switch bits(mstatus, CsrStatusMPPHi, CsrStatusMPPLo) {
@@ -1116,8 +1116,8 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		mstatus = clearBit(mstatus, CsrStatusMPPLo)
 
 		// update MSTATUS
-		cpu.CSR.Write(CsrMSTATUS, mstatus)
-		cpu.MMU.Mstatus = cpu.CSR.Read(CsrMSTATUS)
+		cpu.wcsr(CsrMSTATUS, mstatus)
+		cpu.MMU.Mstatus = cpu.rcsr(CsrMSTATUS)
 
 		return ExcpNone()
 	},
@@ -1148,9 +1148,9 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 	CSRRW: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
 		imm = imm & 0b111111111111
-		t := cpu.CSR.Read(imm)
+		t := cpu.rcsr(imm)
 		v := cpu.rxreg(rs1)
-		cpu.CSR.Write(imm, v)
+		cpu.wcsr(imm, v)
 		cpu.wxreg(rd, t)
 
 		if imm == CsrSATP {
@@ -1158,7 +1158,7 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		}
 
 		if imm == CsrMSTATUS || imm == CsrSSTATUS {
-			cpu.MMU.Mstatus = cpu.CSR.Read(CsrMSTATUS)
+			cpu.MMU.Mstatus = cpu.rcsr(CsrMSTATUS)
 		}
 
 		return ExcpNone()
@@ -1166,9 +1166,9 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 	CSRRS: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
 		imm = imm & 0b111111111111
-		t := cpu.CSR.Read(imm)
+		t := cpu.rcsr(imm)
 		v := t | cpu.rxreg(rs1)
-		cpu.CSR.Write(imm, v)
+		cpu.wcsr(imm, v)
 		cpu.wxreg(rd, t)
 
 		if imm == CsrSATP {
@@ -1176,7 +1176,7 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		}
 
 		if imm == CsrMSTATUS || imm == CsrSSTATUS {
-			cpu.MMU.Mstatus = cpu.CSR.Read(CsrMSTATUS)
+			cpu.MMU.Mstatus = cpu.rcsr(CsrMSTATUS)
 		}
 
 		return ExcpNone()
@@ -1184,9 +1184,9 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 	CSRRC: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
 		imm = imm & 0b111111111111
-		t := cpu.CSR.Read(imm)
+		t := cpu.rcsr(imm)
 		v := t & ^(cpu.rxreg(rs1))
-		cpu.CSR.Write(imm, v)
+		cpu.wcsr(imm, v)
 		cpu.wxreg(rd, t)
 
 		if imm == CsrSATP {
@@ -1194,7 +1194,7 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		}
 
 		if imm == CsrMSTATUS || imm == CsrSSTATUS {
-			cpu.MMU.Mstatus = cpu.CSR.Read(CsrMSTATUS)
+			cpu.MMU.Mstatus = cpu.rcsr(CsrMSTATUS)
 		}
 
 		return ExcpNone()
@@ -1202,15 +1202,15 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 	CSRRWI: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, imm, csr := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
 		csr = csr & 0b111111111111
-		cpu.wxreg(rd, cpu.CSR.Read(csr))
-		cpu.CSR.Write(csr, imm)
+		cpu.wxreg(rd, cpu.rcsr(csr))
+		cpu.wcsr(csr, imm)
 
 		if csr == CsrSATP {
 			cpu.UpdateAddressingMode(imm)
 		}
 
 		if csr == CsrMSTATUS || csr == CsrSSTATUS {
-			cpu.MMU.Mstatus = cpu.CSR.Read(CsrMSTATUS)
+			cpu.MMU.Mstatus = cpu.rcsr(CsrMSTATUS)
 		}
 
 		return ExcpNone()
@@ -1218,9 +1218,9 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 	CSRRSI: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
 		imm = imm & 0b111111111111
-		t := cpu.CSR.Read(imm)
+		t := cpu.rcsr(imm)
 		v := t | rs1
-		cpu.CSR.Write(imm, v) // RS1 is zimm
+		cpu.wcsr(imm, v) // RS1 is zimm
 		cpu.wxreg(rd, t)
 
 		if imm == CsrSATP {
@@ -1228,7 +1228,7 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		}
 
 		if imm == CsrMSTATUS || imm == CsrSSTATUS {
-			cpu.MMU.Mstatus = cpu.CSR.Read(CsrMSTATUS)
+			cpu.MMU.Mstatus = cpu.rcsr(CsrMSTATUS)
 		}
 
 		return ExcpNone()
@@ -1236,9 +1236,9 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 	CSRRCI: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
 		imm = imm & 0b111111111111
-		t := cpu.CSR.Read(imm)
+		t := cpu.rcsr(imm)
 		v := t & ^(rs1)
-		cpu.CSR.Write(imm, v)
+		cpu.wcsr(imm, v)
 		cpu.wxreg(rd, t)
 
 		if imm == CsrSATP {
@@ -1246,7 +1246,7 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		}
 
 		if imm == CsrMSTATUS || imm == CsrSSTATUS {
-			cpu.MMU.Mstatus = cpu.CSR.Read(CsrMSTATUS)
+			cpu.MMU.Mstatus = cpu.rcsr(CsrMSTATUS)
 		}
 
 		return ExcpNone()
@@ -1645,9 +1645,9 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		divisor := int64(cpu.rxreg(rs2))
 		if divisor == 0 {
 			// Division by 0. Set a special flag
-			v := cpu.CSR.Read(CsrFCSR)
+			v := cpu.rcsr(CsrFCSR)
 			v = setBit(v, 3) // DZ (Divided by Zero flag)
-			cpu.CSR.Write(CsrFCSR, v)
+			cpu.wcsr(CsrFCSR, v)
 			cpu.wxreg(rd, 0xffff_ffff_ffff_ffff)
 		} else if dividend == math.MinInt64 && divisor == -1 {
 			cpu.wxreg(rd, uint64(dividend))
@@ -1663,9 +1663,9 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		divisor := cpu.rxreg(rs2)
 		if divisor == 0 {
 			// Division by 0. Set a special flag
-			v := cpu.CSR.Read(CsrFCSR)
+			v := cpu.rcsr(CsrFCSR)
 			v = setBit(v, 3) // DZ (Divided by Zero flag)
-			cpu.CSR.Write(CsrFCSR, v)
+			cpu.wcsr(CsrFCSR, v)
 			cpu.wxreg(rd, 0xffff_ffff_ffff_ffff)
 		} else {
 			cpu.wxreg(rd, dividend/divisor)
@@ -1717,9 +1717,9 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		divisor := int32(cpu.rxreg(rs2))
 		if divisor == 0 {
 			// Division by 0. Set a special flag
-			v := cpu.CSR.Read(CsrFCSR)
+			v := cpu.rcsr(CsrFCSR)
 			v = setBit(v, 3) // DZ (Divided by Zero flag)
-			cpu.CSR.Write(CsrFCSR, v)
+			cpu.wcsr(CsrFCSR, v)
 			cpu.wxreg(rd, 0xffff_ffff_ffff_ffff)
 		} else if dividend == math.MinInt32 && divisor == -1 {
 			cpu.wxreg(rd, uint64(int64(dividend)))
@@ -1735,9 +1735,9 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		divisor := uint32(cpu.rxreg(rs2))
 		if divisor == 0 {
 			// Division by 0. Set a special flag
-			v := cpu.CSR.Read(CsrFCSR)
+			v := cpu.rcsr(CsrFCSR)
 			v = setBit(v, 3) // DZ (Divided by Zero flag)
-			cpu.CSR.Write(CsrFCSR, v)
+			cpu.wcsr(CsrFCSR, v)
 			cpu.wxreg(rd, 0xffff_ffff_ffff_ffff)
 		} else {
 			cpu.wxreg(rd, uint64(int64(int32(dividend/divisor))))

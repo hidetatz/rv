@@ -1,70 +1,36 @@
 package main
 
-// CSR is Control Status Register representation in
-// RISC-V privileged architecture.
-type CSR struct {
-	Regs [CSRRegsCount]uint64
-}
-
 const (
-	// The number of CSR registers.
-	CSRRegsCount = 4096
-
-	// Listed CSRs. See privileged architecture spec 2.2.
 	// U
-	CsrUSTATUS  uint64 = 0x000 // User status register.
-	CsrUIE      uint64 = 0x004 // User interrupt-enable register.
-	CsrUTVEC    uint64 = 0x005 // User trap handler base address.
-	CsrUSCRATCH uint64 = 0x040 // Scratch register for user trap handlers.
-	CsrUEPC     uint64 = 0x041 // User exception program counter.
-	CsrUCAUSE   uint64 = 0x042 // User trap cause.
-	CsrUTVAL    uint64 = 0x043 // User bad address or instruction.
-	CsrUIP      uint64 = 0x044 // User interrupt pending.
-	CsrFFLAGS   uint64 = 0x001 // Floating-Point Accrued Exceptions.
-	CsrFRM      uint64 = 0x002 // Floating-Point Dynamic Rounding Mode.
-	CsrFCSR     uint64 = 0x003 // Floating-Point Control and Status Register (frm + fflags).
-	CsrCYCLE    uint64 = 0xc00 // Read only. Cycle counter for RDCYCLE instruction.
-	CsrTIME     uint64 = 0xc01 // Read only. Timer for RDTIME instruction.
-	CsrINSTRET  uint64 = 0xc02 // Read only. Instructions-retired counter for RDINSTRET instruction.
-	CsrCYCLEH   uint64 = 0xc80 // Read only. Upper 32 bits of cycle, RV32I only.
-	CsrTIMEH    uint64 = 0xc81 // Read only. Upper 32 bits of time, RV32I only.
-	CsrINSTRETH uint64 = 0xc82 // Read only. Upper 32 bits of instret, RV32I only.
+	CsrUSTATUS uint64 = 0x000 // User status register.
+	CsrUTVEC   uint64 = 0x005 // User trap handler base address.
+	CsrUEPC    uint64 = 0x041 // User exception program counter.
+	CsrUCAUSE  uint64 = 0x042 // User trap cause.
+	CsrUTVAL   uint64 = 0x043 // User bad address or instruction.
+	CsrFFLAGS  uint64 = 0x001 // Floating-Point Accrued Exceptions.
+	CsrFRM     uint64 = 0x002 // Floating-Point Dynamic Rounding Mode.
+	CsrFCSR    uint64 = 0x003 // Floating-Point Control and Status Register (frm + fflags).
 
 	// S
-	CsrSSTATUS    uint64 = 0x100 // Supervisor status register.
-	CsrSEDELEG    uint64 = 0x102 // Supervisor exception delegation register.
-	CsrSIDELEG    uint64 = 0x103 // Supervisor interrupt delegation register.
-	CsrSIE        uint64 = 0x104 // Supervisor interrupt-enable register.
-	CsrSTVEC      uint64 = 0x105 // Supervisor trap handler base address.
-	CsrSCOUNTEREN uint64 = 0x106 // Supervisor counter enable.
-	CsrSSCRATCH   uint64 = 0x140 // Scratch register for supervisor trap handlers.
-	CsrSEPC       uint64 = 0x141 // Supervisor exception program counter.
-	CsrSCAUSE     uint64 = 0x142 // Supervisor trap cause.
-	CsrSTVAL      uint64 = 0x143 // Supervisor bad address or instruction.
-	CsrSIP        uint64 = 0x144 // Supervisor interrupt pending.
-	CsrSATP       uint64 = 0x180 // Supervisor address translation and protection.
+	CsrSSTATUS uint64 = 0x100 // Supervisor status register.
+	CsrSEDELEG uint64 = 0x102 // Supervisor exception delegation register.
+	CsrSIE     uint64 = 0x104 // Supervisor interrupt-enable register.
+	CsrSTVEC   uint64 = 0x105 // Supervisor trap handler base address.
+	CsrSEPC    uint64 = 0x141 // Supervisor exception program counter.
+	CsrSCAUSE  uint64 = 0x142 // Supervisor trap cause.
+	CsrSTVAL   uint64 = 0x143 // Supervisor bad address or instruction.
+	CsrSIP     uint64 = 0x144 // Supervisor interrupt pending.
+	CsrSATP    uint64 = 0x180 // Supervisor address translation and protection.
 
-	// M
-	CsrMVENDORID  uint64 = 0xf11 // Read only. Vendor ID.
-	CsrMARCHID    uint64 = 0xf12 // Read only. Architecture ID.
-	CsrMIMPID     uint64 = 0xf13 // Read only. Implementation ID.
-	CsrMHARTID    uint64 = 0xf14 // Read only. Hardware thread ID.
-	CsrMSTATUS    uint64 = 0x300 // Machine status register.
-	CsrMISA       uint64 = 0x301 // ISA and extensions
-	CsrMEDELEG    uint64 = 0x302 // Machine exception delegation register.
-	CsrMIDELEG    uint64 = 0x303 // Machine interrupt delegation register.
-	CsrMIE        uint64 = 0x304 // Machine interrupt-enable register.
-	CsrMTVEC      uint64 = 0x305 // Machine trap-handler base address.
-	CsrMCOUNTEREN uint64 = 0x306 // Machine counter enable.
-	CsrMSCRATCH   uint64 = 0x340 // Scratch register for machine trap handlers.
-	CsrMEPC       uint64 = 0x341 // Machine exception program counter.
-	CsrMCAUSE     uint64 = 0x342 // Machine trap cause.
-	CsrMTVAL      uint64 = 0x343 // Machine bad address or instruction.
-	CsrMIP        uint64 = 0x344 // Machine interrupt pending.
-	CsrPMPCFG0    uint64 = 0x3a0 // Physical memory protection configuration.
-	CsrPMPCFG1    uint64 = 0x3a1 // Physical memory protection configuration, RV32 only.
-	CsrPMPCFG2    uint64 = 0x3a2 // Physical memory protection configuration.
-	CsrPMPCFG3    uint64 = 0x3a3 // Physical memory protection configuration, RV32 only.
+	//// M
+	CsrMSTATUS uint64 = 0x300 // Machine status register.
+	CsrMEDELEG uint64 = 0x302 // Machine exception delegation register.
+	CsrMIE     uint64 = 0x304 // Machine interrupt-enable register.
+	CsrMTVEC   uint64 = 0x305 // Machine trap-handler base address.
+	CsrMEPC    uint64 = 0x341 // Machine exception program counter.
+	CsrMCAUSE  uint64 = 0x342 // Machine trap cause.
+	CsrMTVAL   uint64 = 0x343 // Machine bad address or instruction.
+	CsrMIP     uint64 = 0x344 // Machine interrupt pending.
 
 	// Named SSTATUS fields index.
 	// Not all are listed up because they just are not needed.
@@ -123,78 +89,3 @@ const (
 	// CsrSieMask is the field location which SIE can access (= the access level is under the supervisor).
 	CsrSieMask = CsrSieUSIE | CsrSieSSIE | CsrSieUTIE | CsrSieSTIE | CsrSieUEIE | CsrSieSEIE
 )
-
-// NewCSR returns the initialized CSR.
-func NewCSR() *CSR {
-	return &CSR{Regs: [CSRRegsCount]uint64{}}
-}
-
-// Read reads CSR by the given address. CSR address is 12-bit.
-// This method does not validate the CPU mode. The validation should be the caller's responsibility.
-func (csr *CSR) Read(addr uint64) uint64 {
-	// assuming addr is small enough, not checking the index
-
-	if addr == CsrFFLAGS {
-		// FCSR consists of FRM (3-bit) + FFLAGS (5-bit)
-		return csr.Regs[CsrFCSR] & 0x1f
-	}
-
-	if addr == CsrFRM {
-		// FCSR consists of FRM (3-bit) + FFLAGS (5-bit)
-		return (csr.Regs[CsrFCSR] & 0xe0) >> 5
-	}
-
-	// when any of SSTATUS, SIP, SIE is requested, masked MSTATUS, MIP, MIE should be returned because they are subsets.
-	// See RISC-V Privileged Architecture Spec 4.1
-	if addr == CsrSSTATUS {
-		return csr.Regs[CsrMSTATUS] & CsrSstatusMask
-	}
-
-	if addr == CsrSIP {
-		return csr.Regs[CsrMIP] & CsrSipMask
-	}
-
-	if addr == CsrSIE {
-		return csr.Regs[CsrMIE] & CsrSieMask
-	}
-
-	return csr.Regs[addr]
-}
-
-// WriteCSR write the given value to the CSR.
-// This method does not validate the CPU mode. The validation should be the caller's responsibility.
-func (csr *CSR) Write(addr uint64, value uint64) {
-	if addr == CsrFFLAGS {
-		// FCSR consists of FRM (3-bit) + FFLAGS (5-bit)
-		csr.Regs[CsrFCSR] &= ^uint64(0x1f) // clear fcsr[4:0]
-		csr.Regs[CsrFCSR] |= value & 0x1f  // write the value[4:0] to the fcsr[4:0]
-		return
-	}
-
-	if addr == CsrFRM {
-		// FCSR consists of FRM (3-bit) + FFLAGS (5-bit)
-		csr.Regs[CsrFCSR] &= ^uint64(0xe0)       // clear fcsr[7:5]
-		csr.Regs[CsrFCSR] |= (value << 5) & 0xe0 // write the value[2:0] to the fcsr[7:5]
-		return
-	}
-
-	if addr == CsrSSTATUS {
-		// SSTATUS is a subset of MSTATUS
-		csr.Regs[CsrMSTATUS] &= ^uint64(CsrSstatusMask) // clear mask
-		csr.Regs[CsrMSTATUS] |= value & CsrSstatusMask  // write only mask
-	}
-
-	if addr == CsrSIE {
-		// SIE is a subset of MIE
-		csr.Regs[CsrMIE] &= ^uint64(CsrSieMask)
-		csr.Regs[CsrMIE] |= value & CsrSieMask
-	}
-
-	if addr == CsrSIP {
-		// SIE is a subset of MIE
-		csr.Regs[CsrMIP] &= ^uint64(CsrSieMask)
-		csr.Regs[CsrMIP] |= value & CsrSieMask
-	}
-
-	csr.Regs[addr] = value
-}

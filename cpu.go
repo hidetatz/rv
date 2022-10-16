@@ -22,20 +22,17 @@ const (
 	doubleword = 64
 )
 
-// CPU is an processor emulator in rv.
 type CPU struct {
 	// program counter
 	PC uint64
 	// Memory management unit
 	MMU *MMU
-	// CPU mode
+
 	mode int
 	xlen int
 
-	// Status registers
-	CSR *CSR
+	csr [4096]uint64
 
-	// Registers
 	xregs [32]uint64
 	fregs [32]float64
 
@@ -49,15 +46,12 @@ type CPU struct {
 	PagingEnabled bool
 }
 
-// NewCPU returns an empty CPU.
-// As of the CPU initialized, the memory does not contain any program,
-// so it must be loaded before the execution.
 func NewCPU(xlen int) *CPU {
 	return &CPU{
 		PC:            0,
 		MMU:           NewMMU(xlen),
 		mode:          machine,
-		CSR:           NewCSR(),
+		csr:           [4096]uint64{},
 		xlen:          xlen,
 		xregs:         [32]uint64{},
 		fregs:         [32]float64{},
@@ -66,6 +60,9 @@ func NewCPU(xlen int) *CPU {
 	}
 }
 
+/*
+ * registers
+ */
 func (cpu *CPU) rxreg(i uint64) uint64 {
 	return cpu.xregs[i]
 }
@@ -88,6 +85,76 @@ func (cpu *CPU) wfreg(i uint64, val float64) {
 	}
 }
 
+/*
+ * csr
+ */
+func (cpu *CPU) rcsr(addr uint64) uint64 {
+	if addr == CsrFFLAGS {
+		// FCSR consists of FRM (3-bit) + FFLAGS (5-bit)
+		return cpu.csr[CsrFCSR] & 0x1f
+	}
+
+	if addr == CsrFRM {
+		// FCSR consists of FRM (3-bit) + FFLAGS (5-bit)
+		return (cpu.csr[CsrFCSR] & 0xe0) >> 5
+	}
+
+	// when any of SSTATUS, SIP, SIE is requested, masked MSTATUS, MIP, MIE should be returned because they are subsets.
+	// See RISC-V Privileged Architecture Spec 4.1
+	if addr == CsrSSTATUS {
+		return cpu.csr[CsrMSTATUS] & CsrSstatusMask
+	}
+
+	if addr == CsrSIP {
+		return cpu.csr[CsrMIP] & CsrSipMask
+	}
+
+	if addr == CsrSIE {
+		return cpu.csr[CsrMIE] & CsrSieMask
+	}
+
+	return cpu.csr[addr]
+}
+
+func (cpu *CPU) wcsr(addr uint64, value uint64) {
+	if addr == CsrFFLAGS {
+		// FCSR consists of FRM (3-bit) + FFLAGS (5-bit)
+		cpu.csr[CsrFCSR] &= ^uint64(0x1f) // clear fcsr[4:0]
+		cpu.csr[CsrFCSR] |= value & 0x1f  // write the value[4:0] to the fcsr[4:0]
+		return
+	}
+
+	if addr == CsrFRM {
+		// FCSR consists of FRM (3-bit) + FFLAGS (5-bit)
+		cpu.csr[CsrFCSR] &= ^uint64(0xe0)       // clear fcsr[7:5]
+		cpu.csr[CsrFCSR] |= (value << 5) & 0xe0 // write the value[2:0] to the fcsr[7:5]
+		return
+	}
+
+	if addr == CsrSSTATUS {
+		// SSTATUS is a subset of MSTATUS
+		cpu.csr[CsrMSTATUS] &= ^uint64(CsrSstatusMask) // clear mask
+		cpu.csr[CsrMSTATUS] |= value & CsrSstatusMask  // write only mask
+	}
+
+	if addr == CsrSIE {
+		// SIE is a subset of MIE
+		cpu.csr[CsrMIE] &= ^uint64(CsrSieMask)
+		cpu.csr[CsrMIE] |= value & CsrSieMask
+	}
+
+	if addr == CsrSIP {
+		// SIE is a subset of MIE
+		cpu.csr[CsrMIP] &= ^uint64(CsrSieMask)
+		cpu.csr[CsrMIP] |= value & CsrSieMask
+	}
+
+	cpu.csr[addr] = value
+}
+
+/*
+ * lrsc
+ */
 func (cpu *CPU) reserve(addr uint64) {
 	cpu.lrsc[addr] = struct{}{}
 }
@@ -101,6 +168,9 @@ func (cpu *CPU) cancel(addr uint64) {
 	delete(cpu.lrsc, addr)
 }
 
+/*
+ * memory
+ */
 func (cpu *CPU) Read(addr uint64, size int) (uint64, *Exception) {
 	return cpu.MMU.Read(addr, size, cpu.mode)
 }
@@ -225,8 +295,8 @@ func (cpu *CPU) HandleException(pc uint64, excp *Exception) Trap {
 	origMode := cpu.mode
 	cause := excp.Code
 
-	mdeleg := cpu.CSR.Read(CsrMEDELEG)
-	sdeleg := cpu.CSR.Read(CsrSEDELEG)
+	mdeleg := cpu.rcsr(CsrMEDELEG)
+	sdeleg := cpu.rcsr(CsrSEDELEG)
 
 	// First, determine the upcoming mode
 	if ((mdeleg >> cause) & 1) == 0 {
@@ -242,24 +312,24 @@ func (cpu *CPU) HandleException(pc uint64, excp *Exception) Trap {
 	case machine:
 		// MEPC is written with the virtual address of the instruction that was
 		// interrupted or that encountered the exception.
-		cpu.CSR.Write(CsrMEPC, curPC)
+		cpu.wcsr(CsrMEPC, curPC)
 
 		// MCAUSE is written with a code indicating the event that caused the trap.
-		cpu.CSR.Write(CsrMCAUSE, uint64(cause))
+		cpu.wcsr(CsrMCAUSE, uint64(cause))
 
 		// MTVAL is either set to zero or written with exception-specific information to
 		// assist software in handling the trap.
-		cpu.CSR.Write(CsrMTVAL, excp.TrapValue)
+		cpu.wcsr(CsrMTVAL, excp.TrapValue)
 
 		// PC is updated with the trap-handler base address (MTVEC).
-		cpu.PC = cpu.CSR.Read(CsrMTVEC)
+		cpu.PC = cpu.rcsr(CsrMTVEC)
 		if (cpu.PC & 0b11) != 0 {
 			// Add 4 * cause if MTVEC has vector type address.
 			// copied from: https://github.com/takahirox/riscv-rust/blob/master/src/cpu.rs#L625
 			cpu.PC = (cpu.PC & ^uint64(0b11)) + uint64((4 * (cause * 0xffff)))
 		}
 
-		status := cpu.CSR.Read(CsrMSTATUS)
+		status := cpu.rcsr(CsrMSTATUS)
 		// update MPIE with MIE.
 		if bit(status, CsrStatusMIE) == 0 {
 			status = clearBit(status, CsrStatusMPIE)
@@ -283,29 +353,29 @@ func (cpu *CPU) HandleException(pc uint64, excp *Exception) Trap {
 			status = clearBit(status, CsrStatusMPPHi)
 		}
 
-		cpu.CSR.Write(CsrMSTATUS, status)
-		cpu.MMU.Mstatus = cpu.CSR.Read(CsrMSTATUS)
+		cpu.wcsr(CsrMSTATUS, status)
+		cpu.MMU.Mstatus = cpu.rcsr(CsrMSTATUS)
 	case supervisor:
 		// SEPC is written with the virtual address of the instruction that was
 		// interrupted or that encountered the exception.
-		cpu.CSR.Write(CsrSEPC, curPC)
+		cpu.wcsr(CsrSEPC, curPC)
 
 		// SCAUSE is written with a code indicating the event that caused the trap.
-		cpu.CSR.Write(CsrSCAUSE, uint64(cause))
+		cpu.wcsr(CsrSCAUSE, uint64(cause))
 
 		// STVAL is either set to zero or written with exception-specific information to
 		// assist software in handling the trap.
-		cpu.CSR.Write(CsrSTVAL, excp.TrapValue)
+		cpu.wcsr(CsrSTVAL, excp.TrapValue)
 
 		// PC is updated with the trap-handler base address (STVEC).
-		cpu.PC = cpu.CSR.Read(CsrSTVEC)
+		cpu.PC = cpu.rcsr(CsrSTVEC)
 		if (cpu.PC & 0b11) != 0 {
 			// Add 4 * cause if STVEC has vector type address.
 			// copied from: https://github.com/takahirox/riscv-rust/blob/master/src/cpu.rs#L625
 			cpu.PC = (cpu.PC & ^uint64(0b11)) + uint64((4 * (cause * 0xffff)))
 		}
 
-		status := cpu.CSR.Read(CsrSSTATUS)
+		status := cpu.rcsr(CsrSSTATUS)
 		// update SPIE with SIE.
 		if bit(status, CsrStatusSIE) == 0 {
 			status = clearBit(status, CsrStatusSPIE)
@@ -324,22 +394,22 @@ func (cpu *CPU) HandleException(pc uint64, excp *Exception) Trap {
 			status = clearBit(status, CsrStatusSPP)
 		}
 
-		cpu.CSR.Write(CsrSSTATUS, status)
-		cpu.MMU.Mstatus = cpu.CSR.Read(CsrMSTATUS)
+		cpu.wcsr(CsrSSTATUS, status)
+		cpu.MMU.Mstatus = cpu.rcsr(CsrMSTATUS)
 	case user:
 		// UEPC is written with the virtual address of the instruction that was
 		// interrupted or that encountered the exception.
-		cpu.CSR.Write(CsrUEPC, curPC)
+		cpu.wcsr(CsrUEPC, curPC)
 
 		// UCAUSE is written with a code indicating the event that caused the trap.
-		cpu.CSR.Write(CsrUCAUSE, uint64(cause))
+		cpu.wcsr(CsrUCAUSE, uint64(cause))
 
 		// UTVAL is either set to zero or written with exception-specific information to
 		// assist software in handling the trap.
-		cpu.CSR.Write(CsrUTVAL, excp.TrapValue)
+		cpu.wcsr(CsrUTVAL, excp.TrapValue)
 
 		// PC is updated with the trap-handler base address (UTVEC).
-		cpu.PC = cpu.CSR.Read(CsrUTVEC)
+		cpu.PC = cpu.rcsr(CsrUTVEC)
 		if (cpu.PC & 0b11) != 0 {
 			// Add 4 * cause if UTVEC has vector type address.
 			// copied from: https://github.com/takahirox/riscv-rust/blob/master/src/cpu.rs#L625
