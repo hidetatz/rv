@@ -248,22 +248,22 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 			(bit(raw, 6) << 2) | // raw[6] -> offset[2]
 			(bit(raw, 5) << 6) // raw[5] -> offset[6]
 
-		addr := cpu.XRegs.Read(rs1) + offset
+		addr := cpu.rxreg(rs1) + offset
 		v, excp := cpu.Read(addr, Word)
 		if excp.Code != ExcpCodeNone {
 			return excp
 		}
-		cpu.XRegs.Write(rd, uint64(int64(int32(v))))
+		cpu.wxreg(rd, uint64(int64(int32(v))))
 		return ExcpNone()
 	},
 	C_LWSP: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd := bits(raw, 11, 7)
 		uimm := (bit(raw, 12) << 5) | (bits(raw, 6, 4) << 2) | (bits(raw, 3, 2) << 6)
-		v, excp := cpu.Read(cpu.XRegs.Read(2)+uimm, Word)
+		v, excp := cpu.Read(cpu.rxreg(2)+uimm, Word)
 		if excp.Code != ExcpCodeNone {
 			return excp
 		}
-		cpu.XRegs.Write(rd, uint64(int64(int32(v))))
+		cpu.wxreg(rd, uint64(int64(int32(v))))
 		return ExcpNone()
 	},
 	C_FLD: func(cpu *CPU, raw, _ uint64) *Exception {
@@ -272,22 +272,22 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		offset := (bits(raw, 12, 10) << 3) | // raw[12:10] -> offset[5:3]
 			(bits(raw, 6, 5) << 6) // raw[6:5] -> offset[7:6]
 
-		v, excp := cpu.Read(cpu.XRegs.Read(rs1)+uint64(offset), DoubleWord)
+		v, excp := cpu.Read(cpu.rxreg(rs1)+uint64(offset), DoubleWord)
 		if excp.Code != ExcpCodeNone {
 			return excp
 		}
-		cpu.FRegs.Write(rd, math.Float64frombits(v))
+		cpu.wfreg(rd, math.Float64frombits(v))
 		return ExcpNone()
 	},
 	C_FLDSP: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd := bits(raw, 11, 7)
 		uimm := (bit(raw, 12) << 5) | (bits(raw, 6, 5) << 3) | (bits(raw, 4, 2) << 6)
-		r, excp := cpu.Read(cpu.XRegs.Read(2)+uimm, DoubleWord)
+		r, excp := cpu.Read(cpu.rxreg(2)+uimm, DoubleWord)
 		if excp.Code != ExcpCodeNone {
 			return excp
 		}
 		v := math.Float64frombits(r)
-		cpu.FRegs.Write(rd, v)
+		cpu.wfreg(rd, v)
 		return ExcpNone()
 	},
 
@@ -298,15 +298,15 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		offset := (bits(raw, 12, 10) << 3) | // raw[12:10] -> offset[5:3]
 			(bit(raw, 6) << 2) | // raw[6] -> offset[2]
 			(bit(raw, 5) << 6) // raw[5] -> offset[6]
-		addr := cpu.XRegs.Read(rs1) + offset
-		cpu.Write(addr, cpu.XRegs.Read(rs2), Word)
+		addr := cpu.rxreg(rs1) + offset
+		cpu.Write(addr, cpu.rxreg(rs2), Word)
 		return ExcpNone()
 	},
 	C_SWSP: func(cpu *CPU, raw, _ uint64) *Exception {
 		rs2 := bits(raw, 4, 2)
 		uimm := bits(raw, 12, 9)<<2 | bits(raw, 8, 7)<<6
-		addr := cpu.XRegs.Read(2) + uimm
-		cpu.Write(addr, cpu.XRegs.Read(rs2), Word)
+		addr := cpu.rxreg(2) + uimm
+		cpu.Write(addr, cpu.rxreg(rs2), Word)
 		return ExcpNone()
 	},
 	C_FSD: func(cpu *CPU, raw, _ uint64) *Exception {
@@ -315,15 +315,15 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		offset := (bits(raw, 12, 10) << 3) | // raw[12:10] -> offset[5:3]
 			(bit(raw, 6) << 7) | // raw[6] -> offset[7]
 			(bit(raw, 5) << 6) // raw[5] -> offset[6]
-		addr := cpu.XRegs.Read(rs1) + offset
-		cpu.Write(addr, math.Float64bits(cpu.FRegs.Read(rd)), DoubleWord)
+		addr := cpu.rxreg(rs1) + offset
+		cpu.Write(addr, math.Float64bits(cpu.rfreg(rd)), DoubleWord)
 		return ExcpNone()
 	},
 	C_FSDSP: func(cpu *CPU, raw, _ uint64) *Exception {
 		rs2 := bits(raw, 4, 2)
 		uimm := bits(raw, 12, 10)<<3 | bits(raw, 9, 7)<<6
-		addr := cpu.XRegs.Read(2) + uimm
-		v := cpu.FRegs.Read(rs2)
+		addr := cpu.rxreg(2) + uimm
+		v := cpu.rfreg(rs2)
 		cpu.Write(addr, math.Float64bits(v), DoubleWord)
 		return ExcpNone()
 	},
@@ -331,7 +331,7 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 	C_ADD: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd := bits(raw, 11, 7)
 		rs2 := bits(raw, 6, 2)
-		cpu.XRegs.Write(rd, cpu.XRegs.Read(rd)+cpu.XRegs.Read(rs2))
+		cpu.wxreg(rd, cpu.rxreg(rd)+cpu.rxreg(rs2))
 		return ExcpNone()
 	},
 	C_ADDI: func(cpu *CPU, raw, _ uint64) *Exception {
@@ -341,7 +341,7 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 			// sign-extend
 			nzimm = uint64(int64(int32(int16(nzimm | 0b1111_1111_1100_0000))))
 		}
-		cpu.XRegs.Write(rd, (nzimm + cpu.XRegs.Read(rd)))
+		cpu.wxreg(rd, (nzimm + cpu.rxreg(rd)))
 		return ExcpNone()
 	},
 	C_ADDI4SPN: func(cpu *CPU, raw, _ uint64) *Exception {
@@ -355,7 +355,7 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 			return ExcpIllegalInstruction(raw)
 		}
 
-		cpu.XRegs.Write(rd, cpu.XRegs.Read(2)+uint64(nzuimm))
+		cpu.wxreg(rd, cpu.rxreg(2)+uint64(nzuimm))
 		return ExcpNone()
 	},
 	C_ADDI16SP: func(cpu *CPU, raw, _ uint64) *Exception {
@@ -374,19 +374,19 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		}
 
 		// write to stack pointer (x2)
-		cpu.XRegs.Write(2, cpu.XRegs.Read(2)+imm)
+		cpu.wxreg(2, cpu.rxreg(2)+imm)
 		return ExcpNone()
 	},
 	C_SUB: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd := bits(raw, 9, 7) + 8
 		rs2 := bits(raw, 4, 2) + 8
-		cpu.XRegs.Write(rd, (cpu.XRegs.Read(rd) - cpu.XRegs.Read(rs2)))
+		cpu.wxreg(rd, (cpu.rxreg(rd) - cpu.rxreg(rs2)))
 		return ExcpNone()
 	},
 	C_AND: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd := bits(raw, 9, 7) + 8
 		rs2 := bits(raw, 4, 2) + 8
-		cpu.XRegs.Write(rd, (cpu.XRegs.Read(rd) & cpu.XRegs.Read(rs2)))
+		cpu.wxreg(rd, (cpu.rxreg(rd) & cpu.rxreg(rs2)))
 		return ExcpNone()
 	},
 	C_ANDI: func(cpu *CPU, raw, _ uint64) *Exception {
@@ -396,25 +396,25 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 			// sign-extend
 			uimm = uint64(int64(int32(int16(uimm | 0b1111_1111_1100_0000))))
 		}
-		cpu.XRegs.Write(rd, (cpu.XRegs.Read(rd) & uimm))
+		cpu.wxreg(rd, (cpu.rxreg(rd) & uimm))
 		return ExcpNone()
 	},
 	C_OR: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd := bits(raw, 9, 7) + 8
 		rs2 := bits(raw, 4, 2) + 8
-		cpu.XRegs.Write(rd, (cpu.XRegs.Read(rd) | cpu.XRegs.Read(rs2)))
+		cpu.wxreg(rd, (cpu.rxreg(rd) | cpu.rxreg(rs2)))
 		return ExcpNone()
 	},
 	C_XOR: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd := bits(raw, 9, 7) + 8
 		rs2 := bits(raw, 4, 2) + 8
-		cpu.XRegs.Write(rd, (cpu.XRegs.Read(rd) ^ cpu.XRegs.Read(rs2)))
+		cpu.wxreg(rd, (cpu.rxreg(rd) ^ cpu.rxreg(rs2)))
 		return ExcpNone()
 	},
 	C_MV: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd := bits(raw, 11, 7)
 		rs2 := bits(raw, 6, 2)
-		cpu.XRegs.Write(rd, cpu.XRegs.Read(rs2))
+		cpu.wxreg(rd, cpu.rxreg(rs2))
 		return ExcpNone()
 	},
 	C_LI: func(cpu *CPU, raw, pc uint64) *Exception {
@@ -425,7 +425,7 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 			imm = uint64(int64(int32(int16(imm | 0b1111_1111_1100_0000))))
 		}
 
-		cpu.XRegs.Write(rd, (imm + cpu.XRegs.Read(0)))
+		cpu.wxreg(rd, (imm + cpu.rxreg(0)))
 		return ExcpNone()
 	},
 	C_LUI: func(cpu *CPU, raw, _ uint64) *Exception {
@@ -445,7 +445,7 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		}
 
 		// write to stack pointer (x2)
-		cpu.XRegs.Write(rd, imm)
+		cpu.wxreg(rd, imm)
 		return ExcpNone()
 	},
 
@@ -453,19 +453,19 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 	C_SLLI: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd := bits(raw, 11, 7)
 		shamt := (bit(raw, 12) << 5) | bits(raw, 6, 2)
-		cpu.XRegs.Write(rd, (cpu.XRegs.Read(rd) << shamt))
+		cpu.wxreg(rd, (cpu.rxreg(rd) << shamt))
 		return ExcpNone()
 	},
 	C_SRAI: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd := bits(raw, 9, 7) + 8
 		shamt := (bit(raw, 12) << 5) | bits(raw, 6, 2)
-		cpu.XRegs.Write(rd, uint64(int64(cpu.XRegs.Read(rd))>>shamt))
+		cpu.wxreg(rd, uint64(int64(cpu.rxreg(rd))>>shamt))
 		return ExcpNone()
 	},
 	C_SRLI: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd := bits(raw, 9, 7) + 8
 		shamt := (bit(raw, 12) << 5) | bits(raw, 6, 2)
-		cpu.XRegs.Write(rd, (cpu.XRegs.Read(rd) >> shamt))
+		cpu.wxreg(rd, (cpu.rxreg(rd) >> shamt))
 		return ExcpNone()
 	},
 
@@ -482,7 +482,7 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 			offset = uint64(int64(int32(int16(offset | 0b1111_1110_0000_0000))))
 		}
 
-		if cpu.XRegs.Read(rs1) == 0 {
+		if cpu.rxreg(rs1) == 0 {
 			cpu.PC = pc + offset
 		}
 
@@ -500,7 +500,7 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 			offset = uint64(int64(int32(int16(offset | 0b1111_1110_0000_0000))))
 		}
 
-		if cpu.XRegs.Read(rs1) != 0 {
+		if cpu.rxreg(rs1) != 0 {
 			cpu.PC = pc + offset
 		}
 
@@ -529,7 +529,7 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 	},
 	C_JR: func(cpu *CPU, raw, _ uint64) *Exception {
 		rs1 := bits(raw, 11, 7)
-		cpu.PC = cpu.XRegs.Read(rs1)
+		cpu.PC = cpu.rxreg(rs1)
 		return ExcpNone()
 	},
 
@@ -537,8 +537,8 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 	C_JALR: func(cpu *CPU, raw, pc uint64) *Exception {
 		rs1 := bits(raw, 11, 7)
 		t := pc + 2
-		cpu.PC = cpu.XRegs.Read(rs1)
-		cpu.XRegs.Write(1, t)
+		cpu.PC = cpu.rxreg(rs1)
+		cpu.wxreg(1, t)
 		return ExcpNone()
 	},
 
@@ -560,21 +560,21 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		rs1 := bits(raw, 9, 7) + 8
 		rd := bits(raw, 4, 2) + 8
 		uimm := (bits(raw, 12, 10) << 3) | (bits(raw, 6, 5) << 6)
-		r, excp := cpu.Read(cpu.XRegs.Read(rs1)+uimm, DoubleWord)
+		r, excp := cpu.Read(cpu.rxreg(rs1)+uimm, DoubleWord)
 		if excp.Code != ExcpCodeNone {
 			return excp
 		}
-		cpu.XRegs.Write(rd, r)
+		cpu.wxreg(rd, r)
 		return ExcpNone()
 	},
 	C_LDSP: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd := bits(raw, 11, 7)
 		uimm := (bit(raw, 12) << 5) | (bits(raw, 6, 5) << 3) | (bits(raw, 4, 2) << 6)
-		r, excp := cpu.Read(cpu.XRegs.Read(2)+uimm, DoubleWord)
+		r, excp := cpu.Read(cpu.rxreg(2)+uimm, DoubleWord)
 		if excp.Code != ExcpCodeNone {
 			return excp
 		}
-		cpu.XRegs.Write(rd, r)
+		cpu.wxreg(rd, r)
 		return ExcpNone()
 	},
 
@@ -583,15 +583,15 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		rs1 := bits(raw, 9, 7) + 8
 		rs2 := bits(raw, 4, 2) + 8
 		uimm := (bits(raw, 12, 10) << 3) | (bits(raw, 6, 5) << 6)
-		addr := cpu.XRegs.Read(rs1) + uimm
-		cpu.Write(addr, cpu.XRegs.Read(rs2), DoubleWord)
+		addr := cpu.rxreg(rs1) + uimm
+		cpu.Write(addr, cpu.rxreg(rs2), DoubleWord)
 		return ExcpNone()
 	},
 	C_SDSP: func(cpu *CPU, raw, _ uint64) *Exception {
 		rs2 := bits(raw, 4, 2)
 		uimm := (bits(raw, 12, 10) << 3) | (bits(raw, 9, 7) << 6)
-		addr := cpu.XRegs.Read(2) + uimm
-		cpu.Write(addr, cpu.XRegs.Read(rs2), DoubleWord)
+		addr := cpu.rxreg(2) + uimm
+		cpu.Write(addr, cpu.rxreg(rs2), DoubleWord)
 		return ExcpNone()
 	},
 
@@ -599,8 +599,8 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 	C_ADDW: func(cpu *CPU, raw, pc uint64) *Exception {
 		rd := bits(raw, 9, 7) + 8
 		rs2 := bits(raw, 4, 2) + 8
-		v := uint64(int64(int32(cpu.XRegs.Read(rd) + cpu.XRegs.Read(rs2))))
-		cpu.XRegs.Write(rd, v)
+		v := uint64(int64(int32(cpu.rxreg(rd) + cpu.rxreg(rs2))))
+		cpu.wxreg(rd, v)
 		return ExcpNone()
 	},
 	C_ADDIW: func(cpu *CPU, raw, pc uint64) *Exception {
@@ -610,14 +610,14 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		if (imm & 0b10_0000) != 0 {
 			imm = uint64(int64(int8(imm | 0b1100_0000)))
 		}
-		cpu.XRegs.Write(rd, uint64(int64(int32(cpu.XRegs.Read(rd)+imm))))
+		cpu.wxreg(rd, uint64(int64(int32(cpu.rxreg(rd)+imm))))
 		return ExcpNone()
 	},
 	C_SUBW: func(cpu *CPU, raw, pc uint64) *Exception {
 		rd := bits(raw, 9, 7) + 8
 		rs2 := bits(raw, 4, 2) + 8
-		v := uint64(int64(int32(cpu.XRegs.Read(rd) - cpu.XRegs.Read(rs2))))
-		cpu.XRegs.Write(rd, v)
+		v := uint64(int64(int32(cpu.rxreg(rd) - cpu.rxreg(rs2))))
+		cpu.wxreg(rd, v)
 		return ExcpNone()
 	},
 
@@ -628,99 +628,99 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 	// Shift
 	SLL: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		shamt := cpu.XRegs.Read(rs2) & 0b11_1111
-		cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)<<shamt)
+		shamt := cpu.rxreg(rs2) & 0b11_1111
+		cpu.wxreg(rd, cpu.rxreg(rs1)<<shamt)
 		return ExcpNone()
 	},
 	SLLI: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, shamt := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 25, 20)
-		cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)<<shamt)
+		cpu.wxreg(rd, cpu.rxreg(rs1)<<shamt)
 		return ExcpNone()
 	},
 	SRL: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		shift := cpu.XRegs.Read(rs2) & 0b11_1111
-		cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)>>shift)
+		shift := cpu.rxreg(rs2) & 0b11_1111
+		cpu.wxreg(rd, cpu.rxreg(rs1)>>shift)
 		return ExcpNone()
 	},
 	SRLI: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
 		shamt := imm & 0b1_1111
-		cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)>>shamt)
+		cpu.wxreg(rd, cpu.rxreg(rs1)>>shamt)
 		return ExcpNone()
 	},
 	SRA: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		shift := cpu.XRegs.Read(rs2) & 0b111111
-		cpu.XRegs.Write(rd, uint64(int64(cpu.XRegs.Read(rs1))>>shift))
+		shift := cpu.rxreg(rs2) & 0b111111
+		cpu.wxreg(rd, uint64(int64(cpu.rxreg(rs1))>>shift))
 		return ExcpNone()
 	},
 	SRAI: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
 		shamt := imm & 0b1_1111
-		cpu.XRegs.Write(rd, uint64(int64(cpu.XRegs.Read(rs1))>>shamt))
+		cpu.wxreg(rd, uint64(int64(cpu.rxreg(rs1))>>shamt))
 		return ExcpNone()
 	},
 
 	// Arithmetic
 	ADD: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)+cpu.XRegs.Read(rs2))
+		cpu.wxreg(rd, cpu.rxreg(rs1)+cpu.rxreg(rs2))
 		return ExcpNone()
 	},
 	ADDI: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
-		cpu.XRegs.Write(rd, imm+cpu.XRegs.Read(rs1))
+		cpu.wxreg(rd, imm+cpu.rxreg(rs1))
 		return ExcpNone()
 	},
 	SUB: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)-cpu.XRegs.Read(rs2))
+		cpu.wxreg(rd, cpu.rxreg(rs1)-cpu.rxreg(rs2))
 		return ExcpNone()
 	},
 	LUI: func(cpu *CPU, raw, _ uint64) *Exception {
 		imm := uint64(int64(int32(uint32(bits(raw, 31, 12) << 12))))
 		rd := bits(raw, 11, 7)
 
-		cpu.XRegs.Write(rd, imm)
+		cpu.wxreg(rd, imm)
 		return ExcpNone()
 	},
 	AUIPC: func(cpu *CPU, raw, pc uint64) *Exception {
 		imm := uint64(int64(int32(uint32(bits(raw, 31, 12) << 12))))
 		rd := bits(raw, 11, 7)
-		cpu.XRegs.Write(rd, pc+imm)
+		cpu.wxreg(rd, pc+imm)
 		return ExcpNone()
 	},
 
 	// Logical
 	XOR: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)^cpu.XRegs.Read(rs2))
+		cpu.wxreg(rd, cpu.rxreg(rs1)^cpu.rxreg(rs2))
 		return ExcpNone()
 	},
 	XORI: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
-		cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)^imm)
+		cpu.wxreg(rd, cpu.rxreg(rs1)^imm)
 		return ExcpNone()
 	},
 	OR: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)|cpu.XRegs.Read(rs2))
+		cpu.wxreg(rd, cpu.rxreg(rs1)|cpu.rxreg(rs2))
 		return ExcpNone()
 	},
 	ORI: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
-		cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)|imm)
+		cpu.wxreg(rd, cpu.rxreg(rs1)|imm)
 		return ExcpNone()
 	},
 	AND: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)&cpu.XRegs.Read(rs2))
+		cpu.wxreg(rd, cpu.rxreg(rs1)&cpu.rxreg(rs2))
 		return ExcpNone()
 	},
 	ANDI: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
-		cpu.XRegs.Write(rd, cpu.XRegs.Read(rs1)&imm)
+		cpu.wxreg(rd, cpu.rxreg(rs1)&imm)
 		return ExcpNone()
 	},
 
@@ -728,81 +728,81 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 	SLT: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
 		var v uint64 = 0
-		if int64(cpu.XRegs.Read(rs1)) < int64(cpu.XRegs.Read(rs2)) {
+		if int64(cpu.rxreg(rs1)) < int64(cpu.rxreg(rs2)) {
 			v = 1
 		}
-		cpu.XRegs.Write(rd, v)
+		cpu.wxreg(rd, v)
 		return ExcpNone()
 	},
 	SLTI: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
 		var v uint64 = 0
 		// must compare as two's complement
-		if int64(cpu.XRegs.Read(rs1)) < int64(imm) {
+		if int64(cpu.rxreg(rs1)) < int64(imm) {
 			v = 1
 		}
-		cpu.XRegs.Write(rd, v)
+		cpu.wxreg(rd, v)
 		return ExcpNone()
 	},
 	SLTU: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
 		var v uint64 = 0
-		if cpu.XRegs.Read(rs1) < cpu.XRegs.Read(rs2) {
+		if cpu.rxreg(rs1) < cpu.rxreg(rs2) {
 			v = 1
 		}
-		cpu.XRegs.Write(rd, v)
+		cpu.wxreg(rd, v)
 		return ExcpNone()
 	},
 	SLTIU: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
 		var v uint64 = 0
 		// must compare as two's complement
-		if cpu.XRegs.Read(rs1) < imm {
+		if cpu.rxreg(rs1) < imm {
 			v = 1
 		}
-		cpu.XRegs.Write(rd, v)
+		cpu.wxreg(rd, v)
 		return ExcpNone()
 	},
 
 	// Branch
 	BEQ: func(cpu *CPU, raw, pc uint64) *Exception {
 		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), ParseBImm(raw)
-		if cpu.XRegs.Read(rs1) == cpu.XRegs.Read(rs2) {
+		if cpu.rxreg(rs1) == cpu.rxreg(rs2) {
 			cpu.PC = pc + imm
 		}
 		return ExcpNone()
 	},
 	BNE: func(cpu *CPU, raw, pc uint64) *Exception {
 		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), ParseBImm(raw)
-		if cpu.XRegs.Read(rs1) != cpu.XRegs.Read(rs2) {
+		if cpu.rxreg(rs1) != cpu.rxreg(rs2) {
 			cpu.PC = pc + imm
 		}
 		return ExcpNone()
 	},
 	BLT: func(cpu *CPU, raw, pc uint64) *Exception {
 		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), ParseBImm(raw)
-		if int64(cpu.XRegs.Read(rs1)) < int64(cpu.XRegs.Read(rs2)) {
+		if int64(cpu.rxreg(rs1)) < int64(cpu.rxreg(rs2)) {
 			cpu.PC = pc + imm
 		}
 		return ExcpNone()
 	},
 	BGE: func(cpu *CPU, raw, pc uint64) *Exception {
 		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), ParseBImm(raw)
-		if int64(cpu.XRegs.Read(rs1)) >= int64(cpu.XRegs.Read(rs2)) {
+		if int64(cpu.rxreg(rs1)) >= int64(cpu.rxreg(rs2)) {
 			cpu.PC = pc + imm
 		}
 		return ExcpNone()
 	},
 	BLTU: func(cpu *CPU, raw, pc uint64) *Exception {
 		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), ParseBImm(raw)
-		if cpu.XRegs.Read(rs1) < cpu.XRegs.Read(rs2) {
+		if cpu.rxreg(rs1) < cpu.rxreg(rs2) {
 			cpu.PC = pc + imm
 		}
 		return ExcpNone()
 	},
 	BGEU: func(cpu *CPU, raw, pc uint64) *Exception {
 		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), ParseBImm(raw)
-		if cpu.XRegs.Read(rs1) >= cpu.XRegs.Read(rs2) {
+		if cpu.rxreg(rs1) >= cpu.rxreg(rs2) {
 			cpu.PC = pc + imm
 		}
 		return ExcpNone()
@@ -812,16 +812,16 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 	JAL: func(cpu *CPU, raw, pc uint64) *Exception {
 		rd, imm := bits(raw, 11, 7), ParseJImm(raw)
 		tmp := pc + 4
-		cpu.XRegs.Write(rd, tmp)
+		cpu.wxreg(rd, tmp)
 		cpu.PC = pc + imm
 		return ExcpNone()
 	},
 	JALR: func(cpu *CPU, raw, pc uint64) *Exception {
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
 		tmp := pc + 4
-		target := (cpu.XRegs.Read(rs1) + imm) & ^uint64(1)
+		target := (cpu.rxreg(rs1) + imm) & ^uint64(1)
 		cpu.PC = target
-		cpu.XRegs.Write(rd, tmp)
+		cpu.wxreg(rd, tmp)
 		return ExcpNone()
 	},
 
@@ -851,67 +851,67 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 	// Load
 	LB: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
-		v, excp := cpu.Read(cpu.XRegs.Read(rs1)+imm, 8)
+		v, excp := cpu.Read(cpu.rxreg(rs1)+imm, 8)
 		if excp.Code != ExcpCodeNone {
 			return excp
 		}
-		cpu.XRegs.Write(rd, uint64(int64(int8(v))))
+		cpu.wxreg(rd, uint64(int64(int8(v))))
 		return ExcpNone()
 	},
 	LH: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
-		v, excp := cpu.Read(cpu.XRegs.Read(rs1)+imm, 16)
+		v, excp := cpu.Read(cpu.rxreg(rs1)+imm, 16)
 		if excp.Code != ExcpCodeNone {
 			return excp
 		}
-		cpu.XRegs.Write(rd, uint64(int64(int16(v))))
+		cpu.wxreg(rd, uint64(int64(int16(v))))
 		return ExcpNone()
 	},
 	LBU: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
-		v, excp := cpu.Read(cpu.XRegs.Read(rs1)+imm, 8)
+		v, excp := cpu.Read(cpu.rxreg(rs1)+imm, 8)
 		if excp.Code != ExcpCodeNone {
 			return excp
 		}
-		cpu.XRegs.Write(rd, v)
+		cpu.wxreg(rd, v)
 		return ExcpNone()
 	},
 	LHU: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
-		v, excp := cpu.Read(cpu.XRegs.Read(rs1)+imm, 16)
+		v, excp := cpu.Read(cpu.rxreg(rs1)+imm, 16)
 		if excp.Code != ExcpCodeNone {
 			return excp
 		}
-		cpu.XRegs.Write(rd, v)
+		cpu.wxreg(rd, v)
 		return ExcpNone()
 	},
 	LW: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
-		v, excp := cpu.Read(cpu.XRegs.Read(rs1)+imm, 32)
+		v, excp := cpu.Read(cpu.rxreg(rs1)+imm, 32)
 		if excp.Code != ExcpCodeNone {
 			return excp
 		}
-		cpu.XRegs.Write(rd, uint64(int64(int32(v))))
+		cpu.wxreg(rd, uint64(int64(int32(v))))
 		return ExcpNone()
 	},
 
 	// Store
 	SB: func(cpu *CPU, raw, _ uint64) *Exception {
 		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), ParseSImm(raw)
-		addr := cpu.XRegs.Read(rs1) + imm
-		cpu.Write(addr, cpu.XRegs.Read(rs2), Byte)
+		addr := cpu.rxreg(rs1) + imm
+		cpu.Write(addr, cpu.rxreg(rs2), Byte)
 		return ExcpNone()
 	},
 	SH: func(cpu *CPU, raw, _ uint64) *Exception {
 		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), ParseSImm(raw)
-		addr := cpu.XRegs.Read(rs1) + imm
-		cpu.Write(addr, cpu.XRegs.Read(rs2), HalfWord)
+		addr := cpu.rxreg(rs1) + imm
+		cpu.Write(addr, cpu.rxreg(rs2), HalfWord)
 		return ExcpNone()
 	},
 	SW: func(cpu *CPU, raw, _ uint64) *Exception {
 		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), ParseSImm(raw)
-		addr := cpu.XRegs.Read(rs1) + imm
-		cpu.Write(addr, cpu.XRegs.Read(rs2), Word)
+		addr := cpu.rxreg(rs1) + imm
+		cpu.Write(addr, cpu.rxreg(rs2), Word)
 		return ExcpNone()
 	},
 
@@ -922,85 +922,85 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 	// Shift
 	SLLW: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		shamt := cpu.XRegs.Read(rs2) & 0b1_1111
-		cpu.XRegs.Write(rd, uint64(int64(int32(cpu.XRegs.Read(rs1)<<shamt))))
+		shamt := cpu.rxreg(rs2) & 0b1_1111
+		cpu.wxreg(rd, uint64(int64(int32(cpu.rxreg(rs1)<<shamt))))
 		return ExcpNone()
 	},
 	SLLIW: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
 		shamt := imm & 0b1_1111
-		cpu.XRegs.Write(rd, uint64(int64(int32(cpu.XRegs.Read(rs1)<<shamt))))
+		cpu.wxreg(rd, uint64(int64(int32(cpu.rxreg(rs1)<<shamt))))
 		return ExcpNone()
 	},
 	SRLW: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		shamt := cpu.XRegs.Read(rs2) & 0b1_1111
-		cpu.XRegs.Write(rd, uint64(int64(int32(uint32(cpu.XRegs.Read(rs1))>>shamt))))
+		shamt := cpu.rxreg(rs2) & 0b1_1111
+		cpu.wxreg(rd, uint64(int64(int32(uint32(cpu.rxreg(rs1))>>shamt))))
 		return ExcpNone()
 	},
 	SRLIW: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
 		shamt := imm & 0b1_1111
-		cpu.XRegs.Write(rd, uint64(int64(int32(uint32(cpu.XRegs.Read(rs1))>>shamt))))
+		cpu.wxreg(rd, uint64(int64(int32(uint32(cpu.rxreg(rs1))>>shamt))))
 		return ExcpNone()
 	},
 	SRAW: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		shamt := cpu.XRegs.Read(rs2) & 0b1_1111
-		cpu.XRegs.Write(rd, uint64(int64(int32(cpu.XRegs.Read(rs1))>>shamt)))
+		shamt := cpu.rxreg(rs2) & 0b1_1111
+		cpu.wxreg(rd, uint64(int64(int32(cpu.rxreg(rs1))>>shamt)))
 		return ExcpNone()
 	},
 	SRAIW: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
 		shamt := imm & 0b1_1111
-		cpu.XRegs.Write(rd, uint64(int64(int32(cpu.XRegs.Read(rs1))>>shamt)))
+		cpu.wxreg(rd, uint64(int64(int32(cpu.rxreg(rs1))>>shamt)))
 		return ExcpNone()
 	},
 
 	// Arithmetic
 	ADDW: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		cpu.XRegs.Write(rd, uint64(int64(int32(cpu.XRegs.Read(rs1)+cpu.XRegs.Read(rs2)))))
+		cpu.wxreg(rd, uint64(int64(int32(cpu.rxreg(rs1)+cpu.rxreg(rs2)))))
 		return ExcpNone()
 	},
 	ADDIW: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
-		cpu.XRegs.Write(rd, uint64(int64(int32(cpu.XRegs.Read(rs1)+imm))))
+		cpu.wxreg(rd, uint64(int64(int32(cpu.rxreg(rs1)+imm))))
 		return ExcpNone()
 	},
 	SUBW: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		cpu.XRegs.Write(rd, uint64(int64(int32(cpu.XRegs.Read(rs1)-cpu.XRegs.Read(rs2)))))
+		cpu.wxreg(rd, uint64(int64(int32(cpu.rxreg(rs1)-cpu.rxreg(rs2)))))
 		return ExcpNone()
 	},
 
 	// Load
 	LWU: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
-		addr := cpu.XRegs.Read(rs1) + imm
+		addr := cpu.rxreg(rs1) + imm
 		r, excp := cpu.Read(addr, Word)
 		if excp.Code != ExcpCodeNone {
 			return excp
 		}
-		cpu.XRegs.Write(rd, r)
+		cpu.wxreg(rd, r)
 		return ExcpNone()
 	},
 	LD: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
-		addr := cpu.XRegs.Read(rs1) + imm
+		addr := cpu.rxreg(rs1) + imm
 		r, excp := cpu.Read(addr, DoubleWord)
 		if excp.Code != ExcpCodeNone {
 			return excp
 		}
-		cpu.XRegs.Write(rd, r)
+		cpu.wxreg(rd, r)
 		return ExcpNone()
 	},
 
 	// Store
 	SD: func(cpu *CPU, raw, _ uint64) *Exception {
 		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), ParseSImm(raw)
-		addr := cpu.XRegs.Read(rs1) + imm
-		cpu.Write(addr, cpu.XRegs.Read(rs2), DoubleWord)
+		addr := cpu.rxreg(rs1) + imm
+		cpu.Write(addr, cpu.rxreg(rs2), DoubleWord)
 		return ExcpNone()
 	},
 
@@ -1149,9 +1149,9 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
 		imm = imm & 0b111111111111
 		t := cpu.CSR.Read(imm)
-		v := cpu.XRegs.Read(rs1)
+		v := cpu.rxreg(rs1)
 		cpu.CSR.Write(imm, v)
-		cpu.XRegs.Write(rd, t)
+		cpu.wxreg(rd, t)
 
 		if imm == CsrSATP {
 			cpu.UpdateAddressingMode(v)
@@ -1167,9 +1167,9 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
 		imm = imm & 0b111111111111
 		t := cpu.CSR.Read(imm)
-		v := t | cpu.XRegs.Read(rs1)
+		v := t | cpu.rxreg(rs1)
 		cpu.CSR.Write(imm, v)
-		cpu.XRegs.Write(rd, t)
+		cpu.wxreg(rd, t)
 
 		if imm == CsrSATP {
 			cpu.UpdateAddressingMode(v)
@@ -1185,9 +1185,9 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
 		imm = imm & 0b111111111111
 		t := cpu.CSR.Read(imm)
-		v := t & ^(cpu.XRegs.Read(rs1))
+		v := t & ^(cpu.rxreg(rs1))
 		cpu.CSR.Write(imm, v)
-		cpu.XRegs.Write(rd, t)
+		cpu.wxreg(rd, t)
 
 		if imm == CsrSATP {
 			cpu.UpdateAddressingMode(v)
@@ -1202,7 +1202,7 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 	CSRRWI: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, imm, csr := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
 		csr = csr & 0b111111111111
-		cpu.XRegs.Write(rd, cpu.CSR.Read(csr))
+		cpu.wxreg(rd, cpu.CSR.Read(csr))
 		cpu.CSR.Write(csr, imm)
 
 		if csr == CsrSATP {
@@ -1221,7 +1221,7 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		t := cpu.CSR.Read(imm)
 		v := t | rs1
 		cpu.CSR.Write(imm, v) // RS1 is zimm
-		cpu.XRegs.Write(rd, t)
+		cpu.wxreg(rd, t)
 
 		if imm == CsrSATP {
 			cpu.UpdateAddressingMode(v)
@@ -1239,7 +1239,7 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 		t := cpu.CSR.Read(imm)
 		v := t & ^(rs1)
 		cpu.CSR.Write(imm, v)
-		cpu.XRegs.Write(rd, t)
+		cpu.wxreg(rd, t)
 
 		if imm == CsrSATP {
 			cpu.UpdateAddressingMode(v)
@@ -1260,27 +1260,27 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 	 */
 	LR_W: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1 := bits(raw, 11, 7), bits(raw, 19, 15)
-		addr := cpu.XRegs.Read(rs1)
+		addr := cpu.rxreg(rs1)
 		t, excp := cpu.Read(addr, Word)
 		if excp.Code != ExcpCodeNone {
 			return excp
 		}
-		cpu.XRegs.Write(rd, uint64(int64(int32(t))))
+		cpu.wxreg(rd, uint64(int64(int32(t))))
 		cpu.Reservation.Reserve(addr)
 
 		return ExcpNone()
 	},
 	SC_W: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		addr := cpu.XRegs.Read(rs1)
+		addr := cpu.rxreg(rs1)
 
 		if cpu.Reservation.IsReserved(addr) {
 			// SC succeeds.
-			cpu.Write(addr, cpu.XRegs.Read(rs2), Word)
-			cpu.XRegs.Write(rd, 0)
+			cpu.Write(addr, cpu.rxreg(rs2), Word)
+			cpu.wxreg(rd, 0)
 		} else {
 			// SC fails.
-			cpu.XRegs.Write(rd, 1)
+			cpu.wxreg(rd, 1)
 		}
 
 		cpu.Reservation.Cancel(addr)
@@ -1289,72 +1289,72 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 	},
 	AMOSWAP_W: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		addr := cpu.XRegs.Read(rs1)
+		addr := cpu.rxreg(rs1)
 		t, excp := cpu.Read(addr, Word)
 		if excp.Code != ExcpCodeNone {
 			return excp
 		}
-		cpu.Write(addr, cpu.XRegs.Read(rs2), Word)
-		cpu.XRegs.Write(rd, uint64(int64(int32(t))))
+		cpu.Write(addr, cpu.rxreg(rs2), Word)
+		cpu.wxreg(rd, uint64(int64(int32(t))))
 
 		return ExcpNone()
 	},
 	AMOADD_W: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		addr := cpu.XRegs.Read(rs1)
+		addr := cpu.rxreg(rs1)
 		t, excp := cpu.Read(addr, Word)
 		if excp.Code != ExcpCodeNone {
 			return excp
 		}
-		cpu.Write(addr, t+cpu.XRegs.Read(rs2), Word)
-		cpu.XRegs.Write(rd, uint64(int64(int32(t))))
+		cpu.Write(addr, t+cpu.rxreg(rs2), Word)
+		cpu.wxreg(rd, uint64(int64(int32(t))))
 
 		return ExcpNone()
 	},
 	AMOXOR_W: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		addr := cpu.XRegs.Read(rs1)
+		addr := cpu.rxreg(rs1)
 		t, excp := cpu.Read(addr, Word)
 		if excp.Code != ExcpCodeNone {
 			return excp
 		}
-		cpu.Write(addr, uint64(int64(int32(t)^int32(cpu.XRegs.Read(rs2)))), Word)
-		cpu.XRegs.Write(rd, uint64(int64(int32(t))))
+		cpu.Write(addr, uint64(int64(int32(t)^int32(cpu.rxreg(rs2)))), Word)
+		cpu.wxreg(rd, uint64(int64(int32(t))))
 
 		return ExcpNone()
 	},
 	AMOAND_W: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		addr := cpu.XRegs.Read(rs1)
+		addr := cpu.rxreg(rs1)
 		t, excp := cpu.Read(addr, Word)
 		if excp.Code != ExcpCodeNone {
 			return excp
 		}
-		cpu.Write(addr, uint64(int64(int32(t)&int32(cpu.XRegs.Read(rs2)))), Word)
-		cpu.XRegs.Write(rd, uint64(int64(int32(t))))
+		cpu.Write(addr, uint64(int64(int32(t)&int32(cpu.rxreg(rs2)))), Word)
+		cpu.wxreg(rd, uint64(int64(int32(t))))
 
 		return ExcpNone()
 	},
 	AMOOR_W: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		addr := cpu.XRegs.Read(rs1)
+		addr := cpu.rxreg(rs1)
 		t, excp := cpu.Read(addr, Word)
 		if excp.Code != ExcpCodeNone {
 			return excp
 		}
-		cpu.Write(addr, uint64(int64(int32(t)|int32(cpu.XRegs.Read(rs2)))), Word)
-		cpu.XRegs.Write(rd, uint64(int64(int32(t))))
+		cpu.Write(addr, uint64(int64(int32(t)|int32(cpu.rxreg(rs2)))), Word)
+		cpu.wxreg(rd, uint64(int64(int32(t))))
 
 		return ExcpNone()
 	},
 	AMOMIN_W: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		addr := cpu.XRegs.Read(rs1)
+		addr := cpu.rxreg(rs1)
 		t, excp := cpu.Read(addr, Word)
 		if excp.Code != ExcpCodeNone {
 			return excp
 		}
-		t2 := cpu.XRegs.Read(rs2)
+		t2 := cpu.rxreg(rs2)
 
 		if int32(t) < int32(t2) {
 			cpu.Write(addr, uint64(int64(int32(t))), Word)
@@ -1362,18 +1362,18 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 			cpu.Write(addr, uint64(int64(int32(t2))), Word)
 		}
 
-		cpu.XRegs.Write(rd, uint64(int64(int32(t))))
+		cpu.wxreg(rd, uint64(int64(int32(t))))
 
 		return ExcpNone()
 	},
 	AMOMAX_W: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		addr := cpu.XRegs.Read(rs1)
+		addr := cpu.rxreg(rs1)
 		t, excp := cpu.Read(addr, Word)
 		if excp.Code != ExcpCodeNone {
 			return excp
 		}
-		t2 := cpu.XRegs.Read(rs2)
+		t2 := cpu.rxreg(rs2)
 
 		if int32(t) < int32(t2) {
 			cpu.Write(addr, uint64(int64(int32(t2))), Word)
@@ -1381,18 +1381,18 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 			cpu.Write(addr, uint64(int64(int32(t))), Word)
 		}
 
-		cpu.XRegs.Write(rd, uint64(int64(int32(t))))
+		cpu.wxreg(rd, uint64(int64(int32(t))))
 
 		return ExcpNone()
 	},
 	AMOMINU_W: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		addr := cpu.XRegs.Read(rs1)
+		addr := cpu.rxreg(rs1)
 		t, excp := cpu.Read(addr, Word)
 		if excp.Code != ExcpCodeNone {
 			return excp
 		}
-		t2 := cpu.XRegs.Read(rs2)
+		t2 := cpu.rxreg(rs2)
 
 		if uint32(t) < uint32(t2) {
 			cpu.Write(addr, uint64(uint32(t)), Word)
@@ -1400,18 +1400,18 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 			cpu.Write(addr, uint64(uint32(t2)), Word)
 		}
 
-		cpu.XRegs.Write(rd, uint64(int64(int32(t))))
+		cpu.wxreg(rd, uint64(int64(int32(t))))
 
 		return ExcpNone()
 	},
 	AMOMAXU_W: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		addr := cpu.XRegs.Read(rs1)
+		addr := cpu.rxreg(rs1)
 		t, excp := cpu.Read(addr, Word)
 		if excp.Code != ExcpCodeNone {
 			return excp
 		}
-		t2 := cpu.XRegs.Read(rs2)
+		t2 := cpu.rxreg(rs2)
 
 		if uint32(t) < uint32(t2) {
 			cpu.Write(addr, uint64(uint32(t2)), Word)
@@ -1419,7 +1419,7 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 			cpu.Write(addr, uint64(uint32(t)), Word)
 		}
 
-		cpu.XRegs.Write(rd, uint64(int64(int32(t))))
+		cpu.wxreg(rd, uint64(int64(int32(t))))
 
 		return ExcpNone()
 	},
@@ -1429,27 +1429,27 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 	 */
 	LR_D: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1 := bits(raw, 11, 7), bits(raw, 19, 15)
-		addr := cpu.XRegs.Read(rs1)
+		addr := cpu.rxreg(rs1)
 		t, excp := cpu.Read(addr, DoubleWord)
 		if excp.Code != ExcpCodeNone {
 			return excp
 		}
-		cpu.XRegs.Write(rd, uint64(int64(int32(t))))
+		cpu.wxreg(rd, uint64(int64(int32(t))))
 		cpu.Reservation.Reserve(addr)
 
 		return ExcpNone()
 	},
 	SC_D: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		addr := cpu.XRegs.Read(rs1)
+		addr := cpu.rxreg(rs1)
 
 		if cpu.Reservation.IsReserved(addr) {
 			// SC succeeds.
-			cpu.Write(addr, cpu.XRegs.Read(rs2), DoubleWord)
-			cpu.XRegs.Write(rd, 0)
+			cpu.Write(addr, cpu.rxreg(rs2), DoubleWord)
+			cpu.wxreg(rd, 0)
 		} else {
 			// SC fails.
-			cpu.XRegs.Write(rd, 1)
+			cpu.wxreg(rd, 1)
 		}
 
 		cpu.Reservation.Cancel(addr)
@@ -1458,72 +1458,72 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 	},
 	AMOSWAP_D: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		addr := cpu.XRegs.Read(rs1)
+		addr := cpu.rxreg(rs1)
 		t, excp := cpu.Read(addr, DoubleWord)
 		if excp.Code != ExcpCodeNone {
 			return excp
 		}
-		cpu.Write(addr, cpu.XRegs.Read(rs2), DoubleWord)
-		cpu.XRegs.Write(rd, t)
+		cpu.Write(addr, cpu.rxreg(rs2), DoubleWord)
+		cpu.wxreg(rd, t)
 
 		return ExcpNone()
 	},
 	AMOADD_D: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		addr := cpu.XRegs.Read(rs1)
+		addr := cpu.rxreg(rs1)
 		t, excp := cpu.Read(addr, DoubleWord)
 		if excp.Code != ExcpCodeNone {
 			return excp
 		}
-		cpu.Write(addr, t+cpu.XRegs.Read(rs2), DoubleWord)
-		cpu.XRegs.Write(rd, t)
+		cpu.Write(addr, t+cpu.rxreg(rs2), DoubleWord)
+		cpu.wxreg(rd, t)
 
 		return ExcpNone()
 	},
 	AMOXOR_D: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		addr := cpu.XRegs.Read(rs1)
+		addr := cpu.rxreg(rs1)
 		t, excp := cpu.Read(addr, DoubleWord)
 		if excp.Code != ExcpCodeNone {
 			return excp
 		}
-		cpu.Write(addr, t^cpu.XRegs.Read(rs2), DoubleWord)
-		cpu.XRegs.Write(rd, t)
+		cpu.Write(addr, t^cpu.rxreg(rs2), DoubleWord)
+		cpu.wxreg(rd, t)
 
 		return ExcpNone()
 	},
 	AMOAND_D: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		addr := cpu.XRegs.Read(rs1)
+		addr := cpu.rxreg(rs1)
 		t, excp := cpu.Read(addr, DoubleWord)
 		if excp.Code != ExcpCodeNone {
 			return excp
 		}
-		cpu.Write(addr, t&cpu.XRegs.Read(rs2), DoubleWord)
-		cpu.XRegs.Write(rd, t)
+		cpu.Write(addr, t&cpu.rxreg(rs2), DoubleWord)
+		cpu.wxreg(rd, t)
 
 		return ExcpNone()
 	},
 	AMOOR_D: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		addr := cpu.XRegs.Read(rs1)
+		addr := cpu.rxreg(rs1)
 		t, excp := cpu.Read(addr, DoubleWord)
 		if excp.Code != ExcpCodeNone {
 			return excp
 		}
-		cpu.Write(addr, t|cpu.XRegs.Read(rs2), DoubleWord)
-		cpu.XRegs.Write(rd, t)
+		cpu.Write(addr, t|cpu.rxreg(rs2), DoubleWord)
+		cpu.wxreg(rd, t)
 
 		return ExcpNone()
 	},
 	AMOMIN_D: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		addr := cpu.XRegs.Read(rs1)
+		addr := cpu.rxreg(rs1)
 		t, excp := cpu.Read(addr, DoubleWord)
 		if excp.Code != ExcpCodeNone {
 			return excp
 		}
-		t2 := cpu.XRegs.Read(rs2)
+		t2 := cpu.rxreg(rs2)
 
 		if int64(t) < int64(t2) {
 			cpu.Write(addr, uint64(int64(t)), DoubleWord)
@@ -1531,18 +1531,18 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 			cpu.Write(addr, uint64(int64(t2)), DoubleWord)
 		}
 
-		cpu.XRegs.Write(rd, uint64(int64(t)))
+		cpu.wxreg(rd, uint64(int64(t)))
 
 		return ExcpNone()
 	},
 	AMOMAX_D: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		addr := cpu.XRegs.Read(rs1)
+		addr := cpu.rxreg(rs1)
 		t, excp := cpu.Read(addr, DoubleWord)
 		if excp.Code != ExcpCodeNone {
 			return excp
 		}
-		t2 := cpu.XRegs.Read(rs2)
+		t2 := cpu.rxreg(rs2)
 
 		if int64(t) < int64(t2) {
 			cpu.Write(addr, uint64(int64(t2)), DoubleWord)
@@ -1550,18 +1550,18 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 			cpu.Write(addr, uint64(int64(t)), DoubleWord)
 		}
 
-		cpu.XRegs.Write(rd, uint64(int64(t)))
+		cpu.wxreg(rd, uint64(int64(t)))
 
 		return ExcpNone()
 	},
 	AMOMINU_D: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		addr := cpu.XRegs.Read(rs1)
+		addr := cpu.rxreg(rs1)
 		t, excp := cpu.Read(addr, DoubleWord)
 		if excp.Code != ExcpCodeNone {
 			return excp
 		}
-		t2 := cpu.XRegs.Read(rs2)
+		t2 := cpu.rxreg(rs2)
 
 		if t < t2 {
 			cpu.Write(addr, t, DoubleWord)
@@ -1569,18 +1569,18 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 			cpu.Write(addr, t2, DoubleWord)
 		}
 
-		cpu.XRegs.Write(rd, t)
+		cpu.wxreg(rd, t)
 
 		return ExcpNone()
 	},
 	AMOMAXU_D: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		addr := cpu.XRegs.Read(rs1)
+		addr := cpu.rxreg(rs1)
 		t, excp := cpu.Read(addr, DoubleWord)
 		if excp.Code != ExcpCodeNone {
 			return excp
 		}
-		t2 := cpu.XRegs.Read(rs2)
+		t2 := cpu.rxreg(rs2)
 
 		if t < t2 {
 			cpu.Write(addr, t2, DoubleWord)
@@ -1588,7 +1588,7 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 			cpu.Write(addr, t, DoubleWord)
 		}
 
-		cpu.XRegs.Write(rd, t)
+		cpu.wxreg(rd, t)
 
 		return ExcpNone()
 	},
@@ -1598,106 +1598,106 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 	 */
 	MUL: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		cpu.XRegs.Write(rd, uint64(int64(cpu.XRegs.Read(rs1))*int64(cpu.XRegs.Read(rs2))))
+		cpu.wxreg(rd, uint64(int64(cpu.rxreg(rs1))*int64(cpu.rxreg(rs2))))
 		return ExcpNone()
 	},
 	MULH: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		v1 := cpu.XRegs.Read(rs1)
-		v2 := cpu.XRegs.Read(rs2)
+		v1 := cpu.rxreg(rs1)
+		v2 := cpu.rxreg(rs2)
 		// multiply as signed * signed
 		bv1 := big.NewInt(int64(v1))
 		bv2 := big.NewInt(int64(v2))
 		bv1.Mul(bv1, bv2) // bv1 = bv1 * bv2
 		bv1.Rsh(bv1, 64)  // bv1 = bv1 >> 64
-		cpu.XRegs.Write(rd, bv1.Uint64())
+		cpu.wxreg(rd, bv1.Uint64())
 		return ExcpNone()
 	},
 	MULHSU: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		v1 := cpu.XRegs.Read(rs1)
-		v2 := cpu.XRegs.Read(rs2)
+		v1 := cpu.rxreg(rs1)
+		v2 := cpu.rxreg(rs2)
 		// multiply as signed * unsigned
 		var bv1, bv2 big.Int
 		bv1.SetInt64(int64(v1))
 		bv2.SetUint64(v2)
 		bv1.Mul(&bv1, &bv2) // bv1 = bv1 * bv2
 		bv1.Rsh(&bv1, 64)   // bv1 = bv1 >> 64
-		cpu.XRegs.Write(rd, uint64(bv1.Int64()))
+		cpu.wxreg(rd, uint64(bv1.Int64()))
 		return ExcpNone()
 	},
 	MULHU: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		v1 := cpu.XRegs.Read(rs1)
-		v2 := cpu.XRegs.Read(rs2)
+		v1 := cpu.rxreg(rs1)
+		v2 := cpu.rxreg(rs2)
 		// multiply as unsigned * unsigned
 		var bv1, bv2 big.Int
 		bv1.SetUint64(v1)
 		bv2.SetUint64(v2)
 		bv1.Mul(&bv1, &bv2) // bv1 = bv1 * bv2
 		bv1.Rsh(&bv1, 64)   // bv1 = bv1 >> 64
-		cpu.XRegs.Write(rd, bv1.Uint64())
+		cpu.wxreg(rd, bv1.Uint64())
 		return ExcpNone()
 	},
 	DIV: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		dividend := int64(cpu.XRegs.Read(rs1))
-		divisor := int64(cpu.XRegs.Read(rs2))
+		dividend := int64(cpu.rxreg(rs1))
+		divisor := int64(cpu.rxreg(rs2))
 		if divisor == 0 {
 			// Division by 0. Set a special flag
 			v := cpu.CSR.Read(CsrFCSR)
 			v = setBit(v, 3) // DZ (Divided by Zero flag)
 			cpu.CSR.Write(CsrFCSR, v)
-			cpu.XRegs.Write(rd, 0xffff_ffff_ffff_ffff)
+			cpu.wxreg(rd, 0xffff_ffff_ffff_ffff)
 		} else if dividend == math.MinInt64 && divisor == -1 {
-			cpu.XRegs.Write(rd, uint64(dividend))
+			cpu.wxreg(rd, uint64(dividend))
 		} else {
-			cpu.XRegs.Write(rd, uint64(dividend/divisor))
+			cpu.wxreg(rd, uint64(dividend/divisor))
 		}
 
 		return ExcpNone()
 	},
 	DIVU: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		dividend := cpu.XRegs.Read(rs1)
-		divisor := cpu.XRegs.Read(rs2)
+		dividend := cpu.rxreg(rs1)
+		divisor := cpu.rxreg(rs2)
 		if divisor == 0 {
 			// Division by 0. Set a special flag
 			v := cpu.CSR.Read(CsrFCSR)
 			v = setBit(v, 3) // DZ (Divided by Zero flag)
 			cpu.CSR.Write(CsrFCSR, v)
-			cpu.XRegs.Write(rd, 0xffff_ffff_ffff_ffff)
+			cpu.wxreg(rd, 0xffff_ffff_ffff_ffff)
 		} else {
-			cpu.XRegs.Write(rd, dividend/divisor)
+			cpu.wxreg(rd, dividend/divisor)
 		}
 
 		return ExcpNone()
 	},
 	REM: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		dividend := int64(cpu.XRegs.Read(rs1))
-		divisor := int64(cpu.XRegs.Read(rs2))
+		dividend := int64(cpu.rxreg(rs1))
+		divisor := int64(cpu.rxreg(rs2))
 		if divisor == 0 {
 			// Division by 0.
-			cpu.XRegs.Write(rd, uint64(dividend))
+			cpu.wxreg(rd, uint64(dividend))
 		} else if dividend == math.MinInt64 && divisor == -1 {
 			// overflow. reminder is 0
-			cpu.XRegs.Write(rd, 0)
+			cpu.wxreg(rd, 0)
 		} else {
-			cpu.XRegs.Write(rd, uint64(dividend%divisor))
+			cpu.wxreg(rd, uint64(dividend%divisor))
 		}
 
 		return ExcpNone()
 	},
 	REMU: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		dividend := cpu.XRegs.Read(rs1)
-		divisor := cpu.XRegs.Read(rs2)
+		dividend := cpu.rxreg(rs1)
+		divisor := cpu.rxreg(rs2)
 		if divisor == 0 {
 			// Division by 0.
-			cpu.XRegs.Write(rd, dividend)
+			cpu.wxreg(rd, dividend)
 		} else {
-			cpu.XRegs.Write(rd, dividend%divisor)
+			cpu.wxreg(rd, dividend%divisor)
 		}
 
 		return ExcpNone()
@@ -1708,68 +1708,68 @@ var Instructions = map[InstructionCode]func(cpu *CPU, raw, pc uint64) *Exception
 	 */
 	MULW: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		cpu.XRegs.Write(rd, uint64(int64(int32(cpu.XRegs.Read(rs1))*int32(cpu.XRegs.Read(rs2)))))
+		cpu.wxreg(rd, uint64(int64(int32(cpu.rxreg(rs1))*int32(cpu.rxreg(rs2)))))
 		return ExcpNone()
 	},
 	DIVW: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		dividend := int32(cpu.XRegs.Read(rs1))
-		divisor := int32(cpu.XRegs.Read(rs2))
+		dividend := int32(cpu.rxreg(rs1))
+		divisor := int32(cpu.rxreg(rs2))
 		if divisor == 0 {
 			// Division by 0. Set a special flag
 			v := cpu.CSR.Read(CsrFCSR)
 			v = setBit(v, 3) // DZ (Divided by Zero flag)
 			cpu.CSR.Write(CsrFCSR, v)
-			cpu.XRegs.Write(rd, 0xffff_ffff_ffff_ffff)
+			cpu.wxreg(rd, 0xffff_ffff_ffff_ffff)
 		} else if dividend == math.MinInt32 && divisor == -1 {
-			cpu.XRegs.Write(rd, uint64(int64(dividend)))
+			cpu.wxreg(rd, uint64(int64(dividend)))
 		} else {
-			cpu.XRegs.Write(rd, uint64(int64(dividend/divisor)))
+			cpu.wxreg(rd, uint64(int64(dividend/divisor)))
 		}
 
 		return ExcpNone()
 	},
 	DIVUW: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		dividend := uint32(cpu.XRegs.Read(rs1))
-		divisor := uint32(cpu.XRegs.Read(rs2))
+		dividend := uint32(cpu.rxreg(rs1))
+		divisor := uint32(cpu.rxreg(rs2))
 		if divisor == 0 {
 			// Division by 0. Set a special flag
 			v := cpu.CSR.Read(CsrFCSR)
 			v = setBit(v, 3) // DZ (Divided by Zero flag)
 			cpu.CSR.Write(CsrFCSR, v)
-			cpu.XRegs.Write(rd, 0xffff_ffff_ffff_ffff)
+			cpu.wxreg(rd, 0xffff_ffff_ffff_ffff)
 		} else {
-			cpu.XRegs.Write(rd, uint64(int64(int32(dividend/divisor))))
+			cpu.wxreg(rd, uint64(int64(int32(dividend/divisor))))
 		}
 
 		return ExcpNone()
 	},
 	REMW: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		dividend := int32(cpu.XRegs.Read(rs1))
-		divisor := int32(cpu.XRegs.Read(rs2))
+		dividend := int32(cpu.rxreg(rs1))
+		divisor := int32(cpu.rxreg(rs2))
 		if divisor == 0 {
 			// Division by 0.
-			cpu.XRegs.Write(rd, uint64(int64(dividend)))
+			cpu.wxreg(rd, uint64(int64(dividend)))
 		} else if dividend == math.MinInt32 && divisor == -1 {
 			// overflow. reminder is 0
-			cpu.XRegs.Write(rd, 0)
+			cpu.wxreg(rd, 0)
 		} else {
-			cpu.XRegs.Write(rd, uint64(int64(dividend%divisor)))
+			cpu.wxreg(rd, uint64(int64(dividend%divisor)))
 		}
 
 		return ExcpNone()
 	},
 	REMUW: func(cpu *CPU, raw, _ uint64) *Exception {
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
-		dividend := uint32(cpu.XRegs.Read(rs1))
-		divisor := uint32(cpu.XRegs.Read(rs2))
+		dividend := uint32(cpu.rxreg(rs1))
+		divisor := uint32(cpu.rxreg(rs2))
 		if divisor == 0 {
 			// Division by 0.
-			cpu.XRegs.Write(rd, uint64(int64(int32(dividend))))
+			cpu.wxreg(rd, uint64(int64(int32(dividend))))
 		} else {
-			cpu.XRegs.Write(rd, uint64(int64(int32(dividend%divisor))))
+			cpu.wxreg(rd, uint64(int64(int32(dividend%divisor))))
 		}
 
 		return ExcpNone()

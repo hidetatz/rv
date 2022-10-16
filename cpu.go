@@ -77,8 +77,8 @@ type CPU struct {
 	CSR *CSR
 
 	// Registers
-	XRegs *Registers
-	FRegs *FRegisters
+	xregs [32]uint64
+	fregs [32]float64
 
 	// Reservation for LR/SC
 	Reservation *Reservation
@@ -101,10 +101,32 @@ func NewCPU(xlen XLen) *CPU {
 		mode:          machine,
 		CSR:           NewCSR(),
 		XLen:          xlen,
-		XRegs:         NewRegisters(),
-		FRegs:         NewFRegisters(),
+		xregs:         [32]uint64{},
+		fregs:         [32]float64{},
 		Reservation:   NewReservation(),
 		PagingEnabled: false,
+	}
+}
+
+func (cpu *CPU) rxreg(i uint64) uint64 {
+	return cpu.xregs[i]
+}
+
+func (cpu *CPU) wxreg(i uint64, val uint64) {
+	// x0 is always zero, the write should be discarded in that case
+	if i != 0 {
+		cpu.xregs[i] = val
+	}
+}
+
+func (cpu *CPU) rfreg(i uint64) float64 {
+	return cpu.fregs[i]
+}
+
+func (cpu *CPU) wfreg(i uint64, val float64) {
+	// f0 is always zero, the write should be discarded in that case
+	if i != 0 {
+		cpu.fregs[i] = val
 	}
 }
 
@@ -161,8 +183,8 @@ func (cpu *CPU) Run() Trap {
 
 	Debug("------")
 	Debug(fmt.Sprintf("PC:0x%x	inst:%032b	code:%s	next:0x%x", cur, raw, code, cpu.PC))
-	Debug(fmt.Sprintf("x:%v", cpu.XRegs))
-	Debug(fmt.Sprintf("f:%v", cpu.FRegs))
+	Debug(fmt.Sprintf("x:%v", cpu.xregs))
+	Debug(fmt.Sprintf("f:%v", cpu.fregs))
 	Debug(fmt.Sprintf("excp:%v", excp.Code))
 
 	if excp.Code != ExcpCodeNone {
