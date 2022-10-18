@@ -1759,3 +1759,26 @@ func ParseJImm(inst uint64) uint64 {
 	// inst[31:12] -> immediate[20|10:1|11|19:12].
 	return signExtend((bit(inst, 31)<<20)|(bits(inst, 30, 21)<<1)|(bit(inst, 20)<<11)|(bits(inst, 19, 12)<<12), 21)
 }
+
+// returns val[i].
+func bit(val uint64, pos int) uint64 {
+	return bits(val, pos, pos)
+}
+
+// returns val[hi:lo].
+func bits(val uint64, hi, lo int) uint64 {
+	return (val >> lo) & ((1 << (hi - lo + 1)) - 1)
+}
+
+func setBit(val uint64, pos int) uint64 {
+	return val | (1 << pos)
+}
+
+func clearBit(val uint64, pos int) uint64 {
+	return val & ^(1 << pos)
+}
+
+func signExtend(v uint64, size int) uint64 {
+	tmp := 64 - size
+	return uint64((int64(v) << tmp) >> tmp)
+}
