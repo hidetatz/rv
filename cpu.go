@@ -57,7 +57,7 @@ const (
 	maLoad  = 2
 	maStore = 3
 
-	// addressing mode. sv32, sv48 aren't supported in rv
+	// addressing mode. sv57 isn't supported in rv
 	svnone = 0
 	sv32   = 1
 	sv39   = 2
