@@ -731,11 +731,11 @@ func (cpu *CPU) exec(raw, pc uint64) *exception {
 		cpu.wxreg(rd, cpu.rxreg(rs1)+cpu.rxreg(rs2))
 
 	case raw&0x0000707f == 0x00000013: //"addi"
-		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), parseIImm(raw)
 		cpu.wxreg(rd, imm+cpu.rxreg(rs1))
 
 	case raw&0x0000707f == 0x0000001b: //"addiw"
-		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), parseIImm(raw)
 		cpu.wxreg(rd, uint64(int64(int32(cpu.rxreg(rs1)+imm))))
 
 	case raw&0xfe00707f == 0x0000003b: //"addw"
@@ -984,7 +984,7 @@ func (cpu *CPU) exec(raw, pc uint64) *exception {
 		cpu.wxreg(rd, cpu.rxreg(rs1)&cpu.rxreg(rs2))
 
 	case raw&0x0000707f == 0x00007013: //"andi"
-		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), parseIImm(raw)
 		cpu.wxreg(rd, cpu.rxreg(rs1)&imm)
 
 	case raw&0x0000007f == 0x00000017: //"auipc"
@@ -993,43 +993,43 @@ func (cpu *CPU) exec(raw, pc uint64) *exception {
 		cpu.wxreg(rd, pc+imm)
 
 	case raw&0x0000707f == 0x00000063: //"beq"
-		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), ParseBImm(raw)
+		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), parseBImm(raw)
 		if cpu.rxreg(rs1) == cpu.rxreg(rs2) {
 			cpu.pc = pc + imm
 		}
 
 	case raw&0x0000707f == 0x00005063: //"bge"
-		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), ParseBImm(raw)
+		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), parseBImm(raw)
 		if int64(cpu.rxreg(rs1)) >= int64(cpu.rxreg(rs2)) {
 			cpu.pc = pc + imm
 		}
 
 	case raw&0x0000707f == 0x00007063: //"bgeu"
-		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), ParseBImm(raw)
+		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), parseBImm(raw)
 		if cpu.rxreg(rs1) >= cpu.rxreg(rs2) {
 			cpu.pc = pc + imm
 		}
 
 	case raw&0x0000707f == 0x00004063: //"blt"
-		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), ParseBImm(raw)
+		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), parseBImm(raw)
 		if int64(cpu.rxreg(rs1)) < int64(cpu.rxreg(rs2)) {
 			cpu.pc = pc + imm
 		}
 
 	case raw&0x0000707f == 0x00006063: //"bltu"
-		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), ParseBImm(raw)
+		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), parseBImm(raw)
 		if cpu.rxreg(rs1) < cpu.rxreg(rs2) {
 			cpu.pc = pc + imm
 		}
 
 	case raw&0x0000707f == 0x00001063: //"bne"
-		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), ParseBImm(raw)
+		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), parseBImm(raw)
 		if cpu.rxreg(rs1) != cpu.rxreg(rs2) {
 			cpu.pc = pc + imm
 		}
 
 	case raw&0x0000707f == 0x00003073: //"csrrc"
-		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), parseIImm(raw)
 		imm = imm & 0b111111111111
 		t := cpu.rcsr(imm)
 		v := t & ^(cpu.rxreg(rs1))
@@ -1037,7 +1037,7 @@ func (cpu *CPU) exec(raw, pc uint64) *exception {
 		cpu.wxreg(rd, t)
 
 	case raw&0x0000707f == 0x00007073: //"csrrci"
-		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), parseIImm(raw)
 		imm = imm & 0b111111111111
 		t := cpu.rcsr(imm)
 		v := t & ^(rs1)
@@ -1045,7 +1045,7 @@ func (cpu *CPU) exec(raw, pc uint64) *exception {
 		cpu.wxreg(rd, t)
 
 	case raw&0x0000707f == 0x00002073: //"csrrs"
-		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), parseIImm(raw)
 		imm = imm & 0b111111111111
 		t := cpu.rcsr(imm)
 		v := t | cpu.rxreg(rs1)
@@ -1053,7 +1053,7 @@ func (cpu *CPU) exec(raw, pc uint64) *exception {
 		cpu.wxreg(rd, t)
 
 	case raw&0x0000707f == 0x00006073: //"csrrsi"
-		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), parseIImm(raw)
 		imm = imm & 0b111111111111
 		t := cpu.rcsr(imm)
 		v := t | rs1
@@ -1061,7 +1061,7 @@ func (cpu *CPU) exec(raw, pc uint64) *exception {
 		cpu.wxreg(rd, t)
 
 	case raw&0x0000707f == 0x00001073: //"csrrw"
-		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), parseIImm(raw)
 		imm = imm & 0b111111111111
 		t := cpu.rcsr(imm)
 		v := cpu.rxreg(rs1)
@@ -1069,7 +1069,7 @@ func (cpu *CPU) exec(raw, pc uint64) *exception {
 		cpu.wxreg(rd, t)
 
 	case raw&0x0000707f == 0x00005073: //"csrrwi"
-		rd, imm, csr := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		rd, imm, csr := bits(raw, 11, 7), bits(raw, 19, 15), parseIImm(raw)
 		csr = csr & 0b111111111111
 		cpu.wxreg(rd, cpu.rcsr(csr))
 		cpu.wcsr(csr, imm)
@@ -1206,20 +1206,20 @@ func (cpu *CPU) exec(raw, pc uint64) *exception {
 	case raw&0x0000707f == 0x00002027: //"fsw"
 
 	case raw&0x0000007f == 0x0000006f: //"jal"
-		rd, imm := bits(raw, 11, 7), ParseJImm(raw)
+		rd, imm := bits(raw, 11, 7), parseJImm(raw)
 		tmp := pc + 4
 		cpu.wxreg(rd, tmp)
 		cpu.pc = pc + imm
 
 	case raw&0x0000707f == 0x00000067: //"jalr"
-		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), parseIImm(raw)
 		tmp := pc + 4
 		target := (cpu.rxreg(rs1) + imm) & ^uint64(1)
 		cpu.pc = target
 		cpu.wxreg(rd, tmp)
 
 	case raw&0x0000707f == 0x00000003: //"lb"
-		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), parseIImm(raw)
 		v, excp := cpu.read(cpu.rxreg(rs1)+imm, 8)
 		if excp != nil {
 			return excp
@@ -1227,7 +1227,7 @@ func (cpu *CPU) exec(raw, pc uint64) *exception {
 		cpu.wxreg(rd, uint64(int64(int8(v))))
 
 	case raw&0x0000707f == 0x00004003: //"lbu"
-		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), parseIImm(raw)
 		v, excp := cpu.read(cpu.rxreg(rs1)+imm, 8)
 		if excp != nil {
 			return excp
@@ -1235,7 +1235,7 @@ func (cpu *CPU) exec(raw, pc uint64) *exception {
 		cpu.wxreg(rd, v)
 
 	case raw&0x0000707f == 0x00003003: //"ld"
-		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), parseIImm(raw)
 		addr := cpu.rxreg(rs1) + imm
 		r, excp := cpu.read(addr, doubleword)
 		if excp != nil {
@@ -1244,7 +1244,7 @@ func (cpu *CPU) exec(raw, pc uint64) *exception {
 		cpu.wxreg(rd, r)
 
 	case raw&0x0000707f == 0x00001003: //"lh"
-		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), parseIImm(raw)
 		v, excp := cpu.read(cpu.rxreg(rs1)+imm, halfword)
 		if excp != nil {
 			return excp
@@ -1252,7 +1252,7 @@ func (cpu *CPU) exec(raw, pc uint64) *exception {
 		cpu.wxreg(rd, uint64(int64(int16(v))))
 
 	case raw&0x0000707f == 0x00005003: //"lhu"
-		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), parseIImm(raw)
 		v, excp := cpu.read(cpu.rxreg(rs1)+imm, halfword)
 		if excp != nil {
 			return excp
@@ -1286,7 +1286,7 @@ func (cpu *CPU) exec(raw, pc uint64) *exception {
 		cpu.wxreg(rd, imm)
 
 	case raw&0x0000707f == 0x00002003: //"lw"
-		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), parseIImm(raw)
 		v, excp := cpu.read(cpu.rxreg(rs1)+imm, 32)
 		if excp != nil {
 			return excp
@@ -1294,7 +1294,7 @@ func (cpu *CPU) exec(raw, pc uint64) *exception {
 		cpu.wxreg(rd, uint64(int64(int32(v))))
 
 	case raw&0x0000707f == 0x00006003: //"lwu"
-		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), parseIImm(raw)
 		addr := cpu.rxreg(rs1) + imm
 		r, excp := cpu.read(addr, word)
 		if excp != nil {
@@ -1392,7 +1392,7 @@ func (cpu *CPU) exec(raw, pc uint64) *exception {
 		cpu.wxreg(rd, cpu.rxreg(rs1)|cpu.rxreg(rs2))
 
 	case raw&0x0000707f == 0x00006013: //"ori"
-		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), parseIImm(raw)
 		cpu.wxreg(rd, cpu.rxreg(rs1)|imm)
 
 	case raw&0xfe00707f == 0x02006033: //"rem"
@@ -1446,7 +1446,7 @@ func (cpu *CPU) exec(raw, pc uint64) *exception {
 		}
 
 	case raw&0x0000707f == 0x00000023: //"sb"
-		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), ParseSImm(raw)
+		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), parseSImm(raw)
 		addr := cpu.rxreg(rs1) + imm
 		cpu.write(addr, cpu.rxreg(rs2), byt)
 
@@ -1481,7 +1481,7 @@ func (cpu *CPU) exec(raw, pc uint64) *exception {
 		}
 
 	case raw&0x0000707f == 0x00003023: //"sd"
-		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), ParseSImm(raw)
+		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), parseSImm(raw)
 		addr := cpu.rxreg(rs1) + imm
 		cpu.write(addr, cpu.rxreg(rs2), doubleword)
 
@@ -1489,7 +1489,7 @@ func (cpu *CPU) exec(raw, pc uint64) *exception {
 		// do nothing because rv currently does not apply any optimizations and no fence is needed.
 
 	case raw&0x0000707f == 0x00001023: //"sh"
-		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), ParseSImm(raw)
+		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), parseSImm(raw)
 		addr := cpu.rxreg(rs1) + imm
 		cpu.write(addr, cpu.rxreg(rs2), halfword)
 
@@ -1503,7 +1503,7 @@ func (cpu *CPU) exec(raw, pc uint64) *exception {
 		cpu.wxreg(rd, cpu.rxreg(rs1)<<shamt)
 
 	case raw&0xfe00707f == 0x0000101b: //"slliw"
-		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), parseIImm(raw)
 		shamt := imm & 0b1_1111
 		cpu.wxreg(rd, uint64(int64(int32(cpu.rxreg(rs1)<<shamt))))
 
@@ -1521,7 +1521,7 @@ func (cpu *CPU) exec(raw, pc uint64) *exception {
 		cpu.wxreg(rd, v)
 
 	case raw&0x0000707f == 0x00002013: //"slti"
-		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), parseIImm(raw)
 		var v uint64 = 0
 		// must compare as two's complement
 		if int64(cpu.rxreg(rs1)) < int64(imm) {
@@ -1530,7 +1530,7 @@ func (cpu *CPU) exec(raw, pc uint64) *exception {
 		cpu.wxreg(rd, v)
 
 	case raw&0x0000707f == 0x00003013: //"sltiu"
-		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), parseIImm(raw)
 		var v uint64 = 0
 		// must compare as two's complement
 		if cpu.rxreg(rs1) < imm {
@@ -1552,12 +1552,12 @@ func (cpu *CPU) exec(raw, pc uint64) *exception {
 		cpu.wxreg(rd, uint64(int64(cpu.rxreg(rs1))>>shift))
 
 	case raw&0xfc00707f == 0x40005013: //"srai"
-		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), parseIImm(raw)
 		shamt := imm & 0b1_1111
 		cpu.wxreg(rd, uint64(int64(cpu.rxreg(rs1))>>shamt))
 
 	case raw&0xfc00707f == 0x4000501b: //"sraiw"
-		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), parseIImm(raw)
 		shamt := imm & 0b1_1111
 		cpu.wxreg(rd, uint64(int64(int32(cpu.rxreg(rs1))>>shamt)))
 
@@ -1615,12 +1615,12 @@ func (cpu *CPU) exec(raw, pc uint64) *exception {
 		cpu.wxreg(rd, cpu.rxreg(rs1)>>shift)
 
 	case raw&0xfc00707f == 0x00005013: //"srli"
-		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), parseIImm(raw)
 		shamt := imm & 0b1_1111
 		cpu.wxreg(rd, cpu.rxreg(rs1)>>shamt)
 
 	case raw&0xfc00707f == 0x0000501b: //"srliw"
-		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), parseIImm(raw)
 		shamt := imm & 0b1_1111
 		cpu.wxreg(rd, uint64(int64(int32(uint32(cpu.rxreg(rs1))>>shamt))))
 
@@ -1638,7 +1638,7 @@ func (cpu *CPU) exec(raw, pc uint64) *exception {
 		cpu.wxreg(rd, uint64(int64(int32(cpu.rxreg(rs1)-cpu.rxreg(rs2)))))
 
 	case raw&0x0000707f == 0x00002023: //"sw"
-		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), ParseSImm(raw)
+		rs1, rs2, imm := bits(raw, 19, 15), bits(raw, 24, 20), parseSImm(raw)
 		addr := cpu.rxreg(rs1) + imm
 		cpu.write(addr, cpu.rxreg(rs2), word)
 
@@ -1667,7 +1667,7 @@ func (cpu *CPU) exec(raw, pc uint64) *exception {
 		cpu.wxreg(rd, cpu.rxreg(rs1)^cpu.rxreg(rs2))
 
 	case raw&0x0000707f == 0x00004013: //"xori"
-		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), ParseIImm(raw)
+		rd, rs1, imm := bits(raw, 11, 7), bits(raw, 19, 15), parseIImm(raw)
 		cpu.wxreg(rd, cpu.rxreg(rs1)^imm)
 	}
 
@@ -1740,22 +1740,22 @@ func (cpu *CPU) handleExcp(excp *exception, curPC uint64) {
 	}
 }
 
-func ParseIImm(inst uint64) uint64 {
+func parseIImm(inst uint64) uint64 {
 	// inst[31:20] -> immediate[11:0].
 	return signExtend(bits(inst, 31, 20), 12)
 }
 
-func ParseSImm(inst uint64) uint64 {
+func parseSImm(inst uint64) uint64 {
 	// inst[31:25] -> immediate[11:5], inst[11:7] -> immediate[4:0].
 	return signExtend((bits(inst, 11, 7) | bits(inst, 31, 25)<<5), 12)
 }
 
-func ParseBImm(inst uint64) uint64 {
+func parseBImm(inst uint64) uint64 {
 	// inst[31:25] -> immediate[12|10:5], inst[11:7] -> immediate[4:1|11].
 	return signExtend((bit(inst, 31)<<12)|(bits(inst, 30, 25)<<5)|(bits(inst, 11, 8)<<1)|(bit(inst, 7)<<11), 13)
 }
 
-func ParseJImm(inst uint64) uint64 {
+func parseJImm(inst uint64) uint64 {
 	// inst[31:12] -> immediate[20|10:1|11|19:12].
 	return signExtend((bit(inst, 31)<<20)|(bits(inst, 30, 21)<<1)|(bit(inst, 20)<<11)|(bits(inst, 19, 12)<<12), 21)
 }
