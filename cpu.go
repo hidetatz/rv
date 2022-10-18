@@ -62,7 +62,41 @@ const (
 	sv32   = 1
 	sv39   = 2
 	sv48   = 3
+
+	// trap
+
+	// exception
+	instAddrMisalighed  = 0
+	instAccessFault     = 1
+	illegalInst         = 2
+	breakpoint          = 3
+	loadAddrMisaligned  = 4
+	loadAccessFault     = 5
+	storeAddrMisaligned = 6
+	storeAccessFault    = 7
+	ecallFromU          = 8
+	ecallFromS          = 9
+	ecallFromM          = 11
+	instPageFault       = 12
+	loadPageFault       = 13
+	storePageFault      = 15
+
+	// interrupt
+	userSoftwareIntr       = 0
+	supervisorSoftwareIntr = 1
+	machineSoftwareIntr    = 3
+	userTimerIntr          = 4
+	supervisorTimerIntr    = 5
+	machineTimerIntr       = 7
+	userExternalIntr       = 8
+	supervisorExternalIntr = 9
+	machineExternalIntr    = 11
 )
+
+type exception struct {
+	code  int
+	value uint64
+}
 
 type CPU struct {
 	clock          uint64
@@ -249,13 +283,13 @@ func (cpu *CPU) getEffectiveAddr(addr uint64) uint64 {
 	return addr
 }
 
-func (cpu *CPU) fetch() (uint64, *Exception) {
+func (cpu *CPU) fetch() (uint64, *exception) {
 	vAddr := cpu.pc
 	if (vAddr & 0xfff) <= 0x1000-4 {
 		eAddr := cpu.getEffectiveAddr(vAddr)
 		pa, excp := cpu.translate(eAddr, maInst)
 		if excp != nil {
-			return 0, ExcpInstructionPageFault(vAddr)
+			return 0, &exception{code: instPageFault, value: vAddr}
 		}
 
 		v := cpu.ram.Read(pa, word)
@@ -268,7 +302,7 @@ func (cpu *CPU) fetch() (uint64, *Exception) {
 		eAddr := cpu.getEffectiveAddr(vAddr + 1)
 		pa, excp := cpu.translate(eAddr, maInst)
 		if excp != nil {
-			return 0, ExcpInstructionPageFault(vAddr)
+			return 0, &exception{code: instPageFault, value: vAddr}
 		}
 
 		v := cpu.ram.Read(pa, byt)
@@ -278,12 +312,12 @@ func (cpu *CPU) fetch() (uint64, *Exception) {
 	return data, nil
 }
 
-func (cpu *CPU) read(addr uint64, size int) (uint64, *Exception) {
+func (cpu *CPU) read(addr uint64, size int) (uint64, *exception) {
 	if size == byt {
 		eAddr := cpu.getEffectiveAddr(addr)
 		pAddr, excp := cpu.translate(eAddr, maLoad)
 		if excp != nil {
-			return 0, ExcpLoadPageFault(addr)
+			return 0, &exception{code: loadPageFault, value: addr}
 		}
 
 		return cpu.ram.Read(pAddr, byt), nil
@@ -293,7 +327,7 @@ func (cpu *CPU) read(addr uint64, size int) (uint64, *Exception) {
 		eAddr := cpu.getEffectiveAddr(addr)
 		pAddr, excp := cpu.translate(eAddr, maLoad)
 		if excp != nil {
-			return 0, ExcpLoadPageFault(addr)
+			return 0, &exception{code: loadPageFault, value: addr}
 		}
 
 		return cpu.ram.Read(pAddr, size), nil
@@ -304,7 +338,7 @@ func (cpu *CPU) read(addr uint64, size int) (uint64, *Exception) {
 		eAddr := cpu.getEffectiveAddr(addr + i)
 		pa, excp := cpu.translate(eAddr, maLoad)
 		if excp != nil {
-			return 0, ExcpLoadPageFault(addr)
+			return 0, &exception{code: loadPageFault, value: addr}
 		}
 
 		v := cpu.ram.Read(pa, byt)
@@ -314,7 +348,7 @@ func (cpu *CPU) read(addr uint64, size int) (uint64, *Exception) {
 	return data, nil
 }
 
-func (cpu *CPU) write(addr, val uint64, size int) *Exception {
+func (cpu *CPU) write(addr, val uint64, size int) *exception {
 	// Cancel reserved memory to make SC fail when an write is called
 	// between LR and SC.
 	if cpu.reserved(addr) {
@@ -325,7 +359,7 @@ func (cpu *CPU) write(addr, val uint64, size int) *Exception {
 		eAddr := cpu.getEffectiveAddr(addr)
 		pAddr, excp := cpu.translate(eAddr, maStore)
 		if excp != nil {
-			return ExcpStoreAMOPageFault(addr)
+			return &exception{code: storePageFault, value: addr}
 		}
 
 		cpu.ram.Write(pAddr, val, byt)
@@ -337,7 +371,7 @@ func (cpu *CPU) write(addr, val uint64, size int) *Exception {
 		eAddr := cpu.getEffectiveAddr(addr)
 		pAddr, excp := cpu.translate(eAddr, maStore)
 		if excp != nil {
-			return ExcpStoreAMOPageFault(addr)
+			return &exception{code: storePageFault, value: addr}
 		}
 
 		cpu.ram.Write(pAddr, val, size)
@@ -347,7 +381,7 @@ func (cpu *CPU) write(addr, val uint64, size int) *Exception {
 		eAddr := cpu.getEffectiveAddr(addr + i)
 		pa, excp := cpu.translate(eAddr, maStore)
 		if excp != nil {
-			return ExcpStoreAMOPageFault(addr)
+			return &exception{code: storePageFault, value: addr}
 		}
 
 		cpu.ram.Write(pa, (val>>(i*8))&0xff, byt)
@@ -356,7 +390,7 @@ func (cpu *CPU) write(addr, val uint64, size int) *Exception {
 	return nil
 }
 
-func (cpu *CPU) translate(vAddr uint64, ma int) (uint64, *Exception) {
+func (cpu *CPU) translate(vAddr uint64, ma int) (uint64, *exception) {
 	eAddr := cpu.getEffectiveAddr(vAddr)
 
 	switch cpu.addressingMode {
@@ -432,15 +466,15 @@ func (cpu *CPU) translate(vAddr uint64, ma int) (uint64, *Exception) {
 	panic("unknown addressing mode")
 }
 
-func (cpu *CPU) traversePage(vAddr uint64, level int, parentPPN uint64, vpns []uint64, ma int) (uint64, *Exception) {
-	fault := func() *Exception {
+func (cpu *CPU) traversePage(vAddr uint64, level int, parentPPN uint64, vpns []uint64, ma int) (uint64, *exception) {
+	fault := func() *exception {
 		switch ma {
 		case maInst:
-			return ExcpInstructionPageFault(vAddr)
+			return &exception{code: instPageFault, value: vAddr}
 		case maLoad:
-			return ExcpLoadPageFault(vAddr)
+			return &exception{code: loadPageFault, value: vAddr}
 		case maStore:
-			return ExcpStoreAMOPageFault(vAddr)
+			return &exception{code: storePageFault, value: vAddr}
 		}
 
 		return nil // should not come here
@@ -666,7 +700,7 @@ func (cpu *CPU) tick() {
 	//cpu.wcsr(cycle, cpu.clock*8)
 }
 
-func (cpu *CPU) run() *Exception {
+func (cpu *CPU) run() *exception {
 	if cpu.wfi {
 		if (cpu.rcsr(mie) & cpu.rcsr(mip)) != 0 {
 			cpu.wfi = false
@@ -690,7 +724,7 @@ func (cpu *CPU) run() *Exception {
 	return cpu.exec(w, pc)
 }
 
-func (cpu *CPU) exec(raw, pc uint64) *Exception {
+func (cpu *CPU) exec(raw, pc uint64) *exception {
 	switch {
 	case raw&0xfe00707f == 0x00000033: //"add"
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
@@ -1101,18 +1135,18 @@ func (cpu *CPU) exec(raw, pc uint64) *Exception {
 		}
 
 	case raw&0xffffffff == 0x00100073: //"ebreak"
-		return ExcpBreakpoint(pc)
+		return &exception{code: breakpoint}
 
 	case raw&0xffffffff == 0x00000073: //"ecall"
 		switch cpu.mode {
 		case user:
-			return ExcpEnvironmentCallFromUmode()
+			return &exception{code: ecallFromU}
 		case supervisor:
-			return ExcpEnvironmentCallFromSmode()
+			return &exception{code: ecallFromS}
 		case machine:
-			return ExcpEnvironmentCallFromMmode()
+			return &exception{code: ecallFromM}
 		default:
-			return ExcpIllegalInstruction(raw)
+			return &exception{code: illegalInst, value: raw}
 		}
 
 	case raw&0xfe00007f == 0x02000053: //"fadd.d"
@@ -1640,177 +1674,69 @@ func (cpu *CPU) exec(raw, pc uint64) *Exception {
 	return nil
 }
 
-func (cpu *CPU) handleExcp(excp *Exception, pc uint64) Trap {
-	curPC := pc
-	origMode := cpu.mode
-	cause := excp.Code
+func (cpu *CPU) getCause(trap int, intr bool) uint64 {
+	if !intr {
+		return uint64(trap)
+	}
+
+	intrbit := uint64(0x8000000000000000)
+	if cpu.xlen == xlen32 {
+		intrbit = 0x80000000
+	}
+
+	return intrbit + uint64(trap)
+}
+
+func (cpu *CPU) handleExcp(excp *exception, curPC uint64) {
+	curMode := cpu.mode
+	cause := cpu.getCause(excp.code, false)
 
 	mdeleg := cpu.rcsr(medeleg)
 	sdeleg := cpu.rcsr(sedeleg)
 
-	// First, determine the upcoming mode
-	if ((mdeleg >> cause) & 1) == 0 {
-		cpu.mode = machine
-	} else if ((sdeleg >> cause) & 1) == 0 {
-		cpu.mode = supervisor
-	} else {
-		cpu.mode = user
+	pos := cause & 0xffff
+
+	newMode := user
+	if ((mdeleg >> pos) & 1) == 0 {
+		newMode = machine
+	} else if ((sdeleg >> pos) & 1) == 0 {
+		newMode = supervisor
 	}
 
-	// Then, start handling exception in the mode
+	cpu.mode = newMode
+
+	var epcAddr, causeAddr, tvalAddr, tvecAddr uint64
+
 	switch cpu.mode {
 	case machine:
-		// MEPC is written with the virtual address of the instruction that was
-		// interrupted or that encountered the exception.
-		cpu.wcsr(mepc, curPC)
-
-		// MCAUSE is written with a code indicating the event that caused the trap.
-		cpu.wcsr(mcause, uint64(cause))
-
-		// MTVAL is either set to zero or written with exception-specific information to
-		// assist software in handling the trap.
-		cpu.wcsr(mtval, excp.TrapValue)
-
-		// PC is updated with the trap-handler base address (MTVEC).
-		cpu.pc = cpu.rcsr(mtvec)
-		if (cpu.pc & 0b11) != 0 {
-			// Add 4 * cause if MTVEC has vector type address.
-			// copied from: https://github.com/takahirox/riscv-rust/blob/master/src/cpu.rs#L625
-			cpu.pc = (cpu.pc & ^uint64(0b11)) + uint64((4 * (cause * 0xffff)))
-		}
-
-		status := cpu.rcsr(mstatus)
-		// update mpie with mie.
-		if bit(status, 3) == 0 {
-			status = clearBit(status, 7)
-		} else {
-			status = setBit(status, 7)
-		}
-
-		// Clear MIE.
-		status = clearBit(status, 3)
-
-		// Update MPP with the previous privilege mode.
-		switch origMode {
-		case machine:
-			status = setBit(status, 11)
-			status = setBit(status, 12)
-		case supervisor:
-			status = setBit(status, 11)
-			status = clearBit(status, 12)
-		case user:
-			status = clearBit(status, 11)
-			status = clearBit(status, 12)
-		}
-
-		cpu.wcsr(mstatus, status)
+		epcAddr, causeAddr, tvalAddr, tvecAddr = mepc, mcause, mtval, mtvec
 	case supervisor:
-		// sepc is written with the virtual address of the instruction that was
-		// interrupted or that encountered the exception.
-		cpu.wcsr(sepc, curPC)
-
-		// scause is written with a code indicating the event that caused the trap.
-		cpu.wcsr(scause, uint64(cause))
-
-		// stval is either set to zero or written with exception-specific information to
-		// assist software in handling the trap.
-		cpu.wcsr(stval, excp.TrapValue)
-
-		// PC is updated with the trap-handler base address (STVEC).
-		cpu.pc = cpu.rcsr(stvec)
-		if (cpu.pc & 0b11) != 0 {
-			// Add 4 * cause if STVEC has vector type address.
-			// copied from: https://github.com/takahirox/riscv-rust/blob/master/src/cpu.rs#L625
-			cpu.pc = (cpu.pc & ^uint64(0b11)) + uint64((4 * (cause * 0xffff)))
-		}
-
-		status := cpu.rcsr(sstatus)
-		// update SPIE with SIE.
-		if bit(status, 1) == 0 {
-			status = clearBit(status, 5)
-		} else {
-			status = setBit(status, 5)
-		}
-
-		// Clear SIE.
-		status = clearBit(status, 1)
-
-		// Update SPP with the previous privilege mode.
-		switch origMode {
-		case supervisor:
-			status = setBit(status, 8)
-		case user:
-			status = clearBit(status, 8)
-		}
-
-		cpu.wcsr(sstatus, status)
+		epcAddr, causeAddr, tvalAddr, tvecAddr = sepc, scause, stval, stvec
 	case user:
-		// uepc is written with the virtual address of the instruction that was
-		// interrupted or that encountered the exception.
-		cpu.wcsr(uepc, curPC)
-
-		// ucause is written with a code indicating the event that caused the trap.
-		cpu.wcsr(ucause, uint64(cause))
-
-		// utval is either set to zero or written with exception-specific information to
-		// assist software in handling the trap.
-		cpu.wcsr(utval, excp.TrapValue)
-
-		// PC is updated with the trap-handler base address (UTVEC).
-		cpu.pc = cpu.rcsr(utvec)
-		if (cpu.pc & 0b11) != 0 {
-			// Add 4 * cause if UTVEC has vector type address.
-			// copied from: https://github.com/takahirox/riscv-rust/blob/master/src/cpu.rs#L625
-			cpu.pc = (cpu.pc & ^uint64(0b11)) + uint64((4 * (cause * 0xffff)))
-		}
+		epcAddr, causeAddr, tvalAddr, tvecAddr = uepc, ucause, utval, utvec
 	}
 
-	switch excp.Code {
-	case ExcpCodeInstructionAddressMisalighed:
-		return TrapFatal
+	cpu.wcsr(epcAddr, curPC)
+	cpu.wcsr(causeAddr, cause)
+	cpu.wcsr(tvalAddr, excp.value) // might be 0 which is okay
+	cpu.pc = cpu.rcsr(tvecAddr)
 
-	case ExcpCodeInstructionAccessFault:
-		return TrapFatal
+	if cpu.pc&0x3 != 0 {
+		cpu.pc = (cpu.pc & ^uint64(0x3)) + 4*(cause&0xffff)
+	}
 
-	case ExcpCodeIllegalInstruction:
-		return TrapFatal
-
-	case ExcpCodeBreakpoint:
-		return TrapRequested
-
-	case ExcpCodeLoadAddressMisaligned:
-		return TrapFatal
-
-	case ExcpCodeLoadAccessFault:
-		return TrapFatal
-
-	case ExcpCodeStoreAMOAddressMisaligned:
-		return TrapFatal
-
-	case ExcpCodeStoreAMOAccessFault:
-		return TrapFatal
-
-	case ExcpCodeEnvironmentCallFromUmode:
-		return TrapRequested
-
-	case ExcpCodeEnvironmentCallFromSmode:
-		return TrapRequested
-
-	case ExcpCodeEnvironmentCallFromMmode:
-		return TrapRequested
-
-	case ExcpCodeInstructionPageFault:
-		return TrapInvisible
-
-	case ExcpCodeLoadPageFault:
-		return TrapInvisible
-
-	case ExcpCodeStoreAMOPageFault:
-		return TrapInvisible
-
-	default:
-		// must not come here
-		panic("ExcpNone is unexpectedly handled")
+	switch cpu.mode {
+	case machine:
+		status := cpu.rcsr(mstatus)
+		mie := (status >> 3) & 1
+		newStatus := (status & ^uint64(0x1888)) | (mie << uint64(7)) | (uint64(curMode) << 11)
+		cpu.wcsr(mstatus, newStatus)
+	case supervisor:
+		status := cpu.rcsr(sstatus)
+		sie := (status >> 1) & 1
+		newStatus := (status & ^uint64(0x122)) | (sie << uint64(5)) | ((uint64(curMode) & 1) << 8)
+		cpu.wcsr(sstatus, newStatus)
+	case user:
 	}
 }
 
