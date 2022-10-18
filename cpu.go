@@ -1640,8 +1640,6 @@ func (cpu *CPU) exec(raw, pc uint64) *Exception {
 	return nil
 }
 
-// HandleException catches the raised exception and manipulates CSR and program counter based on
-// the exception and CPU privilege mode.
 func (cpu *CPU) handleExcp(excp *Exception, pc uint64) Trap {
 	curPC := pc
 	origMode := cpu.mode
