@@ -1,8 +1,6 @@
 package main
 
 import (
-	"io"
-	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -157,27 +155,16 @@ func TestE2E(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc, func(t *testing.T) {
-			f, err := os.Open(filepath.Join("./tests/", tc))
-			if err != nil {
-				t.Fatalf("open file: %s, %s", tc, err)
-			}
-			defer f.Close()
-
-			buff, err := io.ReadAll(f)
-			if err != nil {
-				t.Fatalf("read file: %s, %s", tc, err)
-			}
-
-			emulator, err := New(buff)
+			cpu, err := initCPU(filepath.Join("./tests/", tc))
 			if err != nil {
 				t.Fatalf("initialize RV: %s, %s", tc, err)
 			}
 
-			if emulator.tohost == 0 {
+			if cpu.tohost == 0 {
 				t.Fatalf("unexpected error: tohost is 0 but expected some address in the binary! %s", tc)
 			}
 
-			if err := emulator.Start(); err != nil {
+			if err := cpu.Start(); err != nil {
 				t.Errorf("fail to run: %s, %s", tc, err)
 			}
 
