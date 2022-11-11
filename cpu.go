@@ -51,6 +51,7 @@ const (
 	mcause      uint64 = 0x342
 	mtval       uint64 = 0x343
 	mip         uint64 = 0x344
+	cycle       uint64 = 0xc00
 
 	// memory access type used in address translation
 	maInst  = 1
@@ -695,9 +696,9 @@ func (cpu *CPU) tick() {
 	}
 
 	//cpu.ram.tick()
-	//cpu.handleIntr(cpu.pc)
+	cpu.handleIntr(cpu.pc)
 	cpu.clock++
-	//cpu.wcsr(cycle, cpu.clock*8)
+	cpu.wcsr(cycle, cpu.clock*8)
 }
 
 func (cpu *CPU) run() *exception {
@@ -1738,6 +1739,80 @@ func (cpu *CPU) handleExcp(excp *exception, curPC uint64) {
 		cpu.wcsr(sstatus, newStatus)
 	case user:
 	}
+}
+
+func (cpu *CPU) handleIntr(pc uint64) {
+	// @TODO: Optimize
+	//let minterrupt = self.read_csr_raw(CSR_MIP_ADDRESS) & self.read_csr_raw(CSR_MIE_ADDRESS);
+	mint := cpu.rcsr(mip) & cpu.rcsr(mie)
+
+	if mint&0x800 != 0 { // meip
+		if cpu.handleTrap(&exception{code: machineExternalIntr}, pc, true) {
+			cpu.wcsr(mip, cpu.rcsr(mip) & 0x7ff)
+		}
+	}
+
+	//if (minterrupt & MIP_MEIP) != 0 {
+	//	if self.handle_trap(Trap {
+	//		trap_type: TrapType::MachineExternalInterrupt,
+	//		value: self.pc // dummy
+	//	}, instruction_address, true) {
+	//		// Who should clear mip bit?
+	//		self.write_csr_raw(CSR_MIP_ADDRESS, self.read_csr_raw(CSR_MIP_ADDRESS) & !MIP_MEIP);
+	//		self.wfi = false;
+	//		return;
+	//	}
+	//}
+	//if (minterrupt & MIP_MSIP) != 0 {
+	//	if self.handle_trap(Trap {
+	//		trap_type: TrapType::MachineSoftwareInterrupt,
+	//		value: self.pc // dummy
+	//	}, instruction_address, true) {
+	//		self.write_csr_raw(CSR_MIP_ADDRESS, self.read_csr_raw(CSR_MIP_ADDRESS) & !MIP_MSIP);
+	//		self.wfi = false;
+	//		return;
+	//	}
+	//}
+	//if (minterrupt & MIP_MTIP) != 0 {
+	//	if self.handle_trap(Trap {
+	//		trap_type: TrapType::MachineTimerInterrupt,
+	//		value: self.pc // dummy
+	//	}, instruction_address, true) {
+	//		self.write_csr_raw(CSR_MIP_ADDRESS, self.read_csr_raw(CSR_MIP_ADDRESS) & !MIP_MTIP);
+	//		self.wfi = false;
+	//		return;
+	//	}
+	//}
+	//if (minterrupt & MIP_SEIP) != 0 {
+	//	if self.handle_trap(Trap {
+	//		trap_type: TrapType::SupervisorExternalInterrupt,
+	//		value: self.pc // dummy
+	//	}, instruction_address, true) {
+	//		self.write_csr_raw(CSR_MIP_ADDRESS, self.read_csr_raw(CSR_MIP_ADDRESS) & !MIP_SEIP);
+	//		self.wfi = false;
+	//		return;
+	//	}
+	//}
+	//if (minterrupt & MIP_SSIP) != 0 {
+	//	if self.handle_trap(Trap {
+	//		trap_type: TrapType::SupervisorSoftwareInterrupt,
+	//		value: self.pc // dummy
+	//	}, instruction_address, true) {
+	//		self.write_csr_raw(CSR_MIP_ADDRESS, self.read_csr_raw(CSR_MIP_ADDRESS) & !MIP_SSIP);
+	//		self.wfi = false;
+	//		return;
+	//	}
+	//}
+	//if (minterrupt & MIP_STIP) != 0 {
+	//	if self.handle_trap(Trap {
+	//		trap_type: TrapType::SupervisorTimerInterrupt,
+	//		value: self.pc // dummy
+	//	}, instruction_address, true) {
+	//		self.write_csr_raw(CSR_MIP_ADDRESS, self.read_csr_raw(CSR_MIP_ADDRESS) & !MIP_STIP);
+	//		self.wfi = false;
+	//		return;
+	//	}
+	//}
 }
 
 func parseIImm(inst uint64) uint64 {
