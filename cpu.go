@@ -26,6 +26,7 @@ const (
 	siemask            = 0b1000100010
 	sipmask            = 0b1000100010
 	ustatus     uint64 = 0x000
+	uie         uint64 = 0x004
 	utvec       uint64 = 0x005
 	uepc        uint64 = 0x041
 	ucause      uint64 = 0x042
@@ -35,6 +36,7 @@ const (
 	fcsr        uint64 = 0x003
 	sstatus     uint64 = 0x100
 	sedeleg     uint64 = 0x102
+	sideleg     uint64 = 0x103
 	sie         uint64 = 0x104
 	stvec       uint64 = 0x105
 	sepc        uint64 = 0x141
@@ -94,7 +96,7 @@ const (
 	machineExternalIntr    = 11
 )
 
-type exception struct {
+type trap struct {
 	code  int
 	value uint64
 }
@@ -284,13 +286,13 @@ func (cpu *CPU) getEffectiveAddr(addr uint64) uint64 {
 	return addr
 }
 
-func (cpu *CPU) fetch() (uint64, *exception) {
+func (cpu *CPU) fetch() (uint64, *trap) {
 	vAddr := cpu.pc
 	if (vAddr & 0xfff) <= 0x1000-4 {
 		eAddr := cpu.getEffectiveAddr(vAddr)
 		pa, excp := cpu.translate(eAddr, maInst)
 		if excp != nil {
-			return 0, &exception{code: instPageFault, value: vAddr}
+			return 0, &trap{code: instPageFault, value: vAddr}
 		}
 
 		v := cpu.ram.Read(pa, word)
@@ -303,7 +305,7 @@ func (cpu *CPU) fetch() (uint64, *exception) {
 		eAddr := cpu.getEffectiveAddr(vAddr + 1)
 		pa, excp := cpu.translate(eAddr, maInst)
 		if excp != nil {
-			return 0, &exception{code: instPageFault, value: vAddr}
+			return 0, &trap{code: instPageFault, value: vAddr}
 		}
 
 		v := cpu.ram.Read(pa, byt)
@@ -313,12 +315,12 @@ func (cpu *CPU) fetch() (uint64, *exception) {
 	return data, nil
 }
 
-func (cpu *CPU) read(addr uint64, size int) (uint64, *exception) {
+func (cpu *CPU) read(addr uint64, size int) (uint64, *trap) {
 	if size == byt {
 		eAddr := cpu.getEffectiveAddr(addr)
 		pAddr, excp := cpu.translate(eAddr, maLoad)
 		if excp != nil {
-			return 0, &exception{code: loadPageFault, value: addr}
+			return 0, &trap{code: loadPageFault, value: addr}
 		}
 
 		return cpu.ram.Read(pAddr, byt), nil
@@ -328,7 +330,7 @@ func (cpu *CPU) read(addr uint64, size int) (uint64, *exception) {
 		eAddr := cpu.getEffectiveAddr(addr)
 		pAddr, excp := cpu.translate(eAddr, maLoad)
 		if excp != nil {
-			return 0, &exception{code: loadPageFault, value: addr}
+			return 0, &trap{code: loadPageFault, value: addr}
 		}
 
 		return cpu.ram.Read(pAddr, size), nil
@@ -339,7 +341,7 @@ func (cpu *CPU) read(addr uint64, size int) (uint64, *exception) {
 		eAddr := cpu.getEffectiveAddr(addr + i)
 		pa, excp := cpu.translate(eAddr, maLoad)
 		if excp != nil {
-			return 0, &exception{code: loadPageFault, value: addr}
+			return 0, &trap{code: loadPageFault, value: addr}
 		}
 
 		v := cpu.ram.Read(pa, byt)
@@ -349,7 +351,7 @@ func (cpu *CPU) read(addr uint64, size int) (uint64, *exception) {
 	return data, nil
 }
 
-func (cpu *CPU) write(addr, val uint64, size int) *exception {
+func (cpu *CPU) write(addr, val uint64, size int) *trap {
 	// Cancel reserved memory to make SC fail when an write is called
 	// between LR and SC.
 	if cpu.reserved(addr) {
@@ -360,7 +362,7 @@ func (cpu *CPU) write(addr, val uint64, size int) *exception {
 		eAddr := cpu.getEffectiveAddr(addr)
 		pAddr, excp := cpu.translate(eAddr, maStore)
 		if excp != nil {
-			return &exception{code: storePageFault, value: addr}
+			return &trap{code: storePageFault, value: addr}
 		}
 
 		cpu.ram.Write(pAddr, val, byt)
@@ -372,7 +374,7 @@ func (cpu *CPU) write(addr, val uint64, size int) *exception {
 		eAddr := cpu.getEffectiveAddr(addr)
 		pAddr, excp := cpu.translate(eAddr, maStore)
 		if excp != nil {
-			return &exception{code: storePageFault, value: addr}
+			return &trap{code: storePageFault, value: addr}
 		}
 
 		cpu.ram.Write(pAddr, val, size)
@@ -382,7 +384,7 @@ func (cpu *CPU) write(addr, val uint64, size int) *exception {
 		eAddr := cpu.getEffectiveAddr(addr + i)
 		pa, excp := cpu.translate(eAddr, maStore)
 		if excp != nil {
-			return &exception{code: storePageFault, value: addr}
+			return &trap{code: storePageFault, value: addr}
 		}
 
 		cpu.ram.Write(pa, (val>>(i*8))&0xff, byt)
@@ -391,7 +393,7 @@ func (cpu *CPU) write(addr, val uint64, size int) *exception {
 	return nil
 }
 
-func (cpu *CPU) translate(vAddr uint64, ma int) (uint64, *exception) {
+func (cpu *CPU) translate(vAddr uint64, ma int) (uint64, *trap) {
 	eAddr := cpu.getEffectiveAddr(vAddr)
 
 	switch cpu.addressingMode {
@@ -467,15 +469,15 @@ func (cpu *CPU) translate(vAddr uint64, ma int) (uint64, *exception) {
 	panic("unknown addressing mode")
 }
 
-func (cpu *CPU) traversePage(vAddr uint64, level int, parentPPN uint64, vpns []uint64, ma int) (uint64, *exception) {
-	fault := func() *exception {
+func (cpu *CPU) traversePage(vAddr uint64, level int, parentPPN uint64, vpns []uint64, ma int) (uint64, *trap) {
+	fault := func() *trap {
 		switch ma {
 		case maInst:
-			return &exception{code: instPageFault, value: vAddr}
+			return &trap{code: instPageFault, value: vAddr}
 		case maLoad:
-			return &exception{code: loadPageFault, value: vAddr}
+			return &trap{code: loadPageFault, value: vAddr}
 		case maStore:
-			return &exception{code: storePageFault, value: vAddr}
+			return &trap{code: storePageFault, value: vAddr}
 		}
 
 		return nil // should not come here
@@ -701,7 +703,7 @@ func (cpu *CPU) tick() {
 	cpu.wcsr(cycle, cpu.clock*8)
 }
 
-func (cpu *CPU) run() *exception {
+func (cpu *CPU) run() *trap {
 	if cpu.wfi {
 		if (cpu.rcsr(mie) & cpu.rcsr(mip)) != 0 {
 			cpu.wfi = false
@@ -725,7 +727,7 @@ func (cpu *CPU) run() *exception {
 	return cpu.exec(w, pc)
 }
 
-func (cpu *CPU) exec(raw, pc uint64) *exception {
+func (cpu *CPU) exec(raw, pc uint64) *trap {
 	switch {
 	case raw&0xfe00707f == 0x00000033: //"add"
 		rd, rs1, rs2 := bits(raw, 11, 7), bits(raw, 19, 15), bits(raw, 24, 20)
@@ -1136,18 +1138,18 @@ func (cpu *CPU) exec(raw, pc uint64) *exception {
 		}
 
 	case raw&0xffffffff == 0x00100073: //"ebreak"
-		return &exception{code: breakpoint}
+		return &trap{code: breakpoint}
 
 	case raw&0xffffffff == 0x00000073: //"ecall"
 		switch cpu.mode {
 		case user:
-			return &exception{code: ecallFromU}
+			return &trap{code: ecallFromU}
 		case supervisor:
-			return &exception{code: ecallFromS}
+			return &trap{code: ecallFromS}
 		case machine:
-			return &exception{code: ecallFromM}
+			return &trap{code: ecallFromM}
 		default:
-			return &exception{code: illegalInst, value: raw}
+			return &trap{code: illegalInst, value: raw}
 		}
 
 	case raw&0xfe00007f == 0x02000053: //"fadd.d"
@@ -1675,9 +1677,9 @@ func (cpu *CPU) exec(raw, pc uint64) *exception {
 	return nil
 }
 
-func (cpu *CPU) getCause(trap int, intr bool) uint64 {
+func (cpu *CPU) getCause(code int, intr bool) uint64 {
 	if !intr {
-		return uint64(trap)
+		return uint64(code)
 	}
 
 	intrbit := uint64(0x8000000000000000)
@@ -1685,15 +1687,21 @@ func (cpu *CPU) getCause(trap int, intr bool) uint64 {
 		intrbit = 0x80000000
 	}
 
-	return intrbit + uint64(trap)
+	return intrbit + uint64(code)
 }
 
-func (cpu *CPU) handleTrap(excp *exception, curPC uint64, intr bool) bool {
+func (cpu *CPU) handleTrap(trp *trap, curPC uint64, intr bool) bool {
 	curMode := cpu.mode
-	cause := cpu.getCause(excp.code, false)
+	cause := cpu.getCause(trp.code, intr)
 
-	mdeleg := cpu.rcsr(medeleg)
-	sdeleg := cpu.rcsr(sedeleg)
+	var mdeleg, sdeleg uint64
+	if intr {
+		mdeleg = cpu.rcsr(mideleg)
+		sdeleg = cpu.rcsr(sideleg)
+	} else {
+		mdeleg = cpu.rcsr(medeleg)
+		sdeleg = cpu.rcsr(sedeleg)
+	}
 
 	pos := cause & 0xffff
 
@@ -1702,6 +1710,102 @@ func (cpu *CPU) handleTrap(excp *exception, curPC uint64, intr bool) bool {
 		newMode = machine
 	} else if ((sdeleg >> pos) & 1) == 0 {
 		newMode = supervisor
+	}
+
+	var curStatus uint64
+	switch cpu.mode {
+	case machine:
+		curStatus = cpu.rcsr(mstatus)
+	case supervisor:
+		curStatus = cpu.rcsr(sstatus)
+	case user:
+		curStatus = cpu.rcsr(ustatus)
+	}
+
+	if intr {
+		var ie uint64
+		switch newMode {
+		case machine:
+			ie = cpu.rcsr(mie)
+		case supervisor:
+			ie = cpu.rcsr(sie)
+		case user:
+			ie = cpu.rcsr(uie)
+		}
+
+		curMIE := (curStatus >> 3) & 1
+		curSIE := (curStatus >> 1) & 1
+		curUIE := curStatus & 1
+
+		msie := (ie >> 3) & 1
+		ssie := (ie >> 1) & 1
+		usie := ie & 1
+
+		mtie := (ie >> 7) & 1
+		stie := (ie >> 5) & 1
+		utie := (ie >> 4) & 1
+
+		meie := (ie >> 11) & 1
+		seie := (ie >> 9) & 1
+		ueie := (ie >> 8) & 1
+
+		if newMode < curMode {
+			return false
+		} else if newMode == curMode {
+			switch cpu.mode {
+			case machine:
+				if curMIE == 0 {
+					return false
+				}
+			case supervisor:
+				if curSIE == 0 {
+					return false
+				}
+			case user:
+				if curUIE == 0 {
+					return false
+				}
+			}
+		}
+
+		switch trp.code {
+		case userSoftwareIntr:
+			if usie == 0 {
+				return false
+			}
+		case supervisorSoftwareIntr:
+			if ssie == 0 {
+				return false
+			}
+		case machineSoftwareIntr:
+			if msie == 0 {
+				return false
+			}
+		case userTimerIntr:
+			if utie == 0 {
+				return false
+			}
+		case supervisorTimerIntr:
+			if stie == 0 {
+				return false
+			}
+		case machineTimerIntr:
+			if mtie == 0 {
+				return false
+			}
+		case userExternalIntr:
+			if ueie == 0 {
+				return false
+			}
+		case supervisorExternalIntr:
+			if seie == 0 {
+				return false
+			}
+		case machineExternalIntr:
+			if meie == 0 {
+				return false
+			}
+		}
 	}
 
 	cpu.mode = newMode
@@ -1719,7 +1823,7 @@ func (cpu *CPU) handleTrap(excp *exception, curPC uint64, intr bool) bool {
 
 	cpu.wcsr(epcAddr, curPC)
 	cpu.wcsr(causeAddr, cause)
-	cpu.wcsr(tvalAddr, excp.value) // might be 0 which is okay
+	cpu.wcsr(tvalAddr, trp.value) // might be 0 which is okay
 	cpu.pc = cpu.rcsr(tvecAddr)
 
 	if cpu.pc&0x3 != 0 {
@@ -1738,59 +1842,62 @@ func (cpu *CPU) handleTrap(excp *exception, curPC uint64, intr bool) bool {
 		newStatus := (status & ^uint64(0x122)) | (sie << uint64(5)) | ((uint64(curMode) & 1) << 8)
 		cpu.wcsr(sstatus, newStatus)
 	case user:
+		panic("unimplemented")
 	}
+
+	return true
 }
 
-func (cpu *CPU) handleExcp(excp *exception, curPC uint64) {
-	cpu.handleTrap(excp, curPC, false)
+func (cpu *CPU) handleExcp(trp *trap, curPC uint64) {
+	cpu.handleTrap(trp, curPC, false)
 }
 
 func (cpu *CPU) handleIntr(pc uint64) {
 	mint := cpu.rcsr(mip) & cpu.rcsr(mie)
 
 	if mint&0x800 != 0 { // meip
-		if cpu.handleTrap(&exception{code: machineExternalIntr}, pc, true) {
-			cpu.wcsr(mip, cpu.rcsr(mip) & 0x7ff)
+		if cpu.handleTrap(&trap{code: machineExternalIntr}, pc, true) {
+			cpu.wcsr(mip, cpu.rcsr(mip)&0x7ff)
 			cpu.wfi = false
 			return
 		}
 	}
 
-	if mint &0x008 != 0 { // msip
-		if cpu.handleTrap(&exception{code: machineSoftwareIntr}, pc, true) {
-			cpu.wcsr(mip, cpu.rcsr(mip) & 0x0111)
+	if mint&0x008 != 0 { // msip
+		if cpu.handleTrap(&trap{code: machineSoftwareIntr}, pc, true) {
+			cpu.wcsr(mip, cpu.rcsr(mip)&0x0111)
 			cpu.wfi = false
 			return
 		}
 	}
 
-	if mint &0x080 != 0 { // mtip
-		if cpu.handleTrap(&exception{code: machineTimerIntr}, pc, true) {
-			cpu.wcsr(mip, cpu.rcsr(mip) & 0x7f)
+	if mint&0x080 != 0 { // mtip
+		if cpu.handleTrap(&trap{code: machineTimerIntr}, pc, true) {
+			cpu.wcsr(mip, cpu.rcsr(mip)&0x7f)
 			cpu.wfi = false
 			return
 		}
 	}
 
-	if mint &0x200!= 0 { // seip
-		if cpu.handleTrap(&exception{code: supervisorExternalIntr}, pc, true) {
-			cpu.wcsr(mip, cpu.rcsr(mip) & 0x1ff)
+	if mint&0x200 != 0 { // seip
+		if cpu.handleTrap(&trap{code: supervisorExternalIntr}, pc, true) {
+			cpu.wcsr(mip, cpu.rcsr(mip)&0x1ff)
 			cpu.wfi = false
 			return
 		}
 	}
 
-	if mint &0x002!= 0 { // ssip
-		if cpu.handleTrap(&exception{code: supervisorSoftwareIntr}, pc, true) {
-			cpu.wcsr(mip, cpu.rcsr(mip) & 0x1)
+	if mint&0x002 != 0 { // ssip
+		if cpu.handleTrap(&trap{code: supervisorSoftwareIntr}, pc, true) {
+			cpu.wcsr(mip, cpu.rcsr(mip)&0x1)
 			cpu.wfi = false
 			return
 		}
 	}
 
-	if mint &0x020!= 0 { // stip
-		if cpu.handleTrap(&exception{code: supervisorTimerIntr}, pc, true) {
-			cpu.wcsr(mip, cpu.rcsr(mip) & 0x1f)
+	if mint&0x020 != 0 { // stip
+		if cpu.handleTrap(&trap{code: supervisorTimerIntr}, pc, true) {
+			cpu.wcsr(mip, cpu.rcsr(mip)&0x1f)
 			cpu.wfi = false
 			return
 		}

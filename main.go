@@ -27,7 +27,6 @@ func (r *RV) Start() error {
 
 		if code := r.cpu.ram.Read(r.tohost, word); code != 0 {
 			if code == 1 {
-				fmt.Println("done")
 				return nil
 			}
 
