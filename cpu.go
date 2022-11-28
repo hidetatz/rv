@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"math"
 	"math/big"
 )
@@ -16,7 +17,7 @@ const (
 	xlen64 = 2
 
 	// memory size
-	byt        = 8
+	byt        = 8 // "byte" is reserved
 	halfword   = 16
 	word       = 32
 	doubleword = 64
@@ -94,6 +95,10 @@ const (
 	userExternalIntr       = 8
 	supervisorExternalIntr = 9
 	machineExternalIntr    = 11
+
+	// memory management
+	drambase = 0x8000_0000
+	dtbsize  = 0xfe0
 )
 
 type trap struct {
@@ -115,7 +120,12 @@ type CPU struct {
 	fregs [32]float64
 	lrsc  map[uint64]struct{}
 
-	ram *Memory
+	dtb   [dtbsize]uint8
+	clint *Clint
+	disk  *VirtIODisk
+	plic  *Plic
+	ram   *Memory
+	uart  *Uart
 }
 
 func NewCPU() *CPU {
@@ -132,7 +142,13 @@ func NewCPU() *CPU {
 		fregs: [32]float64{},
 		lrsc:  make(map[uint64]struct{}),
 
-		ram: NewMemory(),
+		// TODO: initialize device tree
+		dtb:   [dtbsize]uint8{},
+		clint: NewClint(),
+		disk:  NewVirtIODisk(),
+		plic:  NewPlic(),
+		uart:  NewUart(os.Stdout),
+		ram:   NewMemory(),
 	}
 }
 
@@ -295,7 +311,7 @@ func (cpu *CPU) fetch() (uint64, *trap) {
 			return 0, &trap{code: instPageFault, value: vAddr}
 		}
 
-		v := cpu.ram.Read(pa, word)
+		v := cpu.readRaw(pa, word)
 
 		return v, nil
 	}
@@ -315,82 +331,127 @@ func (cpu *CPU) fetch() (uint64, *trap) {
 	return data, nil
 }
 
-func (cpu *CPU) read(addr uint64, size int) (uint64, *trap) {
-	if size == byt {
-		eAddr := cpu.getEffectiveAddr(addr)
-		pAddr, excp := cpu.translate(eAddr, maLoad)
-		if excp != nil {
-			return 0, &trap{code: loadPageFault, value: addr}
-		}
+func (cpu *CPU) read(vaddr uint64, size int) (uint64, *trap) {
+	//if (vaddr & 0xfff) <= 0x1000-uint64(size/8) {
+	//	paddr, excp := cpu.translate(vaddr, maLoad)
+	//	if excp != nil {
+	//		return 0, &trap{code: loadPageFault, value: vaddr}
+	//	}
 
-		return cpu.ram.Read(pAddr, byt), nil
-	}
-
-	if (addr & 0xfff) <= 0x1000-uint64(size/8) {
-		eAddr := cpu.getEffectiveAddr(addr)
-		pAddr, excp := cpu.translate(eAddr, maLoad)
-		if excp != nil {
-			return 0, &trap{code: loadPageFault, value: addr}
-		}
-
-		return cpu.ram.Read(pAddr, size), nil
-	}
+	//	return cpu.readRaw(paddr, size), nil
+	//}
 
 	data := uint64(0)
-	for i := uint64(0); i < uint64(size/8); i++ {
-		eAddr := cpu.getEffectiveAddr(addr + i)
-		pa, excp := cpu.translate(eAddr, maLoad)
+	for i := 0; i < size/8; i++ {
+		eaddr := cpu.getEffectiveAddr(vaddr + uint64(i))
+		paddr, excp := cpu.translate(eaddr, maLoad)
 		if excp != nil {
-			return 0, &trap{code: loadPageFault, value: addr}
+			return 0, &trap{code: loadPageFault, value: vaddr}
 		}
 
-		v := cpu.ram.Read(pa, byt)
+		v := cpu.readRaw(paddr, byt)
 		data |= v << (i * 8)
 	}
 
 	return data, nil
 }
 
-func (cpu *CPU) write(addr, val uint64, size int) *trap {
+func (cpu *CPU) readRaw(vaddr uint64, size int) uint64 {
+	eaddr := cpu.getEffectiveAddr(vaddr)
+
+	overflow := false
+	if size > byt {
+		overflow = eaddr+uint64(size/8-1) > eaddr
+	}
+
+	if eaddr >= drambase && !overflow {
+		return cpu.ram.Read(eaddr, size)
+	}
+
+	data := uint64(0)
+	for i := 0; i < size/8; i++ {
+		a := eaddr + uint64(i)
+		d := 0
+		switch {
+		case 0x00001010 <= a && a < 0x00001fff:
+			d = uint64(cpu.dtb[a-0x1020])
+		case 0x02000000 <= a && a < 0x0200ffff:
+			d = cpu.clint.read(a)
+		case 0x0c000000 <= a && a < 0x0fffffff:
+			d = cpu.plic.read(a)
+		case 0x10000000 <= a && a < 0x10000fff:
+			d = cpu.uart.read(a)
+		case 0x10001000 <= a && a < 0x10001fff:
+			d = cpu.disk.read(a)
+		default:
+			panic("unknown mem seg")
+		}
+		data |= d << (i * 8)
+	}
+
+	return data
+}
+
+func (cpu *CPU) write(vaddr, val uint64, size int) *trap {
 	// Cancel reserved memory to make SC fail when an write is called
 	// between LR and SC.
-	if cpu.reserved(addr) {
-		cpu.cancel(addr)
-	}
+	//if cpu.reserved(addr) {
+	//	cpu.cancel(addr)
+	//}
 
-	if size == byt {
-		eAddr := cpu.getEffectiveAddr(addr)
-		pAddr, excp := cpu.translate(eAddr, maStore)
+	//if (addr & 0xfff) <= 0x1000-uint64(size/8) {
+	//	eAddr := cpu.getEffectiveAddr(addr)
+	//	pAddr, excp := cpu.translate(eAddr, maStore)
+	//	if excp != nil {
+	//		return &trap{code: storePageFault, value: addr}
+	//	}
+
+	//	cpu.ram.Write(pAddr, val, size)
+	//}
+
+	for i := 0; i < size/8; i++ {
+		a := vaddr + uint64(i)
+		v := (val >> (i * 8)) & 0xff
+		paddr, excp := cpu.translate(a, maStore)
 		if excp != nil {
-			return &trap{code: storePageFault, value: addr}
+			return &trap{code: storePageFault, value: a}
 		}
 
-		cpu.ram.Write(pAddr, val, byt)
-	}
-
-	// multiple bytes
-
-	if (addr & 0xfff) <= 0x1000-uint64(size/8) {
-		eAddr := cpu.getEffectiveAddr(addr)
-		pAddr, excp := cpu.translate(eAddr, maStore)
-		if excp != nil {
-			return &trap{code: storePageFault, value: addr}
-		}
-
-		cpu.ram.Write(pAddr, val, size)
-	}
-
-	for i := uint64(0); i < uint64(size/8); i++ {
-		eAddr := cpu.getEffectiveAddr(addr + i)
-		pa, excp := cpu.translate(eAddr, maStore)
-		if excp != nil {
-			return &trap{code: storePageFault, value: addr}
-		}
-
-		cpu.ram.Write(pa, (val>>(i*8))&0xff, byt)
+		cpu.writeRaw(paddr, v, byt)
 	}
 
 	return nil
+}
+
+func (cpu *CPU) writeRaw(addr, val uint64, size int) {
+	ea := cpu.getEffectiveAddr(addr)
+
+	overflow := false
+	if size > byt {
+		overflow = ea+uint64(size/8-1) > ea
+	}
+
+	if ea >= drambase && !overflow {
+		cpu.ram.Write(ea, val, size)
+		return
+	}
+
+	for i := 0; i < size/8; i++ {
+		v := (val >> (i * 8)) & 0xff
+		a := ea + uint64(i)
+		switch {
+		case 0x02000000 <= a && a < 0x0200ffff:
+			cpu.clint.write(a, v)
+		case 0x0c000000 <= a && a < 0x0fffffff:
+			cpu.plic.write(a, v)
+		case 0x10000000 <= a && a < 0x10000fff:
+			cpu.uart.write(a, v)
+		case 0x10001000 <= a && a < 0x10001fff:
+			cpu.disk.write(a, v)
+		default:
+			panic("unknown mem seg")
+		}
+	}
 }
 
 func (cpu *CPU) translate(vAddr uint64, ma int) (uint64, *trap) {
@@ -697,7 +758,10 @@ func (cpu *CPU) tick() {
 		cpu.handleExcp(excp, pc)
 	}
 
-	//cpu.ram.tick()
+	//cpu.clint.tick(cpu.rcsr(mip))
+	//cpu.disk.tick()
+	//cpu.uart.tick()
+	//cpu.plic.tick()
 	cpu.handleIntr(cpu.pc)
 	cpu.clock++
 	cpu.wcsr(cycle, cpu.clock*8)

@@ -1,6 +1,9 @@
 package main
 
-const DramBase = 0x0
+const (
+	dramBase = 0x80000000
+	dtbSize = 0xfe0
+)
 
 type Memory struct {
 	// 3GiB
@@ -12,7 +15,7 @@ func NewMemory() *Memory {
 }
 
 func (mem *Memory) Read(addr uint64, size int) uint64 {
-	index := addr - DramBase
+	index := addr - dramBase
 	switch size {
 	case byt:
 		return uint64(mem.Mem[index])
@@ -39,7 +42,7 @@ func (mem *Memory) Read(addr uint64, size int) uint64 {
 }
 
 func (mem *Memory) Write(addr, val uint64, size int) {
-	index := addr - DramBase
+	index := addr - dramBase
 	switch size {
 	case byt:
 		mem.Mem[index] = uint8(val)
