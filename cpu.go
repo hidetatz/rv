@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io"
 	"math"
 	"math/big"
 )
@@ -147,7 +146,7 @@ func NewCPU() *CPU {
 		clint: NewClint(),
 		disk:  NewVirtIODisk(),
 		plic:  NewPlic(),
-		uart:  NewUart(os.Stdout),
+		uart:  NewUart(),
 		ram:   NewMemory(),
 	}
 }
@@ -371,10 +370,10 @@ func (cpu *CPU) readRaw(vaddr uint64, size int) uint64 {
 	data := uint64(0)
 	for i := 0; i < size/8; i++ {
 		a := eaddr + uint64(i)
-		d := 0
+		var d uint8 = 0
 		switch {
 		case 0x00001010 <= a && a < 0x00001fff:
-			d = uint64(cpu.dtb[a-0x1020])
+			d = cpu.dtb[a-0x1020]
 		case 0x02000000 <= a && a < 0x0200ffff:
 			d = cpu.clint.read(a)
 		case 0x0c000000 <= a && a < 0x0fffffff:
@@ -386,7 +385,7 @@ func (cpu *CPU) readRaw(vaddr uint64, size int) uint64 {
 		default:
 			panic("unknown mem seg")
 		}
-		data |= d << (i * 8)
+		data |= uint64(d << (uint8(i) * 8))
 	}
 
 	return data
@@ -437,7 +436,7 @@ func (cpu *CPU) writeRaw(addr, val uint64, size int) {
 	}
 
 	for i := 0; i < size/8; i++ {
-		v := (val >> (i * 8)) & 0xff
+		v := uint8((val >> (i * 8)) & 0xff)
 		a := ea + uint64(i)
 		switch {
 		case 0x02000000 <= a && a < 0x0200ffff:
