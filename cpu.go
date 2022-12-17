@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"math"
 	"math/big"
 )
@@ -355,15 +356,16 @@ func (cpu *CPU) read(vaddr uint64, size int) (uint64, *trap) {
 	return data, nil
 }
 
-func (cpu *CPU) readRaw(vaddr uint64, size int) uint64 {
-	eaddr := cpu.getEffectiveAddr(vaddr)
+func (cpu *CPU) readRaw(paddr uint64, size int) uint64 {
+	eaddr := cpu.getEffectiveAddr(paddr)
 
-	overflow := false
-	if size > byt {
-		overflow = eaddr+uint64(size/8-1) > eaddr
-	}
+	// overflow := false
+	// if size > byt {
+	// 	overflow = eaddr+uint64(size/8-1) > eaddr
+	// }
 
-	if eaddr >= drambase && !overflow {
+	// if eaddr >= drambase && !overflow {
+	if eaddr >= drambase {
 		return cpu.ram.Read(eaddr, size)
 	}
 
@@ -372,18 +374,18 @@ func (cpu *CPU) readRaw(vaddr uint64, size int) uint64 {
 		a := eaddr + uint64(i)
 		var d uint8 = 0
 		switch {
-		case 0x00001010 <= a && a < 0x00001fff:
+		case 0x00001020 <= a && a < 0x00001fff:
 			d = cpu.dtb[a-0x1020]
 		case 0x02000000 <= a && a < 0x0200ffff:
 			d = cpu.clint.read(a)
 		case 0x0c000000 <= a && a < 0x0fffffff:
 			d = cpu.plic.read(a)
-		case 0x10000000 <= a && a < 0x10000fff:
+		case 0x10000000 <= a && a < 0x100000ff:
 			d = cpu.uart.read(a)
 		case 0x10001000 <= a && a < 0x10001fff:
 			d = cpu.disk.read(a)
 		default:
-			panic("unknown mem seg")
+			panic(fmt.Sprintf("unknown mem seg: %b", a))
 		}
 		data |= uint64(d << (uint8(i) * 8))
 	}
@@ -425,12 +427,13 @@ func (cpu *CPU) write(vaddr, val uint64, size int) *trap {
 func (cpu *CPU) writeRaw(addr, val uint64, size int) {
 	ea := cpu.getEffectiveAddr(addr)
 
-	overflow := false
-	if size > byt {
-		overflow = ea+uint64(size/8-1) > ea
-	}
+	// overflow := false
+	// if size > byt {
+	// 	overflow = ea+uint64(size/8-1) > ea
+	// }
 
-	if ea >= drambase && !overflow {
+	// if ea >= drambase && !overflow {
+	if ea >= drambase {
 		cpu.ram.Write(ea, val, size)
 		return
 	}

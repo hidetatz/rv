@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"sync"
 )
@@ -29,7 +30,7 @@ type Uart struct {
 	mcr          uint8 // modem control register
 	lsr          uint8 // line status register
 	scr          uint8 // scratch,
-	threip      bool
+	threip       bool
 	interrupting bool
 
 	sync.Mutex
@@ -47,7 +48,7 @@ func NewUart() *Uart {
 		mcr:          0,
 		lsr:          lsrThrEmpty,
 		scr:          0,
-		threip:      false,
+		threip:       false,
 		interrupting: false,
 
 		buffer: []byte{}, // stdin buffer
@@ -58,6 +59,9 @@ func NewUart() *Uart {
 		for {
 			b, err := r.ReadByte()
 			if err != nil {
+				if err == io.EOF {
+					continue
+				}
 				fmt.Fprintf(os.Stderr, "read stdin: %s", err)
 				continue
 			}
