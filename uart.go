@@ -131,7 +131,7 @@ func (u *Uart) read(address uint64) uint8 {
 		if (u.lcr >> 7) == 0 {
 			rbr := u.rbr
 			u.rbr = 0
-			u.lsr &= uint8(^lsrDataAvailable)
+			u.lsr &= ^uint8(lsrDataAvailable)
 			u.updateIir()
 			return rbr
 		}
@@ -158,7 +158,7 @@ func (u *Uart) write(address uint64, value uint8) {
 	case 0x10000000:
 		if (u.lcr >> 7) == 0 {
 			u.thr = value
-			u.lsr &= ^lsrThrEmpty
+			u.lsr &= ^uint8(lsrThrEmpty)
 			u.updateIir()
 		}
 	case 0x10000001:
