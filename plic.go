@@ -29,7 +29,7 @@ func NewPlic() *Plic {
 	}
 }
 
-func (p *Plic) tick(virtioIp bool, uartIp bool, mip uint64) {
+func (p *Plic) tick(virtioIp bool, uartIp bool, mip *uint64) {
 	p.clock++
 	if p.virtioIpCache != virtioIp {
 		if virtioIp {
@@ -39,7 +39,7 @@ func (p *Plic) tick(virtioIp bool, uartIp bool, mip uint64) {
 	}
 
 	if uartIp {
-		p.setIp(uartIp)
+		p.setIp(uartIrq)
 	}
 
 	if p.needsUpdateIrq {
@@ -48,20 +48,47 @@ func (p *Plic) tick(virtioIp bool, uartIp bool, mip uint64) {
 	}
 }
 
-func (p *Plic) updateIrq(mip uint64) {
-	virtioIp = ((p.ips[virtioIrq>>3] >> (virtioIrq & 7)) & 1) == 1
-	uartIp = ((p.ips[uartIrq>>3] >> (uartIrq & 7)) & 1) == 1
+func (p *Plic) updateIrq(mip *uint64) {
+	virtioIp := ((p.ips[virtioIrq>>3] >> (virtioIrq & 7)) & 1) == 1
+	uartIp := ((p.ips[uartIrq>>3] >> (uartIrq & 7)) & 1) == 1
 
-	virtioPriority = p.priorities[virtioIrq]
-	uartPriority = p.priorities[uartIrq]
+	virtioPriority := p.priorities[virtioIrq]
+	uartPriority := p.priorities[uartIrq]
 
-	virtioEnabled = ((p.enabled >> virtioIrq) & 1) == 1
-	uartEnabled = ((p.enabled >> uartIrq) & 1) == 1
+	virtioEnabled := ((p.enabled >> virtioIrq) & 1) == 1
+	uartEnabled := ((p.enabled >> uartIrq) & 1) == 1
 
-	ips := []uint8{virtioIp, uartIp}
+	ips := []bool{virtioIp, uartIp}
 	enables := []bool{virtioEnabled, uartEnabled}
-	priorities = []uint32{virtioPriority, uartPriority}
+	priorities := []uint32{virtioPriority, uartPriority}
+	irqs := []uint32{virtioIrq, uartIrq}
 
+	var irq uint32 = 0
+	var priority uint32 = 0
+
+	for i := 0; i < 2; i++ {
+		if ips[i] && enables[i] && priorities[i] > p.threshold && priorities[i] > priority {
+			irq = irqs[i]
+			priority = priorities[i]
+		}
+	}
+
+	p.irq = irq
+	if p.irq != 0 {
+		*mip |= 0x200
+	}
+}
+
+func (p *Plic) setIp(irq uint32) {
+	index := irq >> 3
+	p.ips[index] = p.ips[index] | (1 << irq)
+	p.needsUpdateIrq = true
+}
+
+func (p *Plic) clearIp(irq uint32) {
+	index := irq >> 3
+	p.ips[index] = p.ips[index] & ^(1 << irq)
+	p.needsUpdateIrq = true
 }
 
 func (p *Plic) read(addr uint64) uint8 {

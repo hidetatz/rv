@@ -2,7 +2,7 @@ package main
 
 const (
 	dramBase = 0x80000000
-	dtbSize = 0xfe0
+	dtbSize  = 0xfe0
 )
 
 type Memory struct {
