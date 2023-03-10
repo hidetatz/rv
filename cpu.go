@@ -10,11 +10,12 @@ const (
 	// mode
 	user       = 0
 	supervisor = 1
+	hypervisor = 2
 	machine    = 3
 
 	// xlen. 128bit isn't supported in rv.
-	xlen32 = 1
-	xlen64 = 2
+	xlen32 = 0
+	xlen64 = 1
 
 	// memory size
 	byt        = 8 // "byte" is reserved
@@ -107,49 +108,176 @@ type trap struct {
 }
 
 type CPU struct {
-	clock          uint64
-	xlen           int
-	mode           int
-	wfi            bool
-	pc             uint64
-	addressingMode int
-	ppn            uint64
-
-	csr   [4096]uint64
-	xregs [32]uint64
-	fregs [32]float64
-	lrsc  map[uint64]struct{}
-
-	dtb   [dtbsize]uint8
-	clint *Clint
-	disk  *VirtIODisk
-	plic  *Plic
-	ram   *Memory
-	uart  *Uart
+	cycle uint64
+	pc uint64
+	wfi bool
+	xlen int
+	privilege int
+	x [32]int64
+	f [32]float64
+	csr *CSR
+	mmu *MMU
+	testmode bool
 }
 
-func NewCPU() *CPU {
-	return &CPU{
-		clock:          0,
-		xlen:           xlen64,
-		mode:           machine,
-		pc:             0,
-		addressingMode: svnone,
-		ppn:            0,
-
-		csr:   [4096]uint64{},
-		xregs: [32]uint64{},
-		fregs: [32]float64{},
-		lrsc:  make(map[uint64]struct{}),
-
-		// TODO: initialize device tree
-		dtb:   [dtbsize]uint8{},
-		clint: NewClint(),
-		disk:  NewVirtIODisk(),
-		plic:  NewPlic(),
-		uart:  NewUart(),
-		ram:   NewMemory(),
+func NewCPU(machine Machine, console Console, testmode bool) *CPU {
+	cpu := &CPU{
+		cycle: 0,
+		pc: 0,
+		wfi: false,
+		xlen: xlen64,
+		privilege: Machine,
+		x: [32]int64{},
+		f: [32]float64{},
+		csr: NewCSR(),
+		mmu: NewMMU(xlen64, machine, console),
+		testmode: testmode,
 	}
+
+	cpu.x[0xb] = cpu.mmu.getBus().getBaseAddress(device.DTB)
+
+	return cpu
+}
+
+func (cpu *CPU) reset() {
+	cpu.pc = 0
+	cpu.cycle = 0
+	cpu.privilege = Machine
+	cpu.wfi = false
+	cpu.xlen = xlen64
+	cpu.x = [32]int64{}
+	cpu.f = [32]float64{}
+}
+
+func (cpu *CPU) setPC(pc uint64) {
+	cpu.pc = pc
+}
+
+func (cpu *CPU) setXlen(xlen int) {
+	cpu.xlen = xlen
+	cpu.mmu.setXlen(xlen)
+}
+
+func (cpu *CPU) tick() {
+	if intr := cpu.checkIntrrupts(); intr != nil {
+		cpu.intrruptHandler(intr)
+	}
+
+	if !cpu.wfi {
+		instructionAddr = cpu.pc
+		if excp := cpu.tickExecute(); excp != nil {
+			cpu.catchException(excp, instructionAddr)
+		}
+	}
+
+	bus := cpu.mmu.getBus()
+	irqs = bus.tick()
+
+	cpu.tickIntrrupt(irqs)
+
+	cpu.cycle++
+	cpu.csr.writeDirect(CsrCycle, cpu.cycle)
+	cpu.csr.tick()
+}
+
+func (cpu *CPU) tickExecute() *Trap {
+	instructionAddr := cpu.pc
+	word, err := cpu.fetch()
+	if err != nil {
+		return err
+	}
+
+	opecode, err := cpu.decode(word)
+	if err != nil {
+		return err
+	}
+
+	instruction, err := opecode.operation(cpu, instructionAddr, word)
+	if err != nil {
+		panic("instruction not defined: %b", word)
+	}
+
+	if err := instruction.operation(instructionAddr, word); err != nil {
+		return err
+	}
+
+	cpu.x[0] = 0
+
+	return nil
+}
+
+func (cpu *CPU) tickIntrrupt(irqs []bool) {
+	bus := cpu.mmu.getBus()
+
+	if irqs[machine] {
+		cpu.csr.readModifyWriteDirect(CsrMIP, CsrIpMeip, 0)
+	} else {
+		cpu.csr.readModifyWriteDirect(CsrMIP, 0, CsrIpMeip)
+	}
+
+	if irqs[hypervisor] {
+		cpu.csr.readModifyWriteDirect(CsrMIP, CsrIpHeip, 0)
+	} else {
+		cpu.csr.readModifyWriteDirect(CsrMIP, 0, CsrIpHeip)
+	}
+
+	if irqs[supervisor] {
+		cpu.csr.readModifyWriteDirect(CsrMIP, CsrIpSeip, 0)
+	} else {
+		cpu.csr.readModifyWriteDirect(CsrMIP, 0, CsrIpSeip)
+	}
+
+	if irqs[user] {
+		cpu.csr.readModifyWriteDirect(CsrMIP, CsrIpUeip, 0)
+	} else {
+		cpu.csr.readModifyWriteDirect(CsrMIP, 0, CsrIpUeip)
+	}
+
+	if bus.isPendingTimerInterrupt(0) {
+		cpu.csr.readModifyWriteDirect(CsrMIP, CsrIpMtip, 0)
+	} else {
+		cpu.csr.readModifyWriteDirect(CsrMIP, 0, CsrIpMtip)
+	}
+
+	if bus.isPendingSoftwareInterrupt(0) {
+		cpu.csr.readModifyWriteDirect(CsrMIP, CsrIpMsip, 0)
+	} else {
+		cpu.csr.readModifyWriteDirect(CsrMIP, 0, CsrIpMsip)
+	}
+}
+
+func (cpu *CPU) fetch() (uint32, *Trap) {
+	fetchWord, err := cpu.mmu.fetch32(cpu.pc)
+	if err != nil {
+		return 0, err
+	}
+
+	if (fetchWord & 0x3) == 0x3 {
+		pc += 4
+		return fetchWord, nil
+	} else {
+		pc += 2
+		if word, err := cpu.instructionDecompress(pc - 2, fetchWord); err != nil {
+			return word, nil
+		} else {
+			return 0, &Trap{illegalInst, pc - 2}
+		}
+	}
+}
+
+func (cpu *CPU) decode() (Opecode, *Trap) {
+	if o := Opecodes.get(word & 0x7f) != nil {
+		return o
+	}
+
+	panic("opecode not found")
+}
+
+func (cpu *CPU) catchException(trap *Trap, addr uint64) {
+	trapcode := trap.exception
+	previousPrivilege = cpu.privilege
+	nextPrivilege := cpu.getNextPrivilege(trapcode, false)
+	// 
 }
 
 /*
