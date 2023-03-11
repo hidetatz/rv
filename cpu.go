@@ -277,8 +277,12 @@ func (cpu *CPU) catchException(trap *Trap, addr uint64) {
 	trapcode := trap.exception
 	previousPrivilege = cpu.privilege
 	nextPrivilege := cpu.getNextPrivilege(trapcode, false)
-	// 
+	cpu.changePrivilege(nextPrivilege)
+	cpu.updateCsrTrapRegisters(addr, trapcode, trap.value, previousPrivilege, false)
+	cpu.pc = cpu.getTrapNextPC()
 }
+
+func (cpu *CPU) checkIntrrupts() {
 
 /*
  * registers
