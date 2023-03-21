@@ -282,7 +282,61 @@ func (cpu *CPU) catchException(trap *Trap, addr uint64) {
 	cpu.pc = cpu.getTrapNextPC()
 }
 
-func (cpu *CPU) checkIntrrupts() {
+func (cpu *CPU) checkIntrrupts() *Interrupt {
+	mie := cpu.csr.readDirect(CsrMIE)
+	mip := cpu.csr.readDirect(CsrMIP)
+	cause := mie & mip & 0xfff
+
+	if cause & CsrIpMeip > 0 && cpu.selectHandlingInterrupt(InterruptMachineExtenal) {
+		return &Interrupt{InterruptMachineExtenal}
+	}
+
+	if cause & CsrIpMsip > 0 && cpu.selectHandlingInterrupt(InterruptMachineSoftware) {
+		return &Interrupt{InterruptMachineSoftware}
+	}
+
+	if cause & CsrIpMtip > 0 && cpu.selectHandlingInterrupt(InterruptMachineTimer) {
+		return &Interrupt{InterruptMachineTimer}
+	}
+
+	if cause & CsrIpHeip > 0 {
+		panic("unexpected event happened")
+	}
+
+	if cause & CsrIpHtip > 0 {
+		panic("unexpected event happened")
+	}
+
+	if cause & CsrIpHsip > 0 {
+		panic("unexpected event happened")
+	}
+
+	if cause & CsrIpSeip > 0 && cpu.selectHandlingInterrupt(InterruptSupervisorExternal) {
+		return &Interrupt{InterruptSupervisorExternal}
+	}
+
+	if cause & CsrIpSsip > 0 && cpu.selectHandlingInterrupt(InterruptSupervisorSoftware) {
+		return &Interrupt{InterruptSupervisorSoftware}
+	}
+
+	if cause & CsrIpStip > 0 && cpu.selectHandlingInterrupt(InterruptSupervisorTimer) {
+		return &Interrupt{InterruptSupervisorTimer}
+	}
+
+	if cause & CsrIpUeip > 0 && cpu.selectHandlingInterrupt(InterruptUserExternal) {
+		return &Interrupt{InterruptUserExternal}
+	}
+
+	if cause & CsrIpUtip > 0 && cpu.selectHandlingInterrupt(InterruptUserTimer) {
+		return &Interrupt{InterruptUserTimer}
+	}
+
+	if cause & CsrIpUsip > 0 && cpu.selectHandlingInterrupt(InterruptUserSoftware) {
+		return &Interrupt{InterruptUserSoftware}
+	}
+
+	return nil
+}
 
 /*
  * registers
