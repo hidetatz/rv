@@ -7,21 +7,18 @@ import (
 )
 
 const (
-	// mode
-	user       = 0
-	supervisor = 1
-	hypervisor = 2
-	machine    = 3
+	modeUser       = 0
+	modeSupervisor = 1
+	modeHypervisor = 2
+	modeMachine    = 3
 
-	// xlen. 128bit isn't supported in rv.
 	xlen32 = 0
 	xlen64 = 1
 
-	// memory size
-	byt        = 8 // "byte" is reserved
-	halfword   = 16
-	word       = 32
-	doubleword = 64
+	mByte        = 8
+	mHalfword   = 16
+	mWord       = 32
+	mDoubleword = 64
 
 	// csr stuff
 	sstatusmask        = 0b1000000000000000000000000000001100000000000011011110011101100010
@@ -282,7 +279,7 @@ func (cpu *CPU) catchException(trap *Trap, addr uint64) {
 	cpu.pc = cpu.getTrapNextPC()
 }
 
-func (cpu *CPU) checkIntrrupts() *Interrupt {
+func (cpu *CPU) checkInterrupts() *Interrupt {
 	mie := cpu.csr.readDirect(CsrMIE)
 	mip := cpu.csr.readDirect(CsrMIP)
 	cause := mie & mip & 0xfff
@@ -336,6 +333,10 @@ func (cpu *CPU) checkIntrrupts() *Interrupt {
 	}
 
 	return nil
+}
+
+func (cpu *CPU) interruptHandler(intr *Interrupt) {
+	trapCode := intr
 }
 
 /*
