@@ -68,31 +68,31 @@ const (
 	// trap
 
 	// exception
-	instAddrMisalighed  = 0
-	instAccessFault     = 1
-	illegalInst         = 2
-	breakpoint          = 3
-	loadAddrMisaligned  = 4
-	loadAccessFault     = 5
-	storeAddrMisaligned = 6
-	storeAccessFault    = 7
-	ecallFromU          = 8
-	ecallFromS          = 9
-	ecallFromM          = 11
-	instPageFault       = 12
-	loadPageFault       = 13
-	storePageFault      = 15
+	eInstAddrMisaligned  = 0
+	eInstAccessFault     = 1
+	eIllegalInst         = 2
+	eBreakpoint          = 3
+	eLoadAddrMisaligned  = 4
+	eLoadAccessFault     = 5
+	eStoreAddrMisaligned = 6
+	eStoreAccessFault    = 7
+	eEcallFromU          = 8
+	eEcallFromS          = 9
+	eEcallFromM          = 11
+	eInstPageFault       = 12
+	eLoadPageFault       = 13
+	eStorePageFault      = 15
 
 	// interrupt
-	userSoftwareIntr       = 0
-	supervisorSoftwareIntr = 1
-	machineSoftwareIntr    = 3
-	userTimerIntr          = 4
-	supervisorTimerIntr    = 5
-	machineTimerIntr       = 7
-	userExternalIntr       = 8
-	supervisorExternalIntr = 9
-	machineExternalIntr    = 11
+	iUserSoftware       = 0
+	iSupervisorSoftware = 1
+	iMachineSoftware    = 3
+	iUserTimer          = 4
+	iSupervisorTimer    = 5
+	iMachineTimer       = 7
+	iUserExternal       = 8
+	iSupervisorExternal = 9
+	iMachineExternal    = 11
 
 	// memory management
 	drambase = 0x8000_0000
@@ -279,21 +279,21 @@ func (cpu *CPU) catchException(trap *Trap, addr uint64) {
 	cpu.pc = cpu.getTrapNextPC()
 }
 
-func (cpu *CPU) checkInterrupts() *Interrupt {
+func (cpu *CPU) checkInterrupts() int {
 	mie := cpu.csr.readDirect(CsrMIE)
 	mip := cpu.csr.readDirect(CsrMIP)
 	cause := mie & mip & 0xfff
 
-	if cause & CsrIpMeip > 0 && cpu.selectHandlingInterrupt(InterruptMachineExtenal) {
-		return &Interrupt{InterruptMachineExtenal}
+	if cause & CsrIpMeip > 0 && cpu.selectHandlingInterrupt(iMachineExternal) {
+		return iMachineExternal
 	}
 
-	if cause & CsrIpMsip > 0 && cpu.selectHandlingInterrupt(InterruptMachineSoftware) {
-		return &Interrupt{InterruptMachineSoftware}
+	if cause & CsrIpMsip > 0 && cpu.selectHandlingInterrupt(iMachineSoftware) {
+		return iMachineSoftware
 	}
 
-	if cause & CsrIpMtip > 0 && cpu.selectHandlingInterrupt(InterruptMachineTimer) {
-		return &Interrupt{InterruptMachineTimer}
+	if cause & CsrIpMtip > 0 && cpu.selectHandlingInterrupt(iMachineTimer) {
+		return iMachineTimer
 	}
 
 	if cause & CsrIpHeip > 0 {
@@ -308,35 +308,97 @@ func (cpu *CPU) checkInterrupts() *Interrupt {
 		panic("unexpected event happened")
 	}
 
-	if cause & CsrIpSeip > 0 && cpu.selectHandlingInterrupt(InterruptSupervisorExternal) {
-		return &Interrupt{InterruptSupervisorExternal}
+	if cause & CsrIpSeip > 0 && cpu.selectHandlingInterrupt(iSupervisorExternal) {
+		return iSupervisorExternal
 	}
 
-	if cause & CsrIpSsip > 0 && cpu.selectHandlingInterrupt(InterruptSupervisorSoftware) {
-		return &Interrupt{InterruptSupervisorSoftware}
+	if cause & CsrIpSsip > 0 && cpu.selectHandlingInterrupt(iSupervisorSoftware) {
+		return iSupervisorSoftware
 	}
 
-	if cause & CsrIpStip > 0 && cpu.selectHandlingInterrupt(InterruptSupervisorTimer) {
-		return &Interrupt{InterruptSupervisorTimer}
+	if cause & CsrIpStip > 0 && cpu.selectHandlingInterrupt(iSupervisorTimer) {
+		return iSupervisorTimer
 	}
 
-	if cause & CsrIpUeip > 0 && cpu.selectHandlingInterrupt(InterruptUserExternal) {
-		return &Interrupt{InterruptUserExternal}
+	if cause & CsrIpUeip > 0 && cpu.selectHandlingInterrupt(iUserExternal) {
+		return iUserExternal
 	}
 
-	if cause & CsrIpUtip > 0 && cpu.selectHandlingInterrupt(InterruptUserTimer) {
-		return &Interrupt{InterruptUserTimer}
+	if cause & CsrIpUtip > 0 && cpu.selectHandlingInterrupt(iUserTimer) {
+		return iUserTimer
 	}
 
-	if cause & CsrIpUsip > 0 && cpu.selectHandlingInterrupt(InterruptUserSoftware) {
-		return &Interrupt{InterruptUserSoftware}
+	if cause & CsrIpUsip > 0 && cpu.selectHandlingInterrupt(iUserSoftware) {
+		return iUserSoftware
 	}
 
 	return nil
 }
 
-func (cpu *CPU) interruptHandler(intr *Interrupt) {
-	trapCode := intr
+func (cpu *CPU) interruptHandler(intr int) {
+	trapCode := uint8(intr)
+	previousPrivilege = cpu.privilege
+	nextPrivilege = cpu.getNextPrivilege(trapCode, true)
+
+	cpu.changePrivilege(nextPrivilege)
+	cpu.updateCsrTrapRegisters(cpu.pc, trapCode, cpu.pc, previousPrivilege, true)
+	cpu.pc = cpu.getTrapNextPC()
+
+	cpu.wfi = false
+}
+
+func (cpu *CPU) clearInterrupt(intr int) {
+	mip := cpu.csr.readDirect(CsrMip)
+	n := 0;
+	switch intr {
+	case iMachineExternal:
+		n = 0x800
+	case iSupervisorExternal:
+		n = 0x200	
+	case iUserExternal:
+		n = 0x100
+	case iMachineTimer:
+		n = 0x080
+	case iSupervisorTimer:
+		n = 0x020
+	case iUserTimer:
+		n = 0x010
+	case iMachineSoftware:
+		n = 0x008
+	case iSupervisorSoftware:
+		n = 0x002
+	case iUserSoftware:
+		n = 0x001
+	}
+
+	cpu.csr.writeDirect(CsrMip, mip & (^n))
+}
+
+func (cpu *CPU) selectHandlingInterrupt(intr int) bool {
+	trapCode := uint8(intr)
+	nextPrivilege := cpu.getNextPrivilege(trapCode, true)
+	ie, status := 0, 0
+	switch nextPrivilege {
+	case modeUser:
+		ie = cpu.csr.readDirect(CsrUie)
+		status = cpu.csr.readDirect(CsrUstatus)
+	case modeSupervisor:
+		ie = cpu.csr.readDirect(CsrSie)
+		status = cpu.csr.readDirect(CsrSstatus)
+	case modeHypervisor:
+		ie = cpu.csr.readDirect(CsrHie)
+		status = cpu.csr.readDirect(CsrHstatus)
+	case modeMachine:
+		ie = cpu.csr.readDirect(CsrMie)
+		status = cpu.csr.readDirect(CsrMstatus)
+	}
+
+	nextPrivilegeLevel := nextPrivilege
+	if privilegeLevel < privilegeLevel {
+		return false
+	}
+
+	
 }
 
 /*
