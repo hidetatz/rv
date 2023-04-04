@@ -394,11 +394,85 @@ func (cpu *CPU) selectHandlingInterrupt(intr int) bool {
 	}
 
 	nextPrivilegeLevel := nextPrivilege
-	if privilegeLevel < privilegeLevel {
+	privilegeLevel := cpu.privilege
+	if privilegeLevel < nextPrivilegeLevel {
 		return false
 	}
 
-	
+	uie := status & 1
+	sie := (status >> 1) & 1
+	hie := (status >> 2) & 1
+	uie := (status >> 3) & 1
+	if privilegeLevel == nextPrivilegeLevel {
+		switch cpu.privilege {
+		case modeUser:
+			if uie == 0 {
+				return false
+			}
+		case modeSupervisor:
+			if sie == 0 {
+				return false
+			}
+		case modeHypervisor:
+			if hie == 0 {
+				return false
+			}
+		case modeMachine:
+			if mie == 0 {
+				return false
+			}
+		}
+	}
+
+	switch intr {
+	case iMachineExternal:
+		meie := (ie >> 11) & 1
+		if meie == 0 {
+			return false
+		}
+	case iMachineSoftware:
+		msie := (ie >> 3) & 1
+		if msie == 0 {
+			return false
+		}
+	case iMachineTimer:
+		mtie := (ie >> 7) & 1
+		if mtie == 0 {
+			return false
+		}
+	case iSupervisorExternal:
+		seie := (ie >> 9) & 1
+		if seie == 0 {
+			return false
+		}
+	case iSupervisorSoftware:
+		ssie := (ie >> 1) & 1
+		if ssie == 0 {
+			return false
+		}
+	case iSupervisorTimer:
+		stie := (ie >> 5) & 1
+		if stie == 0 {
+			return false
+		}
+	case iUserExternal:
+		ueie := (ie >> 8) & 1
+		if ueie == 0 {
+			return false
+		}
+	case iUserSoftware:
+		usie := ie & 1
+		if usie == 0 {
+			return false
+		}
+	case iUserTimer:
+		utie := (ie >> 4) & 1
+		if utie == 0 {
+			return false
+		}
+	}
+
+	return true
 }
 
 /*
